@@ -1098,11 +1098,11 @@ function renderDash(){
   document.getElementById('d-dash').innerHTML=
     '<div style="font-size:12px;color:var(--mu2);margin-bottom:8px">📅 '+curYM.replace('-','년 ')+'월 이전 누적 기준</div>'
     +'<div class="g5 mb12"><div class="kpi"><div class="kl">누적 수입</div><div class="kv tg">'+f(tot.income)+'</div><div class="ks">월평균 '+f(ai)+'</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">누적 지출</div><div class="kv trd">'+f(tot.expense)+'</div><div class="ks">월평균 '+f(ae)+'</div><div class="kb" style="background:var(--rd)"></div></div><div class="kpi"><div class="kl">누적 순저축</div><div class="kv tb">'+f(sv)+'</div><div class="ks">수입-지출</div><div class="kb" style="background:var(--bl)"></div></div><div class="kpi"><div class="kl">평균 저축률</div><div class="kv ty">'+sr+'%</div><div class="ks">'+sums.length+'개월</div><div class="kb" style="background:var(--yw)"></div></div><div class="kpi"><div class="kl">현재 순자산</div><div class="kv tpu">'+f(latestNW)+'</div><div class="ks">최신 자산 기준</div><div class="kb" style="background:var(--pu)"></div></div></div>'
-    +'<div class="card mb12">'+renderAssetComp()+'</div>'
+    +(function(){try{return'<div class="card mb12">'+renderAssetComp()+'</div>';}catch(e){console.error('assetComp error',e);return'';}})()
     +'<div class="g2 mb12"><div class="card"><div class="card-title">📈 월별 수입·지출 추이</div><div style="position:relative;height:220px"><canvas id="dC"></canvas></div></div><div class="card"><div class="card-title">💎 순자산 성장 곡선</div>'+(nwData.length>1?'<div style="position:relative;height:220px"><canvas id="nwC"></canvas></div>':'<div class="em" style="padding:20px">자산관리 탭에서 월말 자산을 입력하면 표시돼요</div>')+'</div></div>'
     +'<div class="g2 mb12"><div class="card"><div class="card-title">📊 월별 저축률</div><div style="position:relative;height:160px"><canvas id="rC"></canvas></div></div><div class="card"><div class="card-title">📋 월별 요약</div><div class="ovx" style="max-height:200px;overflow-y:auto"><table class="tbl"><thead><tr><th>연월</th><th class="tr">수입</th><th class="tr">지출</th><th class="tr">저축</th><th class="tr">저축률</th><th class="tr">순자산</th></tr></thead><tbody>'+trows+'</tbody></table></div></div></div>'
     +'<div class="card"><div class="card-title">📅 월별 상세 현황</div><div id="mon-cards-container"></div></div>'
-    +renderAnnual(months)
+    +(function(){try{return renderAnnual(months);}catch(e){console.error('annual:',e);return '';}})()
   // 월별 상세 카드 삽입
   var mc=document.getElementById('mon-cards-container');
   if(mc)mc.appendChild(monCardsWrap);
@@ -1564,6 +1564,27 @@ function renderAssetComp(){
 
   return out;
 }
+
+// ── 연간 목표 데이터 (2026년 기준) ────────────────────────
+var ANNUAL_INCOME_GOALS=[
+  {sub:'레드윗 급여', goal:38890404},
+  {sub:'AZ 급여',     goal:18000000},
+  {sub:'투자수입',    goal:6000000},
+  {sub:'돌보미수입',  goal:3600000},
+  {sub:'보험금수입',  goal:2400000},
+  {sub:'중고거래수입',goal:2300000},
+  {sub:'기타수입',    goal:2400000}
+];
+var ANNUAL_SAVING_GOALS=[
+  {sub:'주택청약',    goal:1040000},
+  {sub:'ISA',         goal:1200000},
+  {sub:'IRP',         goal:1500000},
+  {sub:'연금저축펀드',goal:2000000},
+  {sub:'종신(KDB)',   goal:1203957},
+  {sub:'종신(라이나)',goal:1345767},
+  {sub:'대출상환',    goal:20400000}
+];
+var ANNUAL_BUDGET_TOTAL=51472989;
 
 function renderAnnual(months){
   var db=loadDB();
