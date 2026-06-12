@@ -612,29 +612,35 @@ function buildFixed(){
   var prevYM=getPrevYM(ym);
   var prevTxs=getTxs(prevYM);
   var prevMap={};
-  prevTxs.forEach(function(t){if(t.fixed){var k=t.mid+'|'+t.sub;if(!prevMap[k])prevMap[k]=[];prevMap[k].push(t);}});
+  prevTxs.forEach(function(t){if(t.fixed){var k=t.mid+'|'+t.sub+'|'+(t.memo||'');prevMap[k]=t;}});
 
   function getEntered(fi){
-    var _a=enteredMap[fi.mid+'|'+fi.sub]||[];
-    var _s=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;});
-    var _p=_s.indexOf(fi);
-    return(_p>=0&&_p<_a.length)?_a[_p]:(_a[0]||null);
+    // memo로 직접 찾기, 없으면 mid|sub만으로 폴백
+    var k1=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    if(enteredMap[k1])return enteredMap[k1];
+    // 같은 mid|sub 중 아무거나
+    var any=Object.keys(enteredMap).find(function(k){return k.indexOf(fi.mid+'|'+fi.sub+'|')===0;});
+    return any?enteredMap[any]:null;
   }
   function getPrevVal(fi){
-    var _a=prevMap[fi.mid+'|'+fi.sub]||[];
-    var _s=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;});
-    var _p=_s.indexOf(fi);
-    return(_p>=0&&_p<_a.length)?_a[_p]:(_a[0]||null);
+    var k1=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    if(prevMap[k1])return prevMap[k1];
+    var any=Object.keys(prevMap).find(function(k){return k.indexOf(fi.mid+'|'+fi.sub+'|')===0;});
+    return any?prevMap[any]:null;
   }
 
   var grpI=[],grpS=[],grpE=[];
   FX.forEach(function(fi,i){
-    // FX에서 같은 mid+sub 중 fi가 몇번째인지 기준으로 done 체크
-    var _sames=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;});
-    var _pos=_sames.indexOf(fi);
-    var _arr=enteredMap[fi.mid+'|'+fi.sub]||[];
-    // 입력된 거래가 이 항목의 포지션에 해당하는지
-    var done=_arr.length>_pos&&_pos>=0;
+    // memo로 직접 입력 완료 체크
+    var _k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    var done=!!enteredMap[_k];
+    // 없으면 mid|sub만으로 폴백 (단일 항목인 경우)
+    if(!done){
+      var _sames=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;});
+      if(_sames.length===1){
+        done=Object.keys(enteredMap).some(function(k){return k.indexOf(fi.mid+'|'+fi.sub+'|')===0;});
+      }
+    }
     if(fi.type==='수입')grpI.push({fi:fi,i:i,done:done});
     else if(fi.type==='저축')grpS.push({fi:fi,i:i,done:done});
     else grpE.push({fi:fi,i:i,done:done});
@@ -787,11 +793,13 @@ function saveSingleFixed(i){
   // 이미 입력된 항목이면 기존 거래 수정, 없으면 신규
   var ym=gYM();
   var txsThisMonth=getTxs(ym);
-  // 같은 mid+sub 중 FX 인덱스에 맞는 거래 찾기
-  var sameFixed=txsThisMonth.filter(function(t){return t.fixed&&t.mid===mid&&t.sub===sub;});
-  var sameFXItems=FX.filter(function(f){return f.mid===mid&&f.sub===sub;});
-  var fxPos=sameFXItems.indexOf(FX[i]);
-  var existing=sameFixed[fxPos]||sameFixed[0]||null;
+  // memo 기준으로 기존 거래 찾기 (보험료 등 구분)
+  var fxMemo=fi.memo||'';
+  var existing=txsThisMonth.find(function(t){
+    return t.fixed&&t.mid===mid&&t.sub===sub&&(t.memo||'')===(fxMemo);
+  })||txsThisMonth.find(function(t){
+    return t.fixed&&t.mid===mid&&t.sub===sub;
+  })||null;
   var evalVal=(type==='수입'||type==='저축')?'':(fi.eval||'소비');
   if(existing){
     updateTx(existing.id,{date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
