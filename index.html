@@ -415,7 +415,7 @@ var FX=[
 ];
 var FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 
-var FX_VERSION='2026-06-12-v3';  // FX 업데이트 시 변경
+var FX_VERSION='2026-06-12-v4';  // FX 업데이트 시 변경
 function loadFX(){
   try{
     var ver=localStorage.getItem('gaegyebu_fx_ver');
@@ -590,7 +590,8 @@ function buildFixed(){
   var enteredMap={};
   txsThisMonth.forEach(function(t){
     if(!t.fixed)return;
-    var k=t.mid+'|'+t.sub;
+    // 보험료처럼 sub 같고 memo로 구분하는 항목은 memo도 키에 포함
+    var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
     if(!enteredMap[k]||t.date>enteredMap[k].date)enteredMap[k]=t;
   });
 
@@ -598,10 +599,10 @@ function buildFixed(){
   var prevYM=getPrevYM(ym);
   var prevTxs=getTxs(prevYM);
   var prevMap={};
-  prevTxs.forEach(function(t){if(t.fixed){var k=t.mid+'|'+t.sub;if(!prevMap[k])prevMap[k]=t;}});
+  prevTxs.forEach(function(t){if(t.fixed){var k=t.mid+'|'+t.sub+'|'+(t.memo||'');if(!prevMap[k])prevMap[k]=t;}});
 
-  function getEntered(fi){return enteredMap[fi.mid+'|'+fi.sub]||null;}
-  function getPrevVal(fi){return prevMap[fi.mid+'|'+fi.sub]||null;}
+  function getEntered(fi){return enteredMap[fi.mid+'|'+fi.sub+'|'+(fi.memo||'')]||null;}
+  function getPrevVal(fi){return prevMap[fi.mid+'|'+fi.sub+'|'+(fi.memo||'')]||null;}
 
   var grpI=[],grpS=[],grpE=[];
   FX.forEach(function(fi,i){
@@ -759,7 +760,9 @@ function saveSingleFixed(i){
   var ym=gYM();
   var txsThisMonth=getTxs(ym);
   var existing=null;
-  txsThisMonth.forEach(function(t){if(t.fixed&&t.mid===mid&&t.sub===sub)existing=t;});
+  txsThisMonth.forEach(function(t){
+    if(t.fixed&&t.mid===mid&&t.sub===sub&&(t.memo||'')===(memo||''))existing=t;
+  });
   var evalVal=(type==='수입'||type==='저축')?'':(fi.eval||'소비');
   if(existing){
     updateTx(existing.id,{date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
