@@ -415,15 +415,25 @@ var FX=[
 ];
 var FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 
+var FX_VERSION='2026-06-12-v3';  // FX 업데이트 시 변경
 function loadFX(){
   try{
-    var saved=localStorage.getItem('gaegyebu_fx');
-    if(saved)FX=JSON.parse(saved);
+    var ver=localStorage.getItem('gaegyebu_fx_ver');
+    // 버전 다르면 새 기본값 사용 (localStorage 무시)
+    if(ver===FX_VERSION){
+      var saved=localStorage.getItem('gaegyebu_fx');
+      if(saved)FX=JSON.parse(saved);
+    }else{
+      // 새 버전 - 기본 FX 그대로 사용하고 버전만 저장
+      localStorage.setItem('gaegyebu_fx_ver', FX_VERSION);
+      localStorage.removeItem('gaegyebu_fx');
+    }
   }catch(e){}
   FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 }
 function saveFX(){
   localStorage.setItem('gaegyebu_fx',JSON.stringify(FX));
+  localStorage.setItem('gaegyebu_fx_ver',FX_VERSION);
   FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 }
 function addFxItem(item){FX.push(item);saveFX();}
@@ -624,7 +634,11 @@ function buildFixed(){
     var info=document.createElement('div');info.className='fxi-info';
 
     var nameDiv=document.createElement('div');nameDiv.className='fxi-name';
-    nameDiv.textContent=(CE[fi.mid]||'')+' '+fi.sub+' ';
+    // 보험료처럼 sub가 같은 항목은 memo로 구분해서 표시
+    var dispName=(fi.sub==='보험료'||fi.sub==='기타업무지출'||fi.sub==='기타수입')
+      ? (CE[fi.mid]||'')+' '+fi.memo
+      : (CE[fi.mid]||'')+' '+fi.sub;
+    nameDiv.textContent=dispName+' ';
     var badge=document.createElement('span');
     badge.className='bk '+(done?'bg':'byw');
     badge.style.fontSize='10px';badge.style.marginLeft='2px';
