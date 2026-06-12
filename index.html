@@ -24,7 +24,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--mu);flex-shrink:0}
 .sync-dot.ok{background:var(--gn)}.sync-dot.err{background:var(--rd)}.sync-dot.syn{background:var(--yw);animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-.main{margin-top:86px;padding:12px 16px}
+.main{margin-top:86px;padding:12px 20px;max-width:1400px;margin-left:auto;margin-right:auto}
 .pg{display:none}.pg.on{display:block}
 .card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;margin-bottom:12px}
 .card-title{font-size:12px;font-weight:700;color:var(--mu2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -174,7 +174,9 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     <button class="btn bg2 bsm" onclick="syncNow()">🔄 동기화</button>
     <button class="btn bg2 bsm" onclick="exportJSON()">📤</button>
     <button class="btn bg2 bsm" onclick="document.getElementById('importFile').click()">📥</button>
+    <button class="btn bg2 bsm" onclick="document.getElementById('csvFile').click()" title="뱅크샐러드 CSV 가져오기">🏦 CSV</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
+    <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="importBankSalad(event)">
   </div>
 </div>
 <div class="main">
@@ -285,7 +287,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
       <div><label>거래출처</label><select id="em-pay"></select></div>
     </div>
     <div class="fg c2">
-      <div><label>지출유형</label><select id="em-ev"><option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option></select></div>
+      <div id="em-evg"><label>지출유형</label><select id="em-ev"><option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option></select></div>
       <div><label>메모</label><input type="text" id="em-memo"></div>
     </div>
     <div class="fx g8 mt12">
@@ -523,6 +525,16 @@ function onYM(){
 }
 window.onload=function(){
   loadFX();
+  // 수입/저축 거래의 eval 정리 (기존 데이터 마이그레이션)
+  (function(){
+    var db=loadDB();var changed=false;
+    (db.txs||[]).forEach(function(t){
+      if((t.type==='수입'||t.type==='저축')&&t.eval){
+        t.eval='';changed=true;
+      }
+    });
+    if(changed){localStorage.setItem('gaegyebu',JSON.stringify(db));scheduleSync();}
+  })();
   var now=new Date();
   curYM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   calYM=curYM;
@@ -552,7 +564,7 @@ window.onload=function(){
   }
 };
 function onMid(){var m=document.getElementById('ti-mid').value;var c=CATS[m];document.getElementById('ti-type').value=c?c.p:'';var ss=document.getElementById('ti-sub');ss.innerHTML='';if(c)c.s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});document.getElementById('ti-evg').style.visibility=(c&&c.p==='지출')?'visible':'hidden';}
-function onEmMid(){var m=document.getElementById('em-mid').value;var c=CATS[m];document.getElementById('em-type').value=c?c.p:'';var ss=document.getElementById('em-sub');ss.innerHTML='';if(c)c.s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});}
+function onEmMid(){var m=document.getElementById('em-mid').value;var c=CATS[m];var p=c?c.p:'';document.getElementById('em-type').value=p;var ss=document.getElementById('em-sub');ss.innerHTML='';if(c)c.s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});var evg=document.getElementById('em-evg');if(evg)evg.style.display=(p==='지출')?'':'none';}
 function saveTx(){
   var id=document.getElementById('edit-id').value;
   var btn=document.getElementById('ti-btn');btn.disabled=true;
@@ -1290,6 +1302,219 @@ function renderAst(){
 }
 
 function onAst(el,ym,n){var a=Number(el.value)||0;el.style.borderColor='var(--bl)';saveAssetItem(ym,n,a);el.style.borderColor='var(--gn)';setTimeout(function(){el.style.borderColor='';renderAst();},500);}
+// ── 뱅크샐러드 CSV 가져오기 ──────────────────────────────
+// 뱅크샐러드 카테고리 → 가계부 중분류/소분류 매핑
+var BS_CAT_MAP={
+  // 식비
+  '식비':          {mid:'식비', sub:'식비'},
+  '외식':          {mid:'식비', sub:'외식'},
+  '카페/간식':     {mid:'식비', sub:'커피'},
+  '편의점/마트':   {mid:'생활', sub:'생필품'},
+  '배달음식':      {mid:'식비', sub:'배달'},
+  '식재료':        {mid:'식비', sub:'식자재'},
+  // 교통
+  '대중교통':      {mid:'교통', sub:'대중교통'},
+  '택시':          {mid:'교통', sub:'택시'},
+  '기차/버스':     {mid:'교통', sub:'철도'},
+  '주유':          {mid:'자동차', sub:'주유'},
+  '주차':          {mid:'자동차', sub:'주차/통행료'},
+  '자동차':        {mid:'자동차', sub:'유지비 등'},
+  // 쇼핑
+  '쇼핑':          {mid:'꾸밈', sub:'의류'},
+  '패션/미용':     {mid:'꾸밈', sub:'의류'},
+  '미용':          {mid:'꾸밈', sub:'미용실'},
+  '화장품':        {mid:'꾸밈', sub:'화장품'},
+  '의류':          {mid:'꾸밈', sub:'의류'},
+  // 주거
+  '주거/통신':     {mid:'주거', sub:'관리비'},
+  '통신':          {mid:'통신', sub:'휴대폰'},
+  '인터넷':        {mid:'통신', sub:'인터넷/TV'},
+  '전기/가스':     {mid:'주거', sub:'전기세'},
+  // 의료/건강
+  '의료/건강':     {mid:'건강', sub:'병원'},
+  '병원':          {mid:'건강', sub:'병원'},
+  '약국':          {mid:'건강', sub:'약국'},
+  // 문화/여가
+  '문화/여가':     {mid:'문화여가', sub:'기타문화비'},
+  '영화/공연':     {mid:'문화여가', sub:'영화관람'},
+  '여행':          {mid:'여행', sub:'기타여행비'},
+  '숙박':          {mid:'여행', sub:'숙박비'},
+  // 금융
+  '금융':          {mid:'금융지출', sub:'기타금융지출'},
+  '보험':          {mid:'금융지출', sub:'보험료'},
+  '이자':          {mid:'금융지출', sub:'이자/대출'},
+  // 교육
+  '교육':          {mid:'교육', sub:'학원/강의'},
+  // 수입
+  '급여':          {mid:'수입', sub:'레드윗 급여'},
+  '이자수익':      {mid:'수입', sub:'투자수입'},
+  '투자수익':      {mid:'수입', sub:'투자수입'},
+  '기타수입':      {mid:'수입', sub:'기타수입'},
+  // 기본값
+  '기타':          {mid:'생활', sub:'기타생활비'}
+};
+
+function importBankSalad(e){
+  var file=e.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var text=ev.target.result;
+      // BOM 제거
+      if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+      var lines=text.split('\n').filter(function(l){return l.trim();});
+      if(!lines.length){showToast('❌ 빈 파일이에요.');return;}
+
+      // 헤더 파싱
+      var header=lines[0].split(',').map(function(h){return h.trim().replace(/"/g,'');});
+      console.log('헤더:', header);
+
+      // 컬럼 인덱스 찾기 (뱅크샐러드 형식)
+      function findCol(names){
+        for(var i=0;i<names.length;i++){
+          var idx=header.findIndex(function(h){return h.includes(names[i]);});
+          if(idx>=0)return idx;
+        }
+        return -1;
+      }
+      var dateIdx=findCol(['날짜','일자','거래일']);
+      var typeIdx=findCol(['수입/지출','타입','구분']);
+      var catIdx=findCol(['카테고리','분류']);
+      var amtIdx=findCol(['금액','거래금액']);
+      var memoIdx=findCol(['내용','적요','가맹점']);
+      var payIdx=findCol(['결제수단','계좌','카드']);
+
+      if(dateIdx<0||amtIdx<0){
+        showToast('❌ CSV 형식을 인식못했어요. 헤더 확인 필요.');
+        console.log('헤더목록:', header);
+        return;
+      }
+
+      var imported=[];var skipped=0;
+      for(var i=1;i<lines.length;i++){
+        var cols=lines[i].split(',').map(function(c){return c.trim().replace(/"/g,'');});
+        if(cols.length<3)continue;
+        var dateRaw=cols[dateIdx]||'';
+        var typeRaw=typeIdx>=0?(cols[typeIdx]||''):'지출';
+        var catRaw=catIdx>=0?(cols[catIdx]||''):'기타';
+        var amtRaw=cols[amtIdx]||'0';
+        var memoRaw=memoIdx>=0?(cols[memoIdx]||''):'';
+        var payRaw=payIdx>=0?(cols[payIdx]||''):'';
+
+        // 날짜 파싱 (YYYY.MM.DD or YYYY-MM-DD or YYYY/MM/DD)
+        var dateStr=dateRaw.replace(/[./]/g,'-').slice(0,10);
+        if(dateStr.length!==10||dateStr[4]!=='-'||dateStr[7]!=='-'){skipped++;continue;}
+
+        // 금액 파싱
+        var amt=parseInt(amtRaw.replace(/[^0-9]/g,''))||0;
+        if(!amt){skipped++;continue;}
+
+        // 타입 판단
+        var txType='지출';
+        if(typeRaw.includes('수입')||typeRaw.includes('입금'))txType='수입';
+        else if(typeRaw.includes('저축')||typeRaw.includes('적금'))txType='저축';
+
+        // 카테고리 매핑
+        var mapped=null;
+        var catKeys=Object.keys(BS_CAT_MAP);
+        for(var k=0;k<catKeys.length;k++){
+          if(catRaw.includes(catKeys[k])){mapped=BS_CAT_MAP[catKeys[k]];break;}
+        }
+        if(!mapped)mapped={mid:txType==='수입'?'수입':'생활',sub:txType==='수입'?'기타수입':'기타생활비'};
+
+        // 수입이면 mid/sub 수입으로
+        if(txType==='수입'&&mapped.mid!=='수입'){
+          mapped={mid:'수입',sub:'기타수입'};
+        }
+
+        imported.push({
+          id:mkId(),date:dateStr,type:txType,
+          mid:mapped.mid,sub:mapped.sub,
+          amount:amt,memo:memoRaw,payment:payRaw,
+          eval:txType==='지출'?'소비':'',fixed:false
+        });
+      }
+
+      if(!imported.length){showToast('❌ 가져올 데이터가 없어요.');return;}
+
+      // 확인 모달 표시
+      showBsPreview(imported, skipped);
+    }catch(err){
+      console.error('CSV 파싱 오류:', err);
+      showToast('❌ CSV 파싱 오류: '+err.message);
+    }
+  };
+  reader.readAsText(file,'UTF-8');
+  e.target.value='';
+}
+
+function showBsPreview(txs, skipped){
+  var existing=document.getElementById('bs-preview-md');
+  if(existing)existing.remove();
+
+  var md=document.createElement('div');
+  md.className='mdbg on';md.id='bs-preview-md';
+  var inner=document.createElement('div');
+  inner.className='md';
+  inner.style.cssText='width:700px;max-width:96vw;max-height:85vh;overflow-y:auto';
+
+  // 헤더
+  var mdh=document.createElement('div');mdh.className='mdh';
+  var mdh_h3=document.createElement('h3');mdh_h3.textContent='🏦 뱅크샐러드 CSV 미리보기';mdh.appendChild(mdh_h3);
+  var mdh_x=document.createElement('button');mdh_x.className='mdc';mdh_x.textContent='✕';mdh_x.onclick=function(){document.getElementById('bs-preview-md').remove();};mdh.appendChild(mdh_x);
+  inner.appendChild(mdh);
+  var info=document.createElement('div');info.className='al inf mb8';
+  info.textContent=txs.length+'건 인식됨'+(skipped?' ('+skipped+'건 스킵)':'')+'· 카테고리 확인 후 가져오기하세요';
+  inner.appendChild(info);
+
+  // 샘플 테이블 (최대 30건)
+  var sample=txs.slice(0,30);
+  var tbl='<div class="ovx" style="max-height:380px;overflow-y:auto"><table class="tbl"><thead><tr>'
+    +'<th>날짜</th><th>유형</th><th>카테고리(매핑)</th><th>내용</th><th class="tr">금액</th>'
+    +'</tr></thead><tbody>';
+  tbl+=sample.map(function(t){
+    var tc=t.type==='수입'?'tg':t.type==='저축'?'tb':'trd';
+    return'<tr><td style="font-size:11px">'+t.date+'</td>'
+      +'<td><span class="bk '+(t.type==='수입'?'bg':t.type==='저축'?'bb':'br')+'" style="font-size:10px">'+t.type+'</span></td>'
+      +'<td style="font-size:11px">'+(CE[t.mid]||'')+' '+t.mid+' / '+t.sub+'</td>'
+      +'<td style="font-size:11px;color:var(--mu2)">'+t.memo+'</td>'
+      +'<td class="tr fw '+tc+'" style="font-size:11px">'+ff(t.amount)+'</td>'
+      +'</tr>';
+  }).join('');
+  if(txs.length>30)tbl+='<tr><td colspan="5" style="text-align:center;color:var(--mu);font-size:12px;padding:8px">... 외 '+(txs.length-30)+'건</td></tr>';
+  tbl+='</tbody></table></div>';
+  inner.innerHTML+=tbl;
+
+  var btnRow=document.createElement('div');btnRow.className='fx g8 mt12';
+  var b1=document.createElement('button');b1.className='btn bp';b1.textContent='📥 전체 가져오기 ('+txs.length+'건)';b1.onclick=confirmBsImport;btnRow.appendChild(b1);
+  var b2=document.createElement('button');b2.className='btn bg2';b2.textContent='취소';b2.onclick=function(){document.getElementById('bs-preview-md').remove();};btnRow.appendChild(b2);
+  inner.appendChild(btnRow);
+
+  md.appendChild(inner);
+  document.body.appendChild(md);
+  window._bsTxs=txs;
+}
+
+function confirmBsImport(){
+  var txs=window._bsTxs||[];
+  if(!txs.length)return;
+  var db=loadDB();
+  if(!db.txs)db.txs=[];
+  // 중복 체크 (같은 날짜+금액+메모)
+  var existKeys={};
+  db.txs.forEach(function(t){existKeys[t.date+'|'+t.amount+'|'+t.memo]=true;});
+  var added=0;
+  txs.forEach(function(t){
+    var key=t.date+'|'+t.amount+'|'+t.memo;
+    if(!existKeys[key]){db.txs.push(t);added++;}
+  });
+  saveDB(db);
+  document.getElementById('bs-preview-md').remove();
+  showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)');
+  if(curPage==='inp'){renderInpDash();renderHis();}
+  else if(curPage==='dash')renderDash();
+}
+
 function renderInpDash(){
   var ym=gYM();
   var sm=getMonthSummary(ym);
@@ -1428,163 +1653,186 @@ function renderAssetComp(){
   var am=assets[latestYM]||{};
   var r=calcNW(am);
 
-  // 자산 그룹 정의
-  var groups=[
-    {name:'연금',     color:'#3b82f6', items:['퇴직연금IRP','퇴직연금DC','연금저축펀드']},
-    {name:'저축/보험',color:'#8b5cf6', items:['KDB종신','라이나종신','주택청약','ISA']},
-    {name:'투자',     color:'#10b981', items:['주식계좌','비트코인']},
-    {name:'부동산',   color:'#f59e0b', items:['자동차(G80)','전세보증금']},
-    {name:'현금/기타',color:'#06b6d4', items:['현금/예금']}
+  // 세부 항목 직접 색상 지정
+  var assetItems=[
+    {name:'퇴직연금IRP',   color:'#2563eb'},
+    {name:'퇴직연금DC',    color:'#3b82f6'},
+    {name:'연금저축펀드',  color:'#60a5fa'},
+    {name:'KDB종신',       color:'#7c3aed'},
+    {name:'라이나종신',    color:'#8b5cf6'},
+    {name:'주택청약',      color:'#a78bfa'},
+    {name:'ISA',           color:'#c4b5fd'},
+    {name:'주식계좌',      color:'#059669'},
+    {name:'비트코인',      color:'#10b981'},
+    {name:'자동차(G80)',   color:'#d97706'},
+    {name:'전세보증금',    color:'#f59e0b'},
+    {name:'현금/예금',     color:'#06b6d4'}
   ];
+  // 그룹 색상 (범례용)
+  var groupColors={
+    '퇴직연금IRP':'#3b82f6','퇴직연금DC':'#3b82f6','연금저축펀드':'#3b82f6',
+    'KDB종신':'#8b5cf6','라이나종신':'#8b5cf6','주택청약':'#8b5cf6','ISA':'#8b5cf6',
+    '주식계좌':'#10b981','비트코인':'#10b981',
+    '자동차(G80)':'#f59e0b','전세보증금':'#f59e0b',
+    '현금/예금':'#06b6d4'
+  };
+  var groupName={
+    '퇴직연금IRP':'연금','퇴직연금DC':'연금','연금저축펀드':'연금',
+    'KDB종신':'저축/보험','라이나종신':'저축/보험','주택청약':'저축/보험','ISA':'저축/보험',
+    '주식계좌':'투자','비트코인':'투자',
+    '자동차(G80)':'부동산','전세보증금':'부동산',
+    '현금/예금':'현금/기타'
+  };
   var debtItems=['마통(신용대출)','자동차 할부 잔액','신용카드 미결제'];
+  var debtColors=['#dc2626','#ef4444','#f87171'];
 
-  groups.forEach(function(g){
-    g.total=g.items.reduce(function(s,n){return s+(Number(am[n])||0);},0);
-    g.detail=g.items.map(function(n){return{name:n,val:Number(am[n])||0};}).filter(function(x){return x.val>0;});
-  });
   var totalAsset=r.ta;
   var totalDebt=r.td;
-  var debtDetail=debtItems.map(function(n){return{name:n,val:Number(am[n])||0};}).filter(function(x){return x.val>0;});
 
-  // canvas id
-  var cid1='assetPie'+Date.now();
-  var cid2='nwPie'+Date.now();
+  // 차트 데이터 (값 있는 것만)
+  var chartData=assetItems.map(function(a){
+    return{name:a.name,val:Number(am[a.name])||0,color:a.color};
+  }).filter(function(x){return x.val>0;});
 
-  var out='<div class="card-title" style="margin-bottom:12px">🏦 자산 구성 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">'+latestYM+' 기준</span></div>';
-  out+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">';
+  var debtData=debtItems.map(function(n,i){
+    return{name:n,val:Number(am[n])||0,color:debtColors[i]};
+  }).filter(function(x){return x.val>0;});
 
-  // ── 왼쪽: 자산 구성 도넛 차트 ──────────────────────────────
-  out+='<div>';
-  out+='<div style="font-size:12px;font-weight:700;color:var(--mu2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">자산 구성</div>';
-  out+='<div style="display:flex;align-items:center;gap:16px">';
-  // 도넛 캔버스
-  out+='<div style="position:relative;width:160px;height:160px;flex-shrink:0">';
-  out+='<canvas id="'+cid1+'" width="160" height="160"></canvas>';
-  out+='<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">';
-  out+='<div style="font-size:11px;color:var(--mu)">총 자산</div>';
-  out+='<div style="font-size:14px;font-weight:900;color:var(--bl)">'+f(totalAsset)+'</div>';
-  out+='</div></div>';
-  // 범례 + 세부
-  out+='<div style="flex:1">';
-  groups.forEach(function(g){
-    if(!g.total)return;
-    var pct=Math.round(g.total/totalAsset*100);
-    out+='<div style="margin-bottom:8px">';
-    out+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">';
-    out+='<div style="width:10px;height:10px;border-radius:2px;background:'+g.color+';flex-shrink:0"></div>';
-    out+='<span style="font-size:12px;font-weight:700;color:var(--tx)">'+g.name+'</span>';
-    out+='<span style="font-size:11px;font-weight:700;color:'+g.color+';margin-left:auto">'+pct+'%</span>';
-    out+='<span style="font-size:11px;color:var(--mu2);min-width:60px;text-align:right">'+ff(g.total)+'</span>';
-    out+='</div>';
-    // 세부 항목
-    g.detail.forEach(function(d){
-      var dp=Math.round(d.val/totalAsset*100);
-      out+='<div style="display:flex;align-items:center;gap:5px;padding:1px 0 1px 14px">';
-      out+='<span style="font-size:10px;color:var(--mu);flex:1">'+d.name+'</span>';
-      out+='<span style="font-size:10px;color:var(--mu);min-width:24px;text-align:right">'+dp+'%</span>';
-      out+='<span style="font-size:10px;font-weight:700;color:var(--mu2);min-width:60px;text-align:right">'+ff(d.val)+'</span>';
-      out+='</div>';
-    });
-    out+='</div>';
+  var cid1='ac1_'+Date.now();
+  var cid2='ac2_'+Date.now();
+
+  var wrap=document.createElement('div');
+  var title=document.createElement('div');
+  title.className='card-title';
+  title.style.marginBottom='16px';
+  title.innerHTML='🏦 자산 구성 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">'+latestYM+' 기준</span>';
+  wrap.appendChild(title);
+
+  var grid=document.createElement('div');
+  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:32px';
+
+  // ── 왼쪽: 자산 구성 ─────────────────────────────────────
+  var leftDiv=document.createElement('div');
+  leftDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">자산 구성</div>';
+
+  var leftRow=document.createElement('div');
+  leftRow.style.cssText='display:flex;gap:24px;align-items:flex-start';
+
+  // 도넛
+  var cw1=document.createElement('div');
+  cw1.style.cssText='position:relative;width:200px;height:200px;flex-shrink:0';
+  var cv1=document.createElement('canvas');cv1.id=cid1;cv1.width=200;cv1.height=200;
+  var cl1=document.createElement('div');
+  cl1.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none';
+  cl1.innerHTML='<div style="font-size:10px;color:var(--mu)">총 자산</div><div style="font-size:16px;font-weight:900;color:var(--bl)">'+f(totalAsset)+'</div>';
+  cw1.appendChild(cv1);cw1.appendChild(cl1);
+  leftRow.appendChild(cw1);
+
+  // 세부 범례 (항목별)
+  var leg1=document.createElement('div');
+  leg1.style.cssText='flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;justify-content:center';
+  chartData.forEach(function(d){
+    var pct=Math.round(d.val/totalAsset*100);
+    if(!pct&&d.val<totalAsset*0.005)return; // 0.5% 미만 숨김
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:7px';
+    row.innerHTML='<div style="width:9px;height:9px;border-radius:2px;background:'+d.color+';flex-shrink:0"></div>'
+      +'<span style="font-size:11px;color:var(--mu2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.name+'</span>'
+      +'<span style="font-size:11px;font-weight:700;color:var(--tx);min-width:26px;text-align:right">'+pct+'%</span>'
+      +'<span style="font-size:11px;color:var(--mu);min-width:62px;text-align:right">'+ff(d.val)+'</span>';
+    leg1.appendChild(row);
   });
-  out+='</div></div></div>';
+  leftRow.appendChild(leg1);
+  leftDiv.appendChild(leftRow);
+  grid.appendChild(leftDiv);
 
-  // ── 오른쪽: 순자산 vs 부채 도넛 ───────────────────────────
-  out+='<div>';
-  out+='<div style="font-size:12px;font-weight:700;color:var(--mu2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">순자산 vs 부채</div>';
-  out+='<div style="display:flex;align-items:center;gap:16px">';
-  out+='<div style="position:relative;width:160px;height:160px;flex-shrink:0">';
-  out+='<canvas id="'+cid2+'" width="160" height="160"></canvas>';
-  out+='<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center">';
-  out+='<div style="font-size:11px;color:var(--mu)">순자산</div>';
-  out+='<div style="font-size:14px;font-weight:900;color:'+(r.nw>=0?'var(--pu)':'var(--rd)')+'">'+f(r.nw)+'</div>';
-  out+='</div></div>';
-  // 부채 범례 + 세부
-  out+='<div style="flex:1">';
+  // ── 오른쪽: 순자산 vs 부채 ──────────────────────────────
+  var rightDiv=document.createElement('div');
+  rightDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">순자산 VS 부채</div>';
+
+  var rightRow=document.createElement('div');
+  rightRow.style.cssText='display:flex;gap:24px;align-items:flex-start';
+
+  var cw2=document.createElement('div');
+  cw2.style.cssText='position:relative;width:200px;height:200px;flex-shrink:0';
+  var cv2=document.createElement('canvas');cv2.id=cid2;cv2.width=200;cv2.height=200;
+  var cl2=document.createElement('div');
+  cl2.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none';
+  cl2.innerHTML='<div style="font-size:10px;color:var(--mu)">순자산</div><div style="font-size:16px;font-weight:900;color:'+(r.nw>=0?'var(--pu)':'var(--rd)')+'">'+f(r.nw)+'</div>';
+  cw2.appendChild(cv2);cw2.appendChild(cl2);
+  rightRow.appendChild(cw2);
+
+  // 범례2
+  var leg2=document.createElement('div');
+  leg2.style.cssText='flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;justify-content:center';
+
   // 순자산
-  out+='<div style="margin-bottom:10px">';
-  out+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">';
-  out+='<div style="width:10px;height:10px;border-radius:2px;background:#8b5cf6;flex-shrink:0"></div>';
-  out+='<span style="font-size:12px;font-weight:700;color:var(--tx)">순자산</span>';
-  out+='<span style="font-size:11px;font-weight:700;color:var(--pu);margin-left:auto">'+(totalAsset>0?Math.round(r.nw/totalAsset*100):0)+'%</span>';
-  out+='<span style="font-size:11px;color:var(--mu2);min-width:60px;text-align:right">'+ff(r.nw)+'</span>';
-  out+='</div></div>';
-  // 부채 그룹
-  out+='<div>';
-  out+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">';
-  out+='<div style="width:10px;height:10px;border-radius:2px;background:#ef4444;flex-shrink:0"></div>';
-  out+='<span style="font-size:12px;font-weight:700;color:var(--rd)">부채</span>';
-  out+='<span style="font-size:11px;font-weight:700;color:var(--rd);margin-left:auto">'+(totalAsset>0?Math.round(totalDebt/totalAsset*100):0)+'%</span>';
-  out+='<span style="font-size:11px;color:var(--mu2);min-width:60px;text-align:right">'+ff(totalDebt)+'</span>';
-  out+='</div>';
-  debtDetail.forEach(function(d){
+  var nwPct=totalAsset>0?Math.round(r.nw/totalAsset*100):0;
+  var nwRow=document.createElement('div');
+  nwRow.style.cssText='display:flex;align-items:center;gap:7px;padding-bottom:8px;border-bottom:1px solid var(--bd);margin-bottom:4px';
+  nwRow.innerHTML='<div style="width:9px;height:9px;border-radius:2px;background:#8b5cf6;flex-shrink:0"></div>'
+    +'<span style="font-size:12px;font-weight:700;color:var(--tx);flex:1">순자산</span>'
+    +'<span style="font-size:12px;font-weight:700;color:var(--pu);min-width:26px;text-align:right">'+nwPct+'%</span>'
+    +'<span style="font-size:11px;color:var(--mu2);min-width:70px;text-align:right">'+ff(r.nw)+'</span>';
+  leg2.appendChild(nwRow);
+
+  // 부채 세부
+  debtData.forEach(function(d){
     var dp=totalDebt>0?Math.round(d.val/totalDebt*100):0;
-    out+='<div style="display:flex;align-items:center;gap:5px;padding:2px 0 2px 14px">';
-    out+='<span style="font-size:10px;color:var(--mu);flex:1">'+d.name+'</span>';
-    out+='<span style="font-size:10px;color:var(--mu);min-width:24px;text-align:right">'+dp+'%</span>';
-    out+='<span style="font-size:10px;font-weight:700;color:var(--rd);min-width:60px;text-align:right">-'+ff(d.val)+'</span>';
-    out+='</div>';
+    var dPctOfTotal=totalAsset>0?Math.round(d.val/totalAsset*100):0;
+    var row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:7px';
+    row.innerHTML='<div style="width:9px;height:9px;border-radius:2px;background:'+d.color+';flex-shrink:0"></div>'
+      +'<span style="font-size:11px;color:var(--rd);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+d.name+'</span>'
+      +'<span style="font-size:11px;font-weight:700;color:var(--rd);min-width:26px;text-align:right">'+dPctOfTotal+'%</span>'
+      +'<span style="font-size:11px;color:var(--mu2);min-width:70px;text-align:right">-'+ff(d.val)+'</span>';
+    leg2.appendChild(row);
   });
-  out+='</div>';
-  // 부채 비율 바
-  var debtRatio=totalAsset>0?Math.round(totalDebt/totalAsset*100):0;
-  out+='<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--bd)">';
-  out+='<div style="font-size:11px;color:var(--mu);margin-bottom:4px">부채 비율</div>';
-  out+='<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden">';
-  out+='<div style="width:'+Math.min(debtRatio,100)+'%;height:100%;background:'+(debtRatio>50?'var(--rd)':debtRatio>30?'var(--yw)':'var(--gn)')+';border-radius:3px"></div></div>';
-  out+='<div style="font-size:11px;font-weight:700;color:'+(debtRatio>50?'var(--rd)':debtRatio>30?'var(--yw)':'var(--gn)')+';margin-top:3px">'+debtRatio+'%</div>';
-  out+='</div>';
-  out+='</div></div></div>';
-  out+='</div>';
 
-  // 차트 렌더링 스케줄
+  // 부채비율 바
+  var dRatio=totalAsset>0?Math.round(totalDebt/totalAsset*100):0;
+  var bColor=dRatio>50?'var(--rd)':dRatio>30?'var(--yw)':'var(--gn)';
+  var dbar=document.createElement('div');
+  dbar.style.cssText='margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)';
+  dbar.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:5px">'
+    +'<span style="font-size:11px;color:var(--mu)">부채 비율</span>'
+    +'<span style="font-size:12px;font-weight:900;color:'+bColor+'">'+dRatio+'%</span></div>'
+    +'<div style="height:7px;background:var(--sf3);border-radius:4px;overflow:hidden">'
+    +'<div style="width:'+Math.min(dRatio,100)+'%;height:100%;background:'+bColor+';border-radius:4px"></div></div>';
+  leg2.appendChild(dbar);
+  rightRow.appendChild(leg2);
+  rightDiv.appendChild(rightRow);
+  grid.appendChild(rightDiv);
+  wrap.appendChild(grid);
+
+  // 차트
   setTimeout(function(){
-    var ctx1=document.getElementById(cid1);
-    var ctx2=document.getElementById(cid2);
-    if(ctx1){
-      new Chart(ctx1,{type:'doughnut',data:{
-        labels:groups.filter(function(g){return g.total>0;}).map(function(g){return g.name;}),
-        datasets:[{data:groups.filter(function(g){return g.total>0;}).map(function(g){return g.total;}),
-          backgroundColor:groups.filter(function(g){return g.total>0;}).map(function(g){return g.color;}),
-          borderWidth:2,borderColor:'#111118',hoverOffset:4}]
-      },options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': '+ff(c.raw)+' ('+Math.round(c.raw/totalAsset*100)+'%)';}}}}
+    var c1=document.getElementById(cid1);
+    var c2=document.getElementById(cid2);
+    if(c1&&typeof Chart!=='undefined'){
+      new Chart(c1,{type:'doughnut',data:{
+        labels:chartData.map(function(d){return d.name;}),
+        datasets:[{data:chartData.map(function(d){return d.val;}),
+          backgroundColor:chartData.map(function(d){return d.color;}),
+          borderWidth:2,borderColor:'#111118',hoverOffset:8}]
+      },options:{responsive:false,cutout:'65%',plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:function(c){return c.label+': '+ff(c.raw)+' ('+Math.round(c.raw/totalAsset*100)+'%)';}}}}
       }});
     }
-    if(ctx2){
-      var nwVal=Math.max(r.nw,0);
-      new Chart(ctx2,{type:'doughnut',data:{
-        labels:['순자산','부채'],
-        datasets:[{data:[nwVal,totalDebt],
-          backgroundColor:['#8b5cf6','#ef4444'],
-          borderWidth:2,borderColor:'#111118',hoverOffset:4}]
-      },options:{responsive:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return c.label+': '+ff(c.raw);}}}}
-      }});
+    if(c2&&typeof Chart!=='undefined'){
+      var c2data=[{name:'순자산',val:Math.max(r.nw,0),color:'#8b5cf6'}].concat(debtData);
+      new Chart(c2,{type:'doughnut',data:{
+        labels:c2data.map(function(d){return d.name;}),
+        datasets:[{data:c2data.map(function(d){return d.val;}),
+          backgroundColor:c2data.map(function(d){return d.color;}),
+          borderWidth:2,borderColor:'#111118',hoverOffset:8}]
+      },options:{responsive:false,cutout:'65%',plugins:{legend:{display:false},
+        tooltip:{callbacks:{label:function(c){return c.label+': '+ff(c.raw);}}}}}});
     }
-  },150);
+  },200);
 
-  return out;
+  return wrap.outerHTML;
 }
-
-// ── 연간 목표 데이터 (2026년 기준) ────────────────────────
-var ANNUAL_INCOME_GOALS=[
-  {sub:'레드윗 급여', goal:38890404},
-  {sub:'AZ 급여',     goal:18000000},
-  {sub:'투자수입',    goal:6000000},
-  {sub:'돌보미수입',  goal:3600000},
-  {sub:'보험금수입',  goal:2400000},
-  {sub:'중고거래수입',goal:2300000},
-  {sub:'기타수입',    goal:2400000}
-];
-var ANNUAL_SAVING_GOALS=[
-  {sub:'주택청약',    goal:1040000},
-  {sub:'ISA',         goal:1200000},
-  {sub:'IRP',         goal:1500000},
-  {sub:'연금저축펀드',goal:2000000},
-  {sub:'종신(KDB)',   goal:1203957},
-  {sub:'종신(라이나)',goal:1345767},
-  {sub:'대출상환',    goal:20400000}
-];
-var ANNUAL_BUDGET_TOTAL=51472989;
 
 function renderAnnual(months){
   var db=loadDB();
