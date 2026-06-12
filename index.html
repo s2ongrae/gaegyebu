@@ -222,7 +222,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
         <div id="ti-res" class="mt8"></div>
       </div>
       <div class="card">
-        <div class="card-title">📌 고정 거래 입력 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">항목별 날짜 선택 후 저장</span></div>
+        <div class="card-title">📌 고정 거래 입력 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">항목별 날짜 선택 후 저장</span><button onclick="openAddFx()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 추가</button></div>
         <div id="fi-list"></div>
       </div>
     </div>
@@ -239,7 +239,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
           <select class="search-sel" id="s-eval" onchange="renderHis()"><option value="">전체평가</option><option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option></select>
           <select class="search-sel" id="s-fixed" onchange="renderHis()"><option value="">고정+변동</option><option value="fixed">고정</option><option value="variable">변동</option></select>
         </div>
-        <div class="fx fxc g8 mb8">
+
+        <div class="fx fxc g8 mb8" id="his-bulk-bar">
           <input type="checkbox" id="his-all-cb" onclick="toggleSelectAll()" style="cursor:pointer;accent-color:var(--bl);width:15px;height:15px">
           <span style="font-size:12px;color:var(--mu2)">전체선택</span>
           <button class="btn brd bsm" onclick="deleteSelected()">🗑️ 선택 삭제</button>
@@ -309,6 +310,30 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 </div>
 
 <script>
+
+// 연간 목표 데이터 (2026년 기준)
+var ANNUAL={
+  income_goals:[
+    {name:'레드윗 급여', goal:38890404},
+    {name:'AZ 급여',     goal:18000000},
+    {name:'투자수입',    goal:6000000},
+    {name:'돌보미수입',  goal:3600000},
+    {name:'보험금수입',  goal:2400000},
+    {name:'중고거래수입',goal:2300000},
+    {name:'기타수입',    goal:2400000}
+  ],
+  saving_goals:[
+    {name:'주택청약',    goal:1040000},
+    {name:'ISA',         goal:1200000},
+    {name:'IRP',         goal:1500000},
+    {name:'연금저축펀드',goal:2000000},
+    {name:'종신(KDB)',   goal:1203957},
+    {name:'종신(라이나)',goal:1345767},
+    {name:'대출상환',    goal:20400000}
+  ],
+  budget_total: 51472989
+};
+
 var CATS={
   '식비':{'p':'지출','s':['식비','외식','배달','식자재','커피']},
   '생활':{'p':'지출','s':['생필품','생활서비스','생활용품','가구/가전','기타생활비']},
@@ -333,45 +358,76 @@ var PAYS=['현금','하나카드(신)','신한카드(신)','롯데카드(신)','
 var MC={'식비':'#06b6d4','생활':'#94a3b8','꾸밈':'#ec4899','교통':'#f97316','자동차':'#64748b','주거':'#84cc16','통신':'#22d3ee','건강':'#f43f5e','금융지출':'#a78bfa','문화여가':'#fbbf24','교육':'#34d399','유흥':'#ef4444','반려동물':'#fb923c','경조선물':'#e879f9','여행':'#38bdf8','업무지출':'#6366f1','수입':'#10b981','저축':'#3b82f6'};
 var CE={'식비':'🍱','생활':'🏠','꾸밈':'👔','교통':'🚌','자동차':'🚗','주거':'🏡','통신':'📱','건강':'💊','금융지출':'💳','문화여가':'🎬','교육':'📚','유흥':'🍻','반려동물':'🐱','경조선물':'🎁','여행':'✈️','업무지출':'💼','수입':'💰','저축':'🏦'};
 var FX=[
-  {type:'수입',mid:'수입',sub:'레드윗 급여',memo:'고정수입',amt:0,pay:'현금',eval:''},
-  {type:'수입',mid:'수입',sub:'AZ 급여',memo:'변동수입',amt:0,pay:'현금',eval:''},
-  {type:'수입',mid:'수입',sub:'돌보미수입',memo:'고정수입',amt:0,pay:'현금',eval:''},
-  {type:'수입',mid:'수입',sub:'투자수입',memo:'주식 배당금 + 순수익',amt:0,pay:'현금',eval:''},
-  {type:'저축',mid:'저축',sub:'주택청약',memo:'지속적',amt:20000,pay:'현금',eval:''},
-  {type:'저축',mid:'저축',sub:'IRP',memo:'개인형 퇴직연금',amt:250000,pay:'현금',eval:''},
-  {type:'저축',mid:'저축',sub:'연금저축펀드',memo:'연금저축',amt:500000,pay:'현금',eval:''},
-  {type:'저축',mid:'저축',sub:'종신(KDB)',memo:'KDB종신보험',amt:727699,pay:'현금',eval:''},
-  {type:'저축',mid:'저축',sub:'종신(라이나)',memo:'라이나종신',amt:202240,pay:'롯데카드(신)',eval:''},
-  {type:'지출',mid:'경조선물',sub:'엄마보험',memo:'메리츠(상해)',amt:53160,pay:'롯데카드(신)',eval:'투자'},
-  {type:'지출',mid:'경조선물',sub:'엄마적금',memo:'가족회비',amt:50000,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'통신',sub:'휴대폰',memo:'휴대폰요금',amt:23100,pay:'롯데카드(신)',eval:'소비'},
-  {type:'지출',mid:'통신',sub:'인터넷/TV',memo:'인터넷',amt:19800,pay:'롯데카드(신)',eval:'소비'},
-  {type:'지출',mid:'주거',sub:'대출이자',memo:'LH전세대출',amt:155000,pay:'롯데카드(신)',eval:'소비'},
-  {type:'지출',mid:'주거',sub:'관리비',memo:'관리비',amt:0,pay:'현금',eval:'소비'},
-  {type:'지출',mid:'주거',sub:'가스비',memo:'가스비',amt:0,pay:'신한카드(신)',eval:'소비'},
-  {type:'지출',mid:'주거',sub:'전기세',memo:'한전 - 전기세',amt:0,pay:'롯데카드(신)',eval:'소비'},
-  {type:'지출',mid:'주거',sub:'월세',memo:'월세',amt:0,pay:'현금',eval:'소비'},
-  {type:'지출',mid:'자동차',sub:'자동차 할부',memo:'G80 할부',amt:0,pay:'하나카드(신)',eval:'투자'},
-  {type:'지출',mid:'반려동물',sub:'펫보험/병원',memo:'메리펫보험(KB)',amt:39211,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'실비(농협생명)',amt:11890,pay:'롯데카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'종플랜(삼성화재)',amt:21490,pay:'신한카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'물리치료(삼성화재)',amt:10410,pay:'신한카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'독감(삼성화재)',amt:684,pay:'신한카드(신)',eval:'소비'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'종플랜(한화생명)',amt:27671,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'종합(DB손해)',amt:65800,pay:'롯데카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'운전자(DB손해)',amt:22380,pay:'롯데카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'운전자(카카오페이)',amt:7063,pay:'신한카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'고혈압(KDB생명)',amt:21505,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'골절창상상해응급(라이나손해)',amt:14550,pay:'롯데카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'미니암(미래에셋)',amt:550,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'흥국화재(용종)',amt:10235,pay:'롯데카드(신)',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'보험료',memo:'삼성생명(용종)',amt:7956,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'금융지출',sub:'이자/대출',memo:'마통이자(우리은행)',amt:0,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'업무지출',sub:'보험업무지출',memo:'보험 비서비',amt:90000,pay:'현금',eval:'투자'},
-  {type:'지출',mid:'업무지출',sub:'기타업무지출',memo:'카카오 톡서랍 구독',amt:1900,pay:'현대카드(신)',eval:'투자'},
-  {type:'지출',mid:'문화여가',sub:'구독료',memo:'유튜브 구독',amt:13900,pay:'롯데카드(신)',eval:'소비'}
+  // ── 수입 ──────────────────────────────────────────────────
+  {type:'수입',mid:'수입',sub:'레드윗 급여',  memo:'고정수입',                  amt:0,      pay:'현금',        eval:''},
+  {type:'수입',mid:'수입',sub:'AZ 급여',       memo:'변동수입',                  amt:0,      pay:'현금',        eval:''},
+  {type:'수입',mid:'수입',sub:'돌보미수입',    memo:'고정수입',                  amt:0,      pay:'현금',        eval:''},
+  {type:'수입',mid:'수입',sub:'투자수입',      memo:'주식 배당금 + 순수익',      amt:0,      pay:'현금',        eval:''},
+  {type:'수입',mid:'수입',sub:'기타수입',      memo:'네이버 멤버쉽',             amt:0,      pay:'',            eval:''},
+  {type:'수입',mid:'수입',sub:'기타수입',      memo:'다이소 쿠폰(알뜰폰)',       amt:0,      pay:'',            eval:''},
+  // ── 저축 ──────────────────────────────────────────────────
+  {type:'저축',mid:'저축',sub:'주택청약',      memo:'지속적',                    amt:20000,  pay:'현금',        eval:''},
+  {type:'저축',mid:'저축',sub:'ISA',           memo:'2027년 10월 만기',           amt:0,      pay:'현금',        eval:''},
+  {type:'저축',mid:'저축',sub:'IRP',           memo:'개인형 퇴직연금',            amt:250000, pay:'현금',        eval:''},
+  {type:'저축',mid:'저축',sub:'연금저축펀드',  memo:'연금저축',                  amt:500000, pay:'현금',        eval:''},
+  {type:'저축',mid:'저축',sub:'종신(KDB)',      memo:'37년 3월 / 인생탄탄유니버셜종신보험3종고급형', amt:103957, pay:'현금', eval:''},
+  {type:'저축',mid:'저축',sub:'종신(라이나)',   memo:'2035년 1월 만기 / 저축',    amt:202240, pay:'롯데카드(신)', eval:''},
+  // ── 경조선물 ───────────────────────────────────────────────
+  {type:'지출',mid:'경조선물',sub:'엄마보험',  memo:'메리츠 (상해)',              amt:83160,  pay:'현금',        eval:'투자'},
+  {type:'지출',mid:'경조선물',sub:'엄마적금',  memo:'회비5',                     amt:50000,  pay:'현금',        eval:'투자'},
+  // ── 통신 ──────────────────────────────────────────────────
+  {type:'지출',mid:'통신',sub:'휴대폰',        memo:'휴대폰요금',                amt:23100,  pay:'롯데카드(신)', eval:'소비'},
+  {type:'지출',mid:'통신',sub:'인터넷/TV',     memo:'인터넷',                    amt:43990,  pay:'신한카드(신)', eval:'소비'},
+  // ── 주거 ──────────────────────────────────────────────────
+  {type:'지출',mid:'주거',sub:'대출이자',      memo:'LH전세대출',                amt:170500, pay:'롯데카드(신)', eval:'소비'},
+  {type:'지출',mid:'주거',sub:'관리비',        memo:'관리비',                    amt:0,      pay:'현금',        eval:'소비'},
+  {type:'지출',mid:'주거',sub:'가스비',        memo:'가스비',                    amt:0,      pay:'신한카드(신)', eval:'소비'},
+  {type:'지출',mid:'주거',sub:'전기세',        memo:'한전 - 전기세',             amt:0,      pay:'롯데카드(신)', eval:'소비'},
+  {type:'지출',mid:'주거',sub:'월세',          memo:'월세',                      amt:100000, pay:'현금',        eval:'소비'},
+  // ── 자동차 ────────────────────────────────────────────────
+  {type:'지출',mid:'자동차',sub:'자동차 할부', memo:'G80 할부',                  amt:511070, pay:'하나카드(신)', eval:'투자'},
+  {type:'지출',mid:'자동차',sub:'자동차 보험', memo:'6개월 할부 3/6',            amt:246921, pay:'하나카드(신)', eval:'투자'},
+  {type:'지출',mid:'자동차',sub:'유지비 등',   memo:'제네시스 커넥티드',         amt:5670,   pay:'신한카드(신)', eval:'소비'},
+  // ── 반려동물 ───────────────────────────────────────────────
+  {type:'지출',mid:'반려동물',sub:'펫보험/병원',memo:'메리펫보험(KB)',           amt:39211,  pay:'신한카드(신)', eval:'투자'},
+  // ── 금융지출 - 보험료 ──────────────────────────────────────
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'실비(농협생명)',            amt:11890,  pay:'롯데카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'종플랜(삼성화재)',          amt:0,      pay:'신한카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'물리치료(삼성화재)',        amt:10410,  pay:'현금',        eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'독감(삼성화재)',            amt:684,    pay:'현금',        eval:'소비'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'종플랜(한화생명)',          amt:27671,  pay:'현금',        eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'종합(DB손해)',              amt:65800,  pay:'롯데카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'운전자(DB손해)',            amt:22380,  pay:'롯데카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'운전자(카카오페이)',        amt:7063,   pay:'신한카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'고혈압(KDB생명)',           amt:0,      pay:'롯데카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'골절,창상,상해,응급(라이나손해)', amt:14550, pay:'롯데카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'미니암(미래에셋)',          amt:550,    pay:'현금',        eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'흥국화재(용종)',            amt:10235,  pay:'신한카드(신)', eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'보험료',    memo:'삼성생명(용종)',            amt:7956,   pay:'현금',        eval:'투자'},
+  {type:'지출',mid:'금융지출',sub:'이자/대출', memo:'마통이자(우리은행)',        amt:0,      pay:'현금',        eval:'투자'},
+  // ── 업무지출 ───────────────────────────────────────────────
+  {type:'지출',mid:'업무지출',sub:'기타업무지출',memo:'원드라이브 구독',         amt:0,      pay:'롯데카드(신)', eval:'투자'},
+  {type:'지출',mid:'업무지출',sub:'보험업무지출',memo:'보험 비서비',             amt:90000,  pay:'현금',        eval:'투자'},
+  {type:'지출',mid:'업무지출',sub:'기타업무지출',memo:'카카오 톡서랍 구독',      amt:1900,   pay:'현금',        eval:'투자'},
+  // ── 문화여가 ───────────────────────────────────────────────
+  {type:'지출',mid:'문화여가',sub:'구독료',    memo:'유튜브 구독',               amt:0,      pay:'신한카드(신)', eval:'소비'},
+  {type:'지출',mid:'문화여가',sub:'풋살',      memo:'AZ 풋살',                   amt:0,      pay:'현금',        eval:'투자'}
 ];
 var FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
+
+function loadFX(){
+  try{
+    var saved=localStorage.getItem('gaegyebu_fx');
+    if(saved)FX=JSON.parse(saved);
+  }catch(e){}
+  FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
+}
+function saveFX(){
+  localStorage.setItem('gaegyebu_fx',JSON.stringify(FX));
+  FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
+}
+function addFxItem(item){FX.push(item);saveFX();}
+function removeFxItem(i){FX.splice(i,1);saveFX();}
 var AI=[
   {n:'주식계좌',emoji:'📈',cat:'투자',d:false},{n:'ISA',emoji:'📊',cat:'절세계좌',d:false},
   {n:'퇴직연금IRP',emoji:'🔐',cat:'연금',d:false},{n:'퇴직연금DC',emoji:'🏢',cat:'연금',d:false},
@@ -455,6 +511,7 @@ function onYM(){
   else if(curPage==='ast')renderAst();
 }
 window.onload=function(){
+  loadFX();
   var now=new Date();
   curYM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   calYM=curYM;
@@ -639,6 +696,11 @@ function buildFixed(){
     saveBtn.style.whiteSpace='nowrap';
     (function(ii){saveBtn.onclick=function(){saveSingleFixed(ii);};})(i);
     btnRow.appendChild(saveBtn);
+    var delBtn=document.createElement('button');
+    delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.title='항목 삭제';
+    delBtn.style.padding='4px 7px';
+    (function(ii){delBtn.onclick=function(){deleteFxItem(ii);};})(i);
+    btnRow.appendChild(delBtn);
     wrap.appendChild(btnRow);
 
     return wrap;
@@ -684,11 +746,12 @@ function saveSingleFixed(i){
   var txsThisMonth=getTxs(ym);
   var existing=null;
   txsThisMonth.forEach(function(t){if(t.fixed&&t.mid===mid&&t.sub===sub)existing=t;});
+  var evalVal=(type==='수입'||type==='저축')?'':(fi.eval||'소비');
   if(existing){
-    updateTx(existing.id,{date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:fi.eval||'소비',fixed:true});
+    updateTx(existing.id,{date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
     showToast('✅ '+sub+' 수정 완료!');
   }else{
-    addTx({date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:fi.eval||'소비',fixed:true});
+    addTx({date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
     showToast('✅ '+sub+' 저장 완료!');
   }
   buildFixed();
@@ -756,7 +819,8 @@ function renderHis(){
   var s4=document.createElement('span');s4.className='bk bgy';s4.textContent=txs.length+'건';div.appendChild(s4);
   sumEl.appendChild(div);
   var w=document.getElementById('d-his');
-  if(!txs.length){w.innerHTML='<div class="em">📭 거래 내역이 없어요</div>';document.getElementById('his-bulk-bar').style.display='none';return;}
+  var bulkBar=document.getElementById('his-bulk-bar');if(bulkBar)bulkBar.style.display='flex';
+  if(!txs.length){w.innerHTML='<div class="em">📭 거래 내역이 없어요</div>';if(bulkBar)bulkBar.style.display='none';return;}
   var TC={'수입':'bg','지출':'br','저축':'bb'};
   var EC={'소비':'bgy','낭비':'br','투자':'bpu'};
   var tbody=document.createElement('tbody');
@@ -1000,7 +1064,8 @@ function renderDash(){
     +'<div class="g5 mb12"><div class="kpi"><div class="kl">누적 수입</div><div class="kv tg">'+f(tot.income)+'</div><div class="ks">월평균 '+f(ai)+'</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">누적 지출</div><div class="kv trd">'+f(tot.expense)+'</div><div class="ks">월평균 '+f(ae)+'</div><div class="kb" style="background:var(--rd)"></div></div><div class="kpi"><div class="kl">누적 순저축</div><div class="kv tb">'+f(sv)+'</div><div class="ks">수입-지출</div><div class="kb" style="background:var(--bl)"></div></div><div class="kpi"><div class="kl">평균 저축률</div><div class="kv ty">'+sr+'%</div><div class="ks">'+sums.length+'개월</div><div class="kb" style="background:var(--yw)"></div></div><div class="kpi"><div class="kl">현재 순자산</div><div class="kv tpu">'+f(latestNW)+'</div><div class="ks">최신 자산 기준</div><div class="kb" style="background:var(--pu)"></div></div></div>'
     +'<div class="g2 mb12"><div class="card"><div class="card-title">📈 월별 수입·지출 추이</div><div style="position:relative;height:220px"><canvas id="dC"></canvas></div></div><div class="card"><div class="card-title">💎 순자산 성장 곡선</div>'+(nwData.length>1?'<div style="position:relative;height:220px"><canvas id="nwC"></canvas></div>':'<div class="em" style="padding:20px">자산관리 탭에서 월말 자산을 입력하면 표시돼요</div>')+'</div></div>'
     +'<div class="g2 mb12"><div class="card"><div class="card-title">📊 월별 저축률</div><div style="position:relative;height:160px"><canvas id="rC"></canvas></div></div><div class="card"><div class="card-title">📋 월별 요약</div><div class="ovx" style="max-height:200px;overflow-y:auto"><table class="tbl"><thead><tr><th>연월</th><th class="tr">수입</th><th class="tr">지출</th><th class="tr">저축</th><th class="tr">저축률</th><th class="tr">순자산</th></tr></thead><tbody>'+trows+'</tbody></table></div></div></div>'
-    +'<div class="card"><div class="card-title">📅 월별 상세 현황</div><div id="mon-cards-container"></div></div>';
+    +'<div class="card"><div class="card-title">📅 월별 상세 현황</div><div id="mon-cards-container"></div></div>'
+    +renderAnnual(months)
   // 월별 상세 카드 삽입
   var mc=document.getElementById('mon-cards-container');
   if(mc)mc.appendChild(monCardsWrap);
@@ -1186,6 +1251,308 @@ function renderAst(){
 }
 
 function onAst(el,ym,n){var a=Number(el.value)||0;el.style.borderColor='var(--bl)';saveAssetItem(ym,n,a);el.style.borderColor='var(--gn)';setTimeout(function(){el.style.borderColor='';renderAst();},500);}
+// ── 연간 목표 데이터 (2026년 기준, 시트) ──────────────────
+var ANNUAL_INCOME_GOALS=[
+  {sub:'레드윗 급여', goal:38890404},
+  {sub:'AZ 급여',     goal:18000000},
+  {sub:'투자수입',    goal:6000000},
+  {sub:'돌보미수입',  goal:3600000},
+  {sub:'보험금수입',  goal:2400000},
+  {sub:'중고거래수입',goal:2300000},
+  {sub:'기타수입',    goal:2400000}
+];
+var ANNUAL_SAVING_GOALS=[
+  {sub:'주택청약',    goal:1040000},
+  {sub:'ISA',         goal:1200000},
+  {sub:'IRP',         goal:1500000},
+  {sub:'연금저축펀드',goal:2000000},
+  {sub:'종신(KDB)',   goal:1203957},
+  {sub:'종신(라이나)',goal:1345767},
+  {sub:'대출상환',    goal:20400000}
+];
+var ANNUAL_BUDGET_TOTAL=51472989;
+
+function renderAnnual(months){
+  var db=loadDB();
+  var allTxs=(db.txs||[]).filter(function(t){return months.indexOf(t.date.slice(0,7))>=0;});
+
+  // 수입별 현황
+  var incMap={};
+  allTxs.filter(function(t){return t.type==='수입';}).forEach(function(t){
+    incMap[t.sub]=(incMap[t.sub]||0)+(Number(t.amount)||0);
+  });
+  var totalInc=Object.values(incMap).reduce(function(s,v){return s+v;},0);
+  var totalIncGoal=ANNUAL_INCOME_GOALS.reduce(function(s,g){return s+g.goal;},0);
+
+  // 저축별 현황
+  var savMap={};
+  allTxs.filter(function(t){return t.type==='저축';}).forEach(function(t){
+    savMap[t.sub]=(savMap[t.sub]||0)+(Number(t.amount)||0);
+  });
+  var totalSav=Object.values(savMap).reduce(function(s,v){return s+v;},0);
+  var totalSavGoal=ANNUAL_SAVING_GOALS.reduce(function(s,g){return s+g.goal;},0);
+
+  // 지출별 현황
+  var expMap={};
+  allTxs.filter(function(t){return t.type==='지출';}).forEach(function(t){
+    expMap[t.mid]=(expMap[t.mid]||0)+(Number(t.amount)||0);
+  });
+  var totalExp=Object.values(expMap).reduce(function(s,v){return s+v;},0);
+  var expRanked=Object.keys(expMap).map(function(k){return{name:k,amt:expMap[k]};})
+    .filter(function(x){return x.amt>0;})
+    .sort(function(a,b){return b.amt-a.amt;});
+
+  // 소비/낭비/투자
+  var evalMap={소비:0,낭비:0,투자:0};
+  allTxs.filter(function(t){return t.type==='지출';}).forEach(function(t){
+    if(evalMap[t.eval]!==undefined)evalMap[t.eval]+=(Number(t.amount)||0);
+  });
+  // 고정/변동
+  var fixExp=0,varExp=0;
+  allTxs.filter(function(t){return t.type==='지출';}).forEach(function(t){
+    if(isFixed(t))fixExp+=(Number(t.amount)||0);
+    else varExp+=(Number(t.amount)||0);
+  });
+
+  function pctBar(val,goal,color){
+    var pct=goal>0?Math.min(Math.round(val/goal*100),999):0;
+    var w=Math.min(pct,100);
+    var oc=pct>100?'var(--rd)':color;
+    return '<div class="prg" style="height:4px;margin-top:3px"><div class="prb" style="width:'+w+'%;background:'+oc+'"></div></div>'
+      +'<span style="font-size:10px;color:'+(pct>100?'var(--rd)':oc)+';font-weight:700">'+pct+'%</span>';
+  }
+  function mkGoalRow(name,val,goal,color){
+    var pct=goal>0?Math.min(Math.round(val/goal*100),999):0;
+    var oc=pct>100?'var(--rd)':color;
+    var w=Math.min(pct,100);
+    return '<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd);gap:8px">'
+      +'<span style="flex:1;font-size:12px;color:var(--tx)">'+name+'</span>'
+      +'<span style="font-size:11px;color:var(--mu2);min-width:60px;text-align:right">'+f(goal)+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:'+color+';min-width:65px;text-align:right">'+f(val)+'</span>'
+      +'<div style="width:80px">'
+      +'<div style="height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
+      +'<div style="width:'+w+'%;height:100%;background:'+oc+';border-radius:2px"></div></div>'
+      +'<span style="font-size:10px;color:'+oc+';font-weight:700">'+pct+'%</span>'
+      +'</div>'
+      +'</div>';
+  }
+
+  var budPct=ANNUAL_BUDGET_TOTAL>0?Math.round(totalExp/ANNUAL_BUDGET_TOTAL*100):0;
+  var budColor=budPct>100?'var(--rd)':budPct>80?'var(--yw)':'var(--gn)';
+
+  return ''
+    // 연간 예산 현황
+    +'<div class="card"><div class="card-title">📊 2026년 연간 결산</div>'
+    // 총 예산 vs 실적
+    +'<div style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<span style="font-size:13px;font-weight:700">연간 총 예산 사용률</span>'
+    +'<span style="font-size:18px;font-weight:900;color:'+budColor+'">'+budPct+'%</span>'
+    +'</div>'
+    +'<div style="display:flex;gap:16px;font-size:12px;margin-bottom:8px">'
+    +'<span style="color:var(--mu2)">예산 <strong style="color:var(--tx)">'+ff(ANNUAL_BUDGET_TOTAL)+'</strong></span>'
+    +'<span style="color:var(--mu2)">실적 <strong style="color:var(--rd)">'+ff(totalExp)+'</strong></span>'
+    +'<span style="color:var(--mu2)">잔액 <strong style="color:'+(ANNUAL_BUDGET_TOTAL-totalExp>=0?'var(--gn)':'var(--rd)')+'">'+ff(ANNUAL_BUDGET_TOTAL-totalExp)+'</strong></span>'
+    +'</div>'
+    +'<div style="height:10px;background:var(--sf3);border-radius:5px;overflow:hidden">'
+    +'<div style="width:'+Math.min(budPct,100)+'%;height:100%;background:'+budColor+';border-radius:5px;transition:width .5s"></div>'
+    +'</div>'
+    +'</div>'
+
+    // 소비/낭비/투자 + 고정/변동
+    +'<div class="g2" style="margin-bottom:12px">'
+    +'<div style="background:var(--sf2);border-radius:var(--rs);padding:12px">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--mu2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">지출 성격</div>'
+    +['소비','낭비','투자'].map(function(k){
+      var v=evalMap[k]||0;var pct2=totalExp>0?Math.round(v/totalExp*100):0;
+      var c=k==='낭비'?'var(--rd)':k==='투자'?'var(--pu)':'var(--mu2)';
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
+        +'<span style="font-size:12px;color:'+c+';font-weight:700;min-width:28px">'+k+'</span>'
+        +'<div style="flex:1;height:5px;background:var(--sf3);border-radius:3px;overflow:hidden">'
+        +'<div style="width:'+pct2+'%;height:100%;background:'+c+';border-radius:3px"></div></div>'
+        +'<span style="font-size:11px;color:'+c+';font-weight:700;min-width:35px">'+pct2+'%</span>'
+        +'<span style="font-size:11px;color:var(--mu2);min-width:50px;text-align:right">'+f(v)+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div>'
+    +'<div style="background:var(--sf2);border-radius:var(--rs);padding:12px">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--mu2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">고정 vs 변동</div>'
+    +[{k:'고정',v:fixExp,c:'var(--bl)'},{k:'변동',v:varExp,c:'var(--cy)'}].map(function(x){
+      var pct2=totalExp>0?Math.round(x.v/totalExp*100):0;
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
+        +'<span style="font-size:12px;color:'+x.c+';font-weight:700;min-width:28px">'+x.k+'</span>'
+        +'<div style="flex:1;height:5px;background:var(--sf3);border-radius:3px;overflow:hidden">'
+        +'<div style="width:'+pct2+'%;height:100%;background:'+x.c+';border-radius:3px"></div></div>'
+        +'<span style="font-size:11px;color:'+x.c+';font-weight:700;min-width:35px">'+pct2+'%</span>'
+        +'<span style="font-size:11px;color:var(--mu2);min-width:50px;text-align:right">'+f(x.v)+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div></div>'
+
+    // 수입 목표
+    +'<div class="g2">'
+    +'<div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--gn);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">'
+    +'<span>💰 수입 목표 달성률</span>'
+    +'<span style="font-size:11px;color:var(--mu2)">목표 '+f(totalIncGoal)+' / 현황 '+f(totalInc)+'</span>'
+    +'</div>'
+    +ANNUAL_INCOME_GOALS.map(function(g){
+      var v=incMap[g.sub]||0;
+      return mkGoalRow(g.sub,v,g.goal,'var(--gn)');
+    }).join('')
+    +'</div>'
+    +'<div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--bl);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">'
+    +'<span>🏦 저축 목표 달성률</span>'
+    +'<span style="font-size:11px;color:var(--mu2)">목표 '+f(totalSavGoal)+' / 현황 '+f(totalSav)+'</span>'
+    +'</div>'
+    +ANNUAL_SAVING_GOALS.map(function(g){
+      var v=savMap[g.sub]||0;
+      return mkGoalRow(g.sub,v,g.goal,'var(--bl)');
+    }).join('')
+    +'</div></div>'
+
+    // 지출 순위
+    +'<div style="margin-top:14px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:8px">🏆 카테고리별 지출 순위</div>'
+    +'<div class="ovx"><table class="tbl"><thead><tr>'
+    +'<th style="width:30px">순위</th><th>카테고리</th><th class="tr">지출금액</th><th class="tr">비중</th><th style="width:120px">비율</th>'
+    +'</tr></thead><tbody>'
+    +expRanked.map(function(x,idx){
+      var pct2=totalExp>0?(x.amt/totalExp*100).toFixed(1):0;
+      var w=Math.min(Math.round(x.amt/expRanked[0].amt*100),100);
+      var color=MC[x.name]||'var(--mu)';
+      return '<tr>'
+        +'<td style="font-size:12px;font-weight:700;color:var(--mu2)">'+(idx+1)+'</td>'
+        +'<td style="font-size:12px">'+(CE[x.name]||'')+' '+x.name+'</td>'
+        +'<td class="tr fw" style="font-size:12px;color:var(--rd)">'+ff(x.amt)+'</td>'
+        +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+pct2+'%</td>'
+        +'<td><div style="height:5px;background:var(--sf3);border-radius:3px;overflow:hidden">'
+        +'<div style="width:'+w+'%;height:100%;background:'+color+';border-radius:3px"></div></div></td>'
+        +'</tr>';
+    }).join('')
+    +'</tbody></table></div>'
+    +'</div>'
+
+    // 예산 항목별 상세
+    +'<div style="margin-top:14px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--yw);margin-bottom:10px">📋 카테고리별 예산 vs 실적</div>'
+    +'<div class="ovx"><table class="tbl"><thead><tr>'
+    +'<th>카테고리</th><th class="tr">연간예산</th><th class="tr">실적</th><th class="tr">잔액</th><th style="width:100px">사용률</th>'
+    +'</tr></thead><tbody>'
+    +function(){
+      // 예산 데이터 (시트 기준 연간)
+      var budgets=[
+        {name:'식비',        budget:2880000},
+        {name:'생활',        budget:780000},
+        {name:'꾸밈',        budget:1200000},
+        {name:'교통',        budget:600000},
+        {name:'자동차',      budget:22838213},
+        {name:'주거',        budget:4383000},
+        {name:'통신',        budget:536800},
+        {name:'건강',        budget:720000},
+        {name:'금융지출',    budget:3666208},
+        {name:'문화여가',    budget:452800},
+        {name:'교육',        budget:360000},
+        {name:'유흥',        budget:7460000},
+        {name:'반려동물',    budget:710532},
+        {name:'경조선물',    budget:2593160},
+        {name:'여행',        budget:1200000},
+        {name:'업무지출',    budget:1092276}
+      ];
+      return budgets.map(function(b){
+        var actual=expMap[b.name]||0;
+        var pct=b.budget>0?Math.min(Math.round(actual/b.budget*100),999):0;
+        var remain=b.budget-actual;
+        var color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
+        var w=Math.min(pct,100);
+        return'<tr>'
+          +'<td style="font-size:12px">'+(CE[b.name]||'')+' '+b.name+'</td>'
+          +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+ff(b.budget)+'</td>'
+          +'<td class="tr fw" style="font-size:12px;color:var(--rd)">'+ff(actual)+'</td>'
+          +'<td class="tr" style="font-size:12px;color:'+(remain>=0?'var(--gn)':'var(--rd)')+'">'+ff(remain)+'</td>'
+          +'<td><div style="display:flex;align-items:center;gap:5px">'
+          +'<div style="flex:1;height:5px;background:var(--sf3);border-radius:3px;overflow:hidden">'
+          +'<div style="width:'+w+'%;height:100%;background:'+color+';border-radius:3px"></div></div>'
+          +'<span style="font-size:10px;font-weight:700;color:'+color+';min-width:32px">'+pct+'%</span>'
+          +'</div></td>'
+          +'</tr>';
+      }).join('');
+    }()
+    +'</tbody></table></div>'
+    +'</div>'
+
+    +'</div>';
+}
+
+function openAddFx(){
+  var md=document.createElement('div');
+  md.className='mdbg on';
+  md.id='add-fx-md';
+  md.innerHTML='<div class="md">'
+    +'<div class="mdh"><h3>➕ 고정 거래 추가</h3><button class="mdc" onclick="document.getElementById(\'add-fx-md\').remove()">✕</button></div>'
+    +'<div class="fg c2">'
+    +'<div><label>대분류</label><select id="afx-type" onchange="onAfxType()" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<option value="수입">수입</option><option value="저축">저축</option><option value="지출" selected>지출</option>'
+    +'</select></div>'
+    +'<div><label>중분류</label><select id="afx-mid" onchange="onAfxMid()" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'</div>'
+    +'<div class="fg c2">'
+    +'<div><label>소분류</label><select id="afx-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'<div><label>기본금액</label><input type="number" id="afx-amt" min="0" placeholder="0" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'</div>'
+    +'<div class="fg c2">'
+    +'<div><label>결제수단</label><select id="afx-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +['현금','하나카드(신)','신한카드(신)','롯데카드(신)','현대카드(신)','토스카드(체)'].map(function(p){return'<option>'+p+'</option>';}).join('')
+    +'</select></div>'
+    +'<div><label>지출유형</label><select id="afx-eval" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option>'
+    +'</select></div>'
+    +'</div>'
+    +'<div class="fg"><label>메모</label><input type="text" id="afx-memo" placeholder="메모" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="fx g8 mt8">'
+    +'<button class="btn bp" onclick="confirmAddFx()">💾 추가</button>'
+    +'<button class="btn bg2" onclick="document.getElementById(\'add-fx-md\').remove()">취소</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(md);
+  onAfxType();
+}
+function onAfxType(){
+  var type=document.getElementById('afx-type').value;
+  var midSel=document.getElementById('afx-mid');
+  midSel.innerHTML='';
+  Object.keys(CATS).filter(function(m){return CATS[m].p===type;}).forEach(function(m){
+    var o=document.createElement('option');o.value=o.textContent=m;midSel.appendChild(o);
+  });
+  onAfxMid();
+}
+function onAfxMid(){
+  var m=document.getElementById('afx-mid').value;
+  var ss=document.getElementById('afx-sub');ss.innerHTML='';
+  if(CATS[m])CATS[m].s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});
+}
+function confirmAddFx(){
+  var type=document.getElementById('afx-type').value;
+  var mid=document.getElementById('afx-mid').value;
+  var sub=document.getElementById('afx-sub').value;
+  var amt=Number(document.getElementById('afx-amt').value)||0;
+  var pay=document.getElementById('afx-pay').value;
+  var memo=document.getElementById('afx-memo').value;
+  var eval2=(type==='수입'||type==='저축')?'':document.getElementById('afx-eval').value;
+  if(!mid||!sub){showToast('⚠️ 카테고리를 선택해주세요.');return;}
+  addFxItem({type:type,mid:mid,sub:sub,memo:memo,amt:amt,pay:pay,eval:eval2});
+  document.getElementById('add-fx-md').remove();
+  buildFixed();
+  showToast('✅ 고정 항목 추가됐어요!');
+}
+function deleteFxItem(i){
+  if(!confirm('이 고정 항목을 삭제할까요?'))return;
+  removeFxItem(i);
+  buildFixed();
+  showToast('🗑️ 삭제됐어요.');
+}
+
 </script>
 </body>
 </html>
