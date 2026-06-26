@@ -934,6 +934,7 @@ function renderHis(){
   var groupOrder=[];
   txs.forEach(function(t){
     var d=t.date||'';
+    if(!d)return;  // 날짜 없는 거래 스킵
     if(!groups[d]){groups[d]=[];groupOrder.push(d);}
     groups[d].push(t);
   });
@@ -942,10 +943,11 @@ function renderHis(){
   groupOrder.forEach(function(date){
     var dayTxs=groups[date];
     // 날짜 헤더
-    var dateObj=new Date(date+'T00:00:00');
+    var dp=date.split('-');
+    var dateObj=new Date(parseInt(dp[0]),parseInt(dp[1])-1,parseInt(dp[2]));
     var dow=DAYS[dateObj.getDay()];
-    var mm=parseInt(date.slice(5,7));
-    var dd=parseInt(date.slice(8,10));
+    var mm=parseInt(dp[1]);
+    var dd=parseInt(dp[2]);
 
     // 당일 수입/지출 합계
     var dayInc=0,dayExp=0;
