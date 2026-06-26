@@ -782,25 +782,28 @@ function saveSingleFixed(i){
   var dateEl=document.getElementById('fx-date-'+i);
   var date=dateEl?dateEl.value:'';
   if(!date){showToast('⚠️ 날짜를 선택해주세요.');return;}
+
   var amtEl=document.getElementById('fx-amt-'+i);
-  var amt=Number(amtEl?amtEl.value:0)||fi.amt||0;
+  var amt=Number(amtEl?amtEl.value:'');
   if(!amt){showToast('⚠️ 금액을 입력해주세요.');return;}
+
   var mid=document.getElementById('fx-mid-'+i)?document.getElementById('fx-mid-'+i).value:fi.mid;
   var sub=document.getElementById('fx-sub-'+i)?document.getElementById('fx-sub-'+i).value:fi.sub;
   var pay=document.getElementById('fx-pay-'+i)?document.getElementById('fx-pay-'+i).value:fi.pay;
+  // 입력창의 현재 메모값 사용 (fi.memo 아님!)
   var memo=document.getElementById('fx-memo-'+i)?document.getElementById('fx-memo-'+i).value:fi.memo;
   var type=fi.type||(CATS[mid]?CATS[mid].p:'지출');
-  // 이미 입력된 항목이면 기존 거래 수정, 없으면 신규
-  var ym=gYM();
-  var txsThisMonth=getTxs(ym);
-  // memo 기준으로 기존 거래 찾기 (보험료 등 구분)
-  var fxMemo=fi.memo||'';
-  var existing=txsThisMonth.find(function(t){
-    return t.fixed&&t.mid===mid&&t.sub===sub&&(t.memo||'')===(fxMemo);
-  })||txsThisMonth.find(function(t){
-    return t.fixed&&t.mid===mid&&t.sub===sub;
-  })||null;
   var evalVal=(type==='수입'||type==='저축')?'':(fi.eval||'소비');
+  var ym=gYM();
+
+  // 기존 거래 찾기: fi.memo(원래 FX 메모) OR 입력창 메모로 찾기
+  var txsThisMonth=getTxs(ym);
+  var existing=txsThisMonth.find(function(t){
+    return t.fixed&&t.mid===mid&&t.sub===sub&&(t.memo||'')===(fi.memo||'');
+  })||txsThisMonth.find(function(t){
+    return t.fixed&&t.mid===mid&&t.sub===sub&&(t.memo||'')===(memo||'');
+  })||null;
+
   if(existing){
     updateTx(existing.id,{date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
     showToast('✅ '+sub+' 수정 완료!');
@@ -808,6 +811,13 @@ function saveSingleFixed(i){
     addTx({date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
     showToast('✅ '+sub+' 저장 완료!');
   }
+
+  // FX 기본값도 업데이트 (금액이 바뀐 경우)
+  if(fi.amt !== amt){
+    FX[i].amt=amt;
+    saveFX();
+  }
+
   buildFixed();
   renderHis();
 }
@@ -819,25 +829,6 @@ function getPrevYM(ym){
 }
 
 function toggleFxi(idOrBtn){var id=typeof idOrBtn==='string'?idOrBtn:(idOrBtn.dataset&&idOrBtn.dataset.fxi?idOrBtn.dataset.fxi:idOrBtn);if(typeof id==='string'){var el=document.getElementById(id);if(el)el.classList.toggle('open');}}
-function saveSingleFixed(i){
-  var fi=FX[i];
-  var dateEl=document.getElementById('fx-date-'+i);
-  var date=dateEl?dateEl.value:'';
-  if(!date){showToast('⚠️ 날짜를 선택해주세요.');return;}
-  var amtEl=document.getElementById('fx-amt-'+i);
-  var amt=Number(amtEl?amtEl.value:0)||fi.amt||0;
-  if(!amt){showToast('⚠️ 금액을 입력해주세요.');return;}
-  var mid=document.getElementById('fx-mid-'+i)?document.getElementById('fx-mid-'+i).value:fi.mid;
-  var sub=document.getElementById('fx-sub-'+i)?document.getElementById('fx-sub-'+i).value:fi.sub;
-  var pay=document.getElementById('fx-pay-'+i)?document.getElementById('fx-pay-'+i).value:fi.pay;
-  var memo=document.getElementById('fx-memo-'+i)?document.getElementById('fx-memo-'+i).value:fi.memo;
-  var type=fi.type||(CATS[mid]?CATS[mid].p:'지출');
-  addTx({date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:fi.eval||'소비',fixed:true});
-  showToast('✅ '+sub+' 저장 완료!');
-  buildFixed();
-  renderHis();
-}
-
 function onFxMid(i){var m=document.getElementById('fx-mid-'+i).value;var ss=document.getElementById('fx-sub-'+i);if(!ss||!CATS[m])return;ss.innerHTML=CATS[m].s.map(function(s){return'<option value="'+s+'">'+s+'</option>';}).join('');}
 function renderHis(){
   var ym=gYM();
