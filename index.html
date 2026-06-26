@@ -1953,6 +1953,18 @@ function renderAssetComp(){
 }
 
 function renderAnnual(months){
+  // 연간 목표 (함수 내부 선언으로 항상 사용 가능)
+  var ANNUAL_INCOME_GOALS=[
+    {sub:'레드윗 급여', goal:38890404},{sub:'AZ 급여',goal:18000000},
+    {sub:'투자수입',goal:6000000},{sub:'돌보미수입',goal:3600000},
+    {sub:'보험금수입',goal:2400000},{sub:'중고거래수입',goal:2300000},{sub:'기타수입',goal:2400000}
+  ];
+  var ANNUAL_SAVING_GOALS=[
+    {sub:'주택청약',goal:1040000},{sub:'ISA',goal:1200000},{sub:'IRP',goal:1500000},
+    {sub:'연금저축펀드',goal:2000000},{sub:'종신(KDB)',goal:1203957},
+    {sub:'종신(라이나)',goal:1345767},{sub:'대출상환',goal:20400000}
+  ];
+  var ANNUAL_BUDGET_TOTAL=51472989;
   var db=loadDB();
   var allTxs=(db.txs||[]).filter(function(t){return months.indexOf(t.date.slice(0,7))>=0;});
 
