@@ -213,13 +213,20 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
       <div class="card">
         <div class="card-title" id="inp-title">✏️ 거래 입력</div>
         <input type="hidden" id="edit-id">
+        <div class="mb8">
+          <label style="font-size:12px;font-weight:700;color:var(--mu2)">🔍 카테고리 검색</label>
+          <div id="ti-ac-wrap" style="position:relative;margin-top:4px">
+            <input id="ti-ac" class="ac-input" placeholder="예: 식비, 커피, 주유, 배달..." autocomplete="off">
+            <div id="ti-ac-drop" class="ac-drop"></div>
+          </div>
+        </div>
         <div class="fg c2">
           <div><label>날짜</label><input type="date" id="ti-date"></div>
-          <div id="ti-mid-wrap"><label>중분류</label><select id="ti-mid" onchange="onMid()" style="display:none"><option value="">-- 선택 --</option></select></div>
+          <div id="ti-mid-wrap"><label>중분류</label><select id="ti-mid" onchange="onMid()"><option value="">-- 선택 --</option></select></div>
         </div>
         <div class="fg c2">
           <div><label>대분류(자동)</label><input type="text" id="ti-type" readonly style="color:var(--mu2)"></div>
-          <div id="ti-sub-wrap"><label>소분류</label><select id="ti-sub" style="display:none"></select></div>
+          <div id="ti-sub-wrap"><label>소분류</label><select id="ti-sub"></select></div>
         </div>
         <div class="fg c2">
           <div><label>금액(원)</label><input type="number" id="ti-amt" placeholder="0" min="0"></div>
@@ -685,33 +692,73 @@ function makeAcInput(wrap, onSelect){
 }
 
 function initTxAc(){
-  // 거래 입력 폼의 중분류/소분류를 자동완성으로 교체
-  var midWrap=document.getElementById('ti-mid-wrap');
-  var subWrap=document.getElementById('ti-sub-wrap');
-  if(!midWrap||!subWrap)return;
+  var inp=document.getElementById('ti-ac');
+  var drop=document.getElementById('ti-ac-drop');
+  if(!inp||!drop)return;
 
-  // 기존 select 숨기기
-  var midSel=document.getElementById('ti-mid');
-  var subSel=document.getElementById('ti-sub');
-  if(midSel)midSel.style.display='none';
-  if(subSel)subSel.style.display='none';
+  // 이미 이벤트 등록됐으면 스킵
+  if(inp._acInit)return;
+  inp._acInit=true;
 
-  // 기존 자동완성 있으면 제거
-  var existing=midWrap.querySelector('.ac-wrap');
-  if(existing)existing.remove();
+  var acData=buildAcData();
+  var selIdx=-1;
 
-  makeAcInput(midWrap, function(d){
-    // 선택 시 숨겨진 select 값도 동기화
-    document.getElementById('ti-type').value=d.type;
-    var ms=document.getElementById('ti-mid');
-    if(ms){ms.value=d.mid;onMid();}
-    var ss=document.getElementById('ti-sub');
-    if(ss)ss.value=d.sub;
-    // 지출유형 표시/숨김
-    var evg=document.getElementById('ti-evg');
-    if(evg)evg.style.visibility=(d.type==='지출')?'visible':'hidden';
+  function renderDrop(kw){
+    drop.innerHTML='';selIdx=-1;
+    var kw2=(kw||'').trim().toLowerCase();
+    var results=kw2
+      ?acData.filter(function(d){
+          return d.mid.toLowerCase().includes(kw2)||d.sub.toLowerCase().includes(kw2);
+        })
+      :[];
+    if(!results.length){drop.classList.remove('open');return;}
+    results.slice(0,25).forEach(function(d,i){
+      var item=document.createElement('div');item.className='ac-item';
+      item.innerHTML='<span style="font-size:14px">'+(d.subIcon||d.icon||'')+'</span>'
+        +'<span class="ac-main">'+d.mid+'</span>'
+        +'<span style="color:var(--mu);font-size:12px;margin:0 4px">/</span>'
+        +'<span style="font-size:12px;color:var(--tx)">'+d.sub+'</span>'
+        +'<span class="ac-sub ac-badge '+(d.type==='수입'?'bg':d.type==='저축'?'bb':'br')+'" style="margin-left:auto">'+d.type+'</span>';
+      item.onmousedown=function(e){
+        e.preventDefault();
+        // 중분류 select 업데이트
+        var midSel=document.getElementById('ti-mid');
+        if(midSel){midSel.value=d.mid;onMid();}
+        // 소분류 select 업데이트 (onMid 후에)
+        setTimeout(function(){
+          var subSel=document.getElementById('ti-sub');
+          if(subSel)subSel.value=d.sub;
+        },50);
+        // 대분류 업데이트
+        var typeSel=document.getElementById('ti-type');
+        if(typeSel)typeSel.value=d.type;
+        // 지출유형 표시
+        var evg=document.getElementById('ti-evg');
+        if(evg)evg.style.visibility=(d.type==='지출')?'visible':'hidden';
+        // 입력창 표시
+        inp.value=d.mid+' / '+d.sub;
+        drop.classList.remove('open');
+      };
+      drop.appendChild(item);
+    });
+    drop.classList.add('open');
+  }
+
+  inp.addEventListener('input',function(){renderDrop(inp.value);});
+  inp.addEventListener('focus',function(){if(inp.value)renderDrop(inp.value);});
+  inp.addEventListener('blur',function(){setTimeout(function(){drop.classList.remove('open');},150);});
+  inp.addEventListener('keydown',function(e){
+    var items=drop.querySelectorAll('.ac-item');
+    if(!items.length)return;
+    if(e.key==='ArrowDown'){e.preventDefault();selIdx=Math.min(selIdx+1,items.length-1);}
+    else if(e.key==='ArrowUp'){e.preventDefault();selIdx=Math.max(selIdx-1,0);}
+    else if(e.key==='Enter'&&selIdx>=0){items[selIdx].onmousedown(e);return;}
+    else if(e.key==='Escape'){drop.classList.remove('open');return;}
+    items.forEach(function(it,i){it.classList.toggle('sel',i===selIdx);});
+    if(selIdx>=0)items[selIdx].scrollIntoView({block:'nearest'});
   });
 }
+
 
 function saveTx(){
   var id=document.getElementById('edit-id').value;
