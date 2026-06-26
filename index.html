@@ -905,94 +905,159 @@ function renderHis(){
     return true;
   });
   txs.sort(function(a,b){return b.date>a.date?1:b.date<a.date?-1:0;});
+
+  // 요약
   var tot={수입:0,지출:0,저축:0};
   txs.forEach(function(t){if(tot[t.type]!==undefined)tot[t.type]+=Number(t.amount)||0;});
   var sumEl=document.getElementById('d-his-sum');
   sumEl.innerHTML='';
-  var div=document.createElement('div');div.className='fx g8';div.style.flexWrap='wrap';
-  var s1=document.createElement('span');s1.className='bk bg';s1.textContent='수입 '+ff(tot['수입']);div.appendChild(s1);
-  var s2=document.createElement('span');s2.className='bk br';s2.textContent='지출 '+ff(tot['지출']);div.appendChild(s2);
-  var s3=document.createElement('span');s3.className='bk bb';s3.textContent='저축 '+ff(tot['저축']);div.appendChild(s3);
-  var s4=document.createElement('span');s4.className='bk bgy';s4.textContent=txs.length+'건';div.appendChild(s4);
-  sumEl.appendChild(div);
+  var sumDiv=document.createElement('div');sumDiv.className='fx g8';sumDiv.style.flexWrap='wrap';
+  [{cls:'bg',txt:'수입 '+ff(tot['수입'])},{cls:'br',txt:'지출 '+ff(tot['지출'])},{cls:'bb',txt:'저축 '+ff(tot['저축'])},{cls:'bgy',txt:txs.length+'건'}]
+    .forEach(function(x){var s=document.createElement('span');s.className='bk '+x.cls;s.textContent=x.txt;sumDiv.appendChild(s);});
+  sumEl.appendChild(sumDiv);
+
+  var bulkBar=document.getElementById('his-bulk-bar');
+  if(bulkBar)bulkBar.style.display='flex';
   var w=document.getElementById('d-his');
-  var bulkBar=document.getElementById('his-bulk-bar');if(bulkBar)bulkBar.style.display='flex';
-  if(!txs.length){w.innerHTML='<div class="em">📭 거래 내역이 없어요</div>';if(bulkBar)bulkBar.style.display='none';return;}
+  if(!txs.length){
+    w.innerHTML='<div class="em">📭 거래 내역이 없어요</div>';
+    if(bulkBar)bulkBar.style.display='none';
+    return;
+  }
+
+  var DAYS=['일','월','화','수','목','금','토'];
   var TC={'수입':'bg','지출':'br','저축':'bb'};
   var EC={'소비':'bgy','낭비':'br','투자':'bpu'};
-  var tbody=document.createElement('tbody');
+
+  // 날짜별 그룹핑
+  var groups={};
+  var groupOrder=[];
   txs.forEach(function(t){
-    var col=t.type==='수입'?'var(--gn)':t.type==='저축'?'var(--bl)':'var(--tx)';
-    var tr=document.createElement('tr');tr.id='his-row-'+t.id;
-    // 체크박스
-    var tdCb=document.createElement('td');
-    var cb=document.createElement('input');cb.type='checkbox';cb.className='his-cb';cb.dataset.id=t.id;cb.style.cssText='cursor:pointer;accent-color:var(--bl);width:14px;height:14px';
-    cb.onchange=updateSelCount;tdCb.appendChild(cb);tr.appendChild(tdCb);
-    // 날짜
-    var td1=document.createElement('td');td1.className='tm';td1.style.fontSize='11px';td1.style.whiteSpace='nowrap';td1.textContent=t.date||'';tr.appendChild(td1);
-    // 유형
-    var td2=document.createElement('td');
-    var sp=document.createElement('span');sp.className='bk '+(TC[t.type]||'bgy');sp.style.fontSize='10px';sp.textContent=t.type;td2.appendChild(sp);
-    if(isFixed(t)){var fix=document.createElement('span');fix.className='bk bcy';fix.style.cssText='font-size:10px;margin-left:2px';fix.textContent='고정';td2.appendChild(fix);}
-    tr.appendChild(td2);
-    // 카테고리
-    var td3=document.createElement('td');td3.style.fontSize='12px';td3.textContent=(CE[t.mid]||'')+' '+(t.mid||'');tr.appendChild(td3);
-    // 소분류
-    var td3b=document.createElement('td');td3b.className='tm';td3b.style.fontSize='12px';td3b.textContent=t.sub||'';tr.appendChild(td3b);
-    // 내용
-    var td4=document.createElement('td');td4.className='tm';td4.style.fontSize='12px';td4.textContent=t.memo||'';tr.appendChild(td4);
-    // 결제수단
-    var td4b=document.createElement('td');td4b.style.fontSize='11px';td4b.style.color='var(--mu)';td4b.textContent=t.payment||'';tr.appendChild(td4b);
-    // 금액
-    var td5=document.createElement('td');td5.className='tr fw';td5.style.color=col;td5.style.fontSize='12px';td5.textContent=(t.type==='수입'?'+':'')+ff(t.amount);tr.appendChild(td5);
-    // 평가
-    var td6=document.createElement('td');
-    if(t.eval){var ev=document.createElement('span');ev.className='bk '+(EC[t.eval]||'bgy');ev.style.fontSize='10px';ev.textContent=t.eval;td6.appendChild(ev);}
-    tr.appendChild(td6);
-    // 수정버튼
-    var td7=document.createElement('td');
-    var btn=document.createElement('button');btn.className='btn bg2 bsm';btn.style.cssText='padding:3px 7px;font-size:11px';btn.textContent='✏️';
-    (function(id){btn.onclick=function(){openEdit(id);};})(t.id);
-    td7.appendChild(btn);tr.appendChild(td7);
-    tbody.appendChild(tr);
+    var d=t.date||'';
+    if(!groups[d]){groups[d]=[];groupOrder.push(d);}
+    groups[d].push(t);
   });
-  var wrap=document.createElement('div');wrap.className='ovx';
-  var tbl=document.createElement('table');tbl.className='tbl';
-  var thead=document.createElement('thead');
-  thead.innerHTML='<tr><th style="width:30px"></th><th>날짜</th><th>유형</th><th>카테고리</th><th>소분류</th><th>내용</th><th>결제수단</th><th class="tr">금액</th><th>평가</th><th></th></tr>';
-  tbl.appendChild(thead);tbl.appendChild(tbody);wrap.appendChild(tbl);
-  w.innerHTML='';w.appendChild(wrap);
+
+  w.innerHTML='';
+  groupOrder.forEach(function(date){
+    var dayTxs=groups[date];
+    // 날짜 헤더
+    var dateObj=new Date(date+'T00:00:00');
+    var dow=DAYS[dateObj.getDay()];
+    var mm=parseInt(date.slice(5,7));
+    var dd=parseInt(date.slice(8,10));
+
+    // 당일 수입/지출 합계
+    var dayInc=0,dayExp=0;
+    dayTxs.forEach(function(t){
+      var a=Number(t.amount)||0;
+      if(t.type==='수입')dayInc+=a;
+      else if(t.type==='지출')dayExp+=a;
+    });
+
+    // 날짜 헤더 행
+    var headerWrap=document.createElement('div');
+    headerWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 0 5px;border-bottom:2px solid var(--bd2);margin-top:4px';
+    var dateLabel=document.createElement('div');
+    dateLabel.style.cssText='font-size:13px;font-weight:900;color:var(--tx)';
+    dateLabel.textContent=mm+'월 '+dd+'일';
+    var dowLabel=document.createElement('div');
+    dowLabel.style.cssText='font-size:12px;font-weight:700;padding:2px 7px;border-radius:12px;'
+      +(dow==='일'?'background:#2d0a0a;color:#f87171':dow==='토'?'background:#1e3a5f;color:#60a5fa':'background:var(--sf3);color:var(--mu2)');
+    dowLabel.textContent=dow;
+    headerWrap.appendChild(dateLabel);
+    headerWrap.appendChild(dowLabel);
+    // 당일 합계
+    var daySum=document.createElement('div');
+    daySum.style.cssText='margin-left:auto;display:flex;gap:8px;font-size:11px';
+    if(dayInc>0){var si=document.createElement('span');si.style.color='var(--gn)';si.style.fontWeight='700';si.textContent='+'+ff(dayInc);daySum.appendChild(si);}
+    if(dayExp>0){var se=document.createElement('span');se.style.color='var(--rd)';se.style.fontWeight='700';se.textContent='-'+ff(dayExp);daySum.appendChild(se);}
+    headerWrap.appendChild(daySum);
+    w.appendChild(headerWrap);
+
+    // 당일 거래 목록
+    dayTxs.forEach(function(t){
+      var row=document.createElement('div');
+      row.id='his-row-'+t.id;
+      row.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--bd)';
+      row.style.cursor='pointer';
+
+      // 체크박스
+      var cb=document.createElement('input');
+      cb.type='checkbox';cb.className='his-cb';cb.dataset.id=t.id;
+      cb.style.cssText='cursor:pointer;accent-color:var(--bl);width:14px;height:14px;flex-shrink:0';
+      cb.onchange=updateSelCount;
+      row.appendChild(cb);
+
+      // 타입 뱃지
+      var badge=document.createElement('span');
+      badge.className='bk '+(TC[t.type]||'bgy');
+      badge.style.cssText='font-size:10px;flex-shrink:0;min-width:28px;text-align:center';
+      badge.textContent=t.type;
+      row.appendChild(badge);
+
+      // 고정 뱃지
+      if(isFixed(t)){
+        var fb=document.createElement('span');
+        fb.className='bk bcy';fb.style.fontSize='10px';fb.style.flexShrink='0';
+        fb.textContent='고정';row.appendChild(fb);
+      }
+
+      // 카테고리
+      var cat=document.createElement('span');
+      cat.style.cssText='font-size:12px;color:var(--mu2);min-width:60px;flex-shrink:0';
+      cat.textContent=(CE[t.mid]||'')+' '+(t.mid||'');
+      row.appendChild(cat);
+
+      // 소분류
+      var sub=document.createElement('span');
+      sub.style.cssText='font-size:11px;color:var(--mu);min-width:50px;flex-shrink:0';
+      sub.textContent=t.sub||'';
+      row.appendChild(sub);
+
+      // 내용(메모)
+      var memo=document.createElement('span');
+      memo.style.cssText='font-size:12px;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      memo.textContent=t.memo||'';
+      row.appendChild(memo);
+
+      // 결제수단
+      var pay=document.createElement('span');
+      pay.style.cssText='font-size:11px;color:var(--mu);min-width:70px;text-align:right;flex-shrink:0';
+      pay.textContent=t.payment||'';
+      row.appendChild(pay);
+
+      // 금액
+      var amtSpan=document.createElement('span');
+      var col=t.type==='수입'?'var(--gn)':t.type==='저축'?'var(--bl)':'var(--tx)';
+      amtSpan.style.cssText='font-size:13px;font-weight:900;color:'+col+';min-width:75px;text-align:right;flex-shrink:0';
+      amtSpan.textContent=(t.type==='수입'?'+':t.type==='저축'?'':'-')+ff(t.amount);
+      row.appendChild(amtSpan);
+
+      // 평가
+      if(t.eval){
+        var ev=document.createElement('span');
+        ev.className='bk '+(EC[t.eval]||'bgy');
+        ev.style.cssText='font-size:10px;flex-shrink:0;min-width:28px;text-align:center';
+        ev.textContent=t.eval;
+        row.appendChild(ev);
+      }else{
+        var evEmpty=document.createElement('span');evEmpty.style.minWidth='28px';row.appendChild(evEmpty);
+      }
+
+      // 수정버튼
+      var btn=document.createElement('button');
+      btn.className='btn bg2 bsm';
+      btn.style.cssText='padding:3px 7px;font-size:11px;flex-shrink:0';
+      btn.textContent='✏️';
+      (function(id){btn.onclick=function(e){e.stopPropagation();openEdit(id);};})(t.id);
+      row.appendChild(btn);
+
+      w.appendChild(row);
+    });
+  });
 }
 
-function updateSelCount(){
-  var cbs=document.querySelectorAll('.his-cb:checked');
-  var el=document.getElementById('his-sel-count');
-  if(el)el.textContent=cbs.length?cbs.length+'건 선택됨':'';
-}
-function toggleSelectAll(){
-  var allCb=document.getElementById('his-all-cb');
-  var cbs=document.querySelectorAll('.his-cb');
-  var checked=allCb?allCb.checked:false;
-  // 전체선택 버튼 누른 경우 토글
-  if(!allCb){
-    var allChecked=Array.from(cbs).every(function(cb){return cb.checked;});
-    checked=!allChecked;
-  }
-  cbs.forEach(function(cb){cb.checked=checked;});
-  if(allCb)allCb.checked=checked;
-  updateSelCount();
-}
-function deleteSelected(){
-  var cbs=document.querySelectorAll('.his-cb:checked');
-  if(!cbs.length){showToast('⚠️ 선택된 항목이 없어요.');return;}
-  if(!confirm(cbs.length+'건을 삭제할까요? 되돌릴 수 없어요.'))return;
-  var db=loadDB();
-  var ids=Array.from(cbs).map(function(cb){return cb.dataset.id;});
-  db.txs=(db.txs||[]).filter(function(t){return ids.indexOf(t.id)===-1;});
-  saveDB(db);
-  showToast('🗑️ '+ids.length+'건 삭제 완료!');
-  renderHis();
-}
 function calMove(d){var p=calYM.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);m+=d;if(m>12){m=1;y++;}if(m<1){m=12;y--;}calYM=y+'-'+String(m).padStart(2,'0');renderCal();}
 function renderCal(){
   var p=calYM.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);
