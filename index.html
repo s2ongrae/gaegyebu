@@ -475,41 +475,44 @@ var FX=[
   {type:'지출',mid:'문화여가',sub:'구독료',    memo:'유튜브 구독',               amt:0,      pay:'신한카드(신)', eval:'소비'},
   {type:'지출',mid:'문화여가',sub:'풋살',      memo:'AZ 풋살',                   amt:0,      pay:'현금',        eval:'투자'}
 ];
+var FX_DEFAULTS=FX.slice();  // 기본 FX 복사본 (변경 불가)
 var FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 
-var FX_VERSION='2026-06-26-v2';  // FX 업데이트 시 변경
+var FX_VERSION='2026-06-26-v3';  // FX 업데이트 시 변경
 function loadFX(){
   try{
-    var ver=localStorage.getItem('gaegyebu_fx_ver');
-    if(ver===FX_VERSION){
-      var saved=localStorage.getItem('gaegyebu_fx');
-      if(saved){
-        var savedFX=JSON.parse(saved);
-        // localStorage의 구조(순서/추가/삭제)는 반영하되
-        // amt는 기본 FX값 유지 (저장된 amt로 인한 인덱스 꼬임 방지)
-        var defaultAmts={};
-        FX.forEach(function(f){
-          var k=f.mid+'|'+f.sub+'|'+f.memo;
-          defaultAmts[k]=f.amt;
-        });
-        FX=savedFX.map(function(f){
-          var k=f.mid+'|'+f.sub+'|'+f.memo;
-          // amt는 ⚙️ 항목수정으로 변경된 경우만 반영
-          // 기본값이 있으면 기본값 우선 (saveSingleFixed로 덮인 건 무시)
-          if(defaultAmts[k]!==undefined)f.amt=defaultAmts[k];
-          return f;
-        });
-      }
-    }else{
-      localStorage.setItem('gaegyebu_fx_ver', FX_VERSION);
-      localStorage.removeItem('gaegyebu_fx');
-    }
-  }catch(e){}
+    // 삭제된 항목 키 목록
+    var removedKeys=JSON.parse(localStorage.getItem('gaegyebu_fx_removed')||'[]');
+    // 추가된 항목 목록
+    var addedItems=JSON.parse(localStorage.getItem('gaegyebu_fx_added')||'[]');
+    // ⚙️로 수정된 항목 (키 -> 수정된 fi)
+    var editedMap=JSON.parse(localStorage.getItem('gaegyebu_fx_edited')||'{}');
+
+    // 1. 기본 FX에서 삭제된 항목 제거
+    FX=FX.filter(function(f){
+      var k=f.mid+'|'+f.sub+'|'+f.memo;
+      return removedKeys.indexOf(k)===-1;
+    });
+    // 2. ⚙️ 수정된 항목 반영
+    FX=FX.map(function(f){
+      var k=f.mid+'|'+f.sub+'|'+f.memo;
+      return editedMap[k]?editedMap[k]:f;
+    });
+    // 3. 추가된 항목 붙이기
+    addedItems.forEach(function(item){FX.push(item);});
+  }catch(e){console.error('loadFX error',e);}
   FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 }
 function saveFX(){
-  localStorage.setItem('gaegyebu_fx',JSON.stringify(FX));
-  localStorage.setItem('gaegyebu_fx_ver',FX_VERSION);
+  // 기본 FX 키 목록
+  var DEFAULT_FX_KEYS=FX_DEFAULTS.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
+  var currentKeys=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
+  // 삭제된 항목 = 기본에 있는데 현재 없는 것
+  var removed=DEFAULT_FX_KEYS.filter(function(k){return currentKeys.indexOf(k)===-1;});
+  // 추가된 항목 = 기본에 없는데 현재 있는 것
+  var added=FX.filter(function(f){var k=f.mid+'|'+f.sub+'|'+f.memo;return DEFAULT_FX_KEYS.indexOf(k)===-1;});
+  localStorage.setItem('gaegyebu_fx_removed',JSON.stringify(removed));
+  localStorage.setItem('gaegyebu_fx_added',JSON.stringify(added));
   FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 }
 function addFxItem(item){FX.push(item);saveFX();}
@@ -1979,6 +1982,14 @@ function openEditFx(i){
       eval:document.getElementById('efx-eval')?document.getElementById('efx-eval').value:''
     };
     FX[i]=newFi;
+    // ⚙️ 수정 내용 별도 저장
+    try{
+      var editedMap=JSON.parse(localStorage.getItem('gaegyebu_fx_edited')||'{}');
+      var origKey=FX_DEFAULTS.find(function(f,idx){return idx===i;}); // 원래 키
+      var k=newFi.mid+'|'+newFi.sub+'|'+newFi.memo;
+      editedMap[k]=newFi;
+      localStorage.setItem('gaegyebu_fx_edited',JSON.stringify(editedMap));
+    }catch(e){}
     saveFX();
     document.getElementById('edit-fx-md').remove();
     buildFixed();
