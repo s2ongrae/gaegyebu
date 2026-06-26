@@ -974,35 +974,28 @@ function saveSingleFixed(i){
   var amt=Number(amtEl?amtEl.value:'');
   if(!amt){showToast('⚠️ 금액을 입력해주세요.');return;}
 
-  var mid=document.getElementById('fx-mid-'+i)?document.getElementById('fx-mid-'+i).value:fi.mid;
-  var sub=document.getElementById('fx-sub-'+i)?document.getElementById('fx-sub-'+i).value:fi.sub;
+  // mid/sub/memo는 항상 fi 기준 (FX 항목의 고유값)
+  var mid=fi.mid;
+  var sub=fi.sub;
+  var memo=fi.memo;  // fi.memo가 고유 식별자
   var pay=document.getElementById('fx-pay-'+i)?document.getElementById('fx-pay-'+i).value:fi.pay;
-  var memo=document.getElementById('fx-memo-'+i)?document.getElementById('fx-memo-'+i).value:fi.memo;
   var type=fi.type||(CATS[mid]?CATS[mid].p:'지출');
   var evalVal=(type==='수입'||type==='저축')?'':(fi.eval||'소비');
   var ym=gYM();
   var txsThisMonth=getTxs(ym);
 
-  // FX에서 같은 mid+sub 중 i번째가 몇번째인지 계산
-  var sameIdxInFX=0;
-  for(var j=0;j<i;j++){
-    if(FX[j].mid===fi.mid&&FX[j].sub===fi.sub)sameIdxInFX++;
-  }
-  // 이번달 같은 mid+sub 고정 거래들 중 sameIdxInFX번째 거래
-  var sameTxs=txsThisMonth.filter(function(t){
-    return t.fixed&&t.mid===mid&&t.sub===sub;
-  });
-  var existing=sameTxs[sameIdxInFX]||null;
+  // fi.memo로 정확히 찾기
+  var existing=txsThisMonth.find(function(t){
+    return t.fixed&&t.mid===mid&&t.sub===sub&&(t.memo||'')===(memo||'');
+  })||null;
 
   if(existing){
     updateTx(existing.id,{date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
-    showToast('✅ '+memo+' 수정 완료!');
+    showToast('✅ '+sub+' 수정 완료!');
   }else{
     addTx({date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
-    showToast('✅ '+memo+' 저장 완료!');
+    showToast('✅ '+sub+' 저장 완료!');
   }
-
-  // FX 기본값은 수정하지 않음 (지난달 거래에서 자동으로 가져옴)
 
   buildFixed();
   renderHis();
