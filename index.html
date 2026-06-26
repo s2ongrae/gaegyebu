@@ -959,9 +959,9 @@ function renderHis(){
 
     // 날짜 헤더 행
     var headerWrap=document.createElement('div');
-    headerWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:10px 0 5px;border-bottom:2px solid var(--bd2);margin-top:4px';
+    headerWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:12px 6px 6px;border-bottom:2px solid var(--bd2);margin-top:8px;background:var(--sf2);border-radius:var(--rs) var(--rs) 0 0';
     var dateLabel=document.createElement('div');
-    dateLabel.style.cssText='font-size:13px;font-weight:900;color:var(--tx)';
+    dateLabel.style.cssText='font-size:14px;font-weight:900;color:var(--tx)';
     dateLabel.textContent=mm+'월 '+dd+'일';
     var dowLabel=document.createElement('div');
     dowLabel.style.cssText='font-size:12px;font-weight:700;padding:2px 7px;border-radius:12px;'
@@ -981,20 +981,20 @@ function renderHis(){
     dayTxs.forEach(function(t){
       var row=document.createElement('div');
       row.id='his-row-'+t.id;
-      row.style.cssText='display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--bd)';
+      row.style.cssText='display:flex;align-items:center;gap:0;padding:7px 6px;border-bottom:1px solid var(--bd)';
       row.style.cursor='pointer';
 
       // 체크박스
       var cb=document.createElement('input');
       cb.type='checkbox';cb.className='his-cb';cb.dataset.id=t.id;
-      cb.style.cssText='cursor:pointer;accent-color:var(--bl);width:14px;height:14px;flex-shrink:0';
+      cb.style.cssText='cursor:pointer;accent-color:var(--bl);width:14px;height:14px;flex-shrink:0;margin-right:8px';
       cb.onchange=updateSelCount;
       row.appendChild(cb);
 
       // 타입 뱃지
       var badge=document.createElement('span');
       badge.className='bk '+(TC[t.type]||'bgy');
-      badge.style.cssText='font-size:10px;flex-shrink:0;min-width:28px;text-align:center';
+      badge.style.cssText='font-size:10px;flex-shrink:0;width:28px;text-align:center;margin-right:4px';
       badge.textContent=t.type;
       row.appendChild(badge);
 
@@ -1007,32 +1007,32 @@ function renderHis(){
 
       // 카테고리
       var cat=document.createElement('span');
-      cat.style.cssText='font-size:12px;color:var(--mu2);min-width:60px;flex-shrink:0';
+      cat.style.cssText='font-size:12px;color:var(--mu2);width:80px;flex-shrink:0;margin-right:2px';
       cat.textContent=(CE[t.mid]||'')+' '+(t.mid||'');
       row.appendChild(cat);
 
       // 소분류
       var sub=document.createElement('span');
-      sub.style.cssText='font-size:11px;color:var(--mu);min-width:50px;flex-shrink:0';
+      sub.style.cssText='font-size:11px;color:var(--mu);width:65px;flex-shrink:0;margin-right:4px';
       sub.textContent=t.sub||'';
       row.appendChild(sub);
 
       // 내용(메모)
       var memo=document.createElement('span');
-      memo.style.cssText='font-size:12px;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      memo.style.cssText='font-size:12px;font-weight:700;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px';
       memo.textContent=t.memo||'';
       row.appendChild(memo);
 
       // 결제수단
       var pay=document.createElement('span');
-      pay.style.cssText='font-size:11px;color:var(--mu);min-width:70px;text-align:right;flex-shrink:0';
+      pay.style.cssText='font-size:11px;color:var(--mu);width:75px;text-align:right;flex-shrink:0;margin-right:8px';
       pay.textContent=t.payment||'';
       row.appendChild(pay);
 
       // 금액
       var amtSpan=document.createElement('span');
       var col=t.type==='수입'?'var(--gn)':t.type==='저축'?'var(--bl)':'var(--tx)';
-      amtSpan.style.cssText='font-size:13px;font-weight:900;color:'+col+';min-width:75px;text-align:right;flex-shrink:0';
+      amtSpan.style.cssText='font-size:13px;font-weight:900;color:'+col+';width:90px;text-align:right;flex-shrink:0;margin-right:6px';
       amtSpan.textContent=(t.type==='수입'?'+':t.type==='저축'?'':'-')+ff(t.amount);
       row.appendChild(amtSpan);
 
@@ -1040,11 +1040,11 @@ function renderHis(){
       if(t.eval){
         var ev=document.createElement('span');
         ev.className='bk '+(EC[t.eval]||'bgy');
-        ev.style.cssText='font-size:10px;flex-shrink:0;min-width:28px;text-align:center';
+        ev.style.cssText='font-size:10px;flex-shrink:0;width:28px;text-align:center;margin-right:4px';
         ev.textContent=t.eval;
         row.appendChild(ev);
       }else{
-        var evEmpty=document.createElement('span');evEmpty.style.minWidth='28px';row.appendChild(evEmpty);
+        var evEmpty=document.createElement('span');evEmpty.style.cssText='width:28px;flex-shrink:0;margin-right:4px';row.appendChild(evEmpty);
       }
 
       // 수정버튼
