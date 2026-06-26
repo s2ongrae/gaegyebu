@@ -1983,9 +1983,10 @@ function openEditFx(i){
     };
     FX[i]=newFi;
     // ⚙️ 수정 내용 별도 저장
+    // FX 배열 즉시 업데이트
+    FX[i]=newFi;
     try{
       var editedMap=JSON.parse(localStorage.getItem('gaegyebu_fx_edited')||'{}');
-      var origKey=FX_DEFAULTS.find(function(f,idx){return idx===i;}); // 원래 키
       var k=newFi.mid+'|'+newFi.sub+'|'+newFi.memo;
       editedMap[k]=newFi;
       localStorage.setItem('gaegyebu_fx_edited',JSON.stringify(editedMap));
