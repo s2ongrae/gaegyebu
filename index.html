@@ -1060,6 +1060,35 @@ function renderHis(){
   });
 }
 
+function updateSelCount(){
+  var cbs=document.querySelectorAll('.his-cb:checked');
+  var el=document.getElementById('his-sel-count');
+  if(el)el.textContent=cbs.length?cbs.length+'건 선택됨':'';
+}
+function toggleSelectAll(){
+  var allCb=document.getElementById('his-all-cb');
+  var cbs=document.querySelectorAll('.his-cb');
+  var checked=allCb?allCb.checked:false;
+  if(!allCb){
+    var allChecked=Array.from(cbs).every(function(cb){return cb.checked;});
+    checked=!allChecked;
+  }
+  cbs.forEach(function(cb){cb.checked=checked;});
+  if(allCb)allCb.checked=checked;
+  updateSelCount();
+}
+function deleteSelected(){
+  var cbs=document.querySelectorAll('.his-cb:checked');
+  if(!cbs.length){showToast('⚠️ 선택된 항목이 없어요.');return;}
+  if(!confirm(cbs.length+'건을 삭제할까요?'))return;
+  var db=loadDB();
+  var ids=Array.from(cbs).map(function(cb){return cb.dataset.id;});
+  db.txs=(db.txs||[]).filter(function(t){return ids.indexOf(t.id)===-1;});
+  saveDB(db);
+  showToast('🗑️ '+ids.length+'건 삭제 완료!');
+  renderHis();
+}
+
 function calMove(d){var p=calYM.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);m+=d;if(m>12){m=1;y++;}if(m<1){m=12;y--;}calYM=y+'-'+String(m).padStart(2,'0');renderCal();}
 function renderCal(){
   var p=calYM.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);
