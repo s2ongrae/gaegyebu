@@ -477,16 +477,30 @@ var FX=[
 ];
 var FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 
-var FX_VERSION='2026-06-12-v5';  // FX 업데이트 시 변경
+var FX_VERSION='2026-06-26-v2';  // FX 업데이트 시 변경
 function loadFX(){
   try{
     var ver=localStorage.getItem('gaegyebu_fx_ver');
-    // 버전 다르면 새 기본값 사용 (localStorage 무시)
     if(ver===FX_VERSION){
       var saved=localStorage.getItem('gaegyebu_fx');
-      if(saved)FX=JSON.parse(saved);
+      if(saved){
+        var savedFX=JSON.parse(saved);
+        // localStorage의 구조(순서/추가/삭제)는 반영하되
+        // amt는 기본 FX값 유지 (저장된 amt로 인한 인덱스 꼬임 방지)
+        var defaultAmts={};
+        FX.forEach(function(f){
+          var k=f.mid+'|'+f.sub+'|'+f.memo;
+          defaultAmts[k]=f.amt;
+        });
+        FX=savedFX.map(function(f){
+          var k=f.mid+'|'+f.sub+'|'+f.memo;
+          // amt는 ⚙️ 항목수정으로 변경된 경우만 반영
+          // 기본값이 있으면 기본값 우선 (saveSingleFixed로 덮인 건 무시)
+          if(defaultAmts[k]!==undefined)f.amt=defaultAmts[k];
+          return f;
+        });
+      }
     }else{
-      // 새 버전 - 기본 FX 그대로 사용하고 버전만 저장
       localStorage.setItem('gaegyebu_fx_ver', FX_VERSION);
       localStorage.removeItem('gaegyebu_fx');
     }
