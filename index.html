@@ -600,13 +600,15 @@ function buildFixed(){
 
   // 이번달 입력된 고정항목
   var txsThisMonth=getTxs(ym);
+  // enteredMap: mid|sub -> 배열 (FX 포지션 순서 기반)
   var enteredMap={};
-  txsThisMonth.forEach(function(t){
-    if(!t.fixed)return;
-    // 보험료처럼 sub 같고 memo로 구분하는 항목은 memo도 키에 포함
-    var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
-    if(!enteredMap[k]||t.date>enteredMap[k].date)enteredMap[k]=t;
-  });
+  txsThisMonth.filter(function(t){return t.fixed;})
+    .sort(function(a,b){return a.date>b.date?1:a.date<b.date?-1:0;})
+    .forEach(function(t){
+      var k=t.mid+'|'+t.sub;
+      if(!enteredMap[k])enteredMap[k]=[];
+      enteredMap[k].push(t);
+    });
 
   // 지난달 입력 이력 (예시값)
   var prevYM=getPrevYM(ym);
@@ -615,12 +617,14 @@ function buildFixed(){
   prevTxs.forEach(function(t){if(t.fixed){var k=t.mid+'|'+t.sub+'|'+(t.memo||'');prevMap[k]=t;}});
 
   function getEntered(fi){
-    // memo로 직접 찾기, 없으면 mid|sub만으로 폴백
-    var k1=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
-    if(enteredMap[k1])return enteredMap[k1];
-    // 같은 mid|sub 중 아무거나
-    var any=Object.keys(enteredMap).find(function(k){return k.indexOf(fi.mid+'|'+fi.sub+'|')===0;});
-    return any?enteredMap[any]:null;
+    // FX에서 fi가 같은 mid+sub 중 몇번째인지
+    var pos=0;
+    for(var j=0;j<FX.length;j++){
+      if(FX[j]===fi)break;
+      if(FX[j].mid===fi.mid&&FX[j].sub===fi.sub)pos++;
+    }
+    var arr=enteredMap[fi.mid+'|'+fi.sub]||[];
+    return arr[pos]||null;
   }
   function getPrevVal(fi){
     var k1=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
@@ -631,16 +635,11 @@ function buildFixed(){
 
   var grpI=[],grpS=[],grpE=[];
   FX.forEach(function(fi,i){
-    // memo로 직접 입력 완료 체크
-    var _k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
-    var done=!!enteredMap[_k];
-    // 없으면 mid|sub만으로 폴백 (단일 항목인 경우)
-    if(!done){
-      var _sames=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;});
-      if(_sames.length===1){
-        done=Object.keys(enteredMap).some(function(k){return k.indexOf(fi.mid+'|'+fi.sub+'|')===0;});
-      }
-    }
+    // FX에서 i번째가 같은 mid+sub 중 몇번째인지
+    var _fxPos=0;
+    for(var _j=0;_j<i;_j++){if(FX[_j].mid===fi.mid&&FX[_j].sub===fi.sub)_fxPos++;}
+    var _arr=enteredMap[fi.mid+'|'+fi.sub]||[];
+    var done=_fxPos<_arr.length;
     if(fi.type==='수입')grpI.push({fi:fi,i:i,done:done});
     else if(fi.type==='저축')grpS.push({fi:fi,i:i,done:done});
     else grpE.push({fi:fi,i:i,done:done});
@@ -768,6 +767,59 @@ function buildFixed(){
   makeSection('💰 수입','var(--gn)',grpI);
   makeSection('🏦 저축/투자','var(--bl)',grpS);
   makeSection('💸 지출 고정','var(--rd)',grpE);
+}
+
+function getPrevYM(ym){
+  var p=ym.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);
+  m--;if(m<1){m=12;y--;}
+  return y+'-'+String(m).padStart(2,'0');
+}
+
+function toggleFxi(idOrBtn){var id=typeof idOrBtn==='string'?idOrBtn:(idOrBtn.dataset&&idOrBtn.dataset.fxi?idOrBtn.dataset.fxi:idOrBtn);if(typeof id==='string'){var el=document.getElementById(id);if(el)el.classList.toggle('open');}}
+function saveSingleFixed(i){
+  var fi=FX[i];
+  var dateEl=document.getElementById('fx-date-'+i);
+  var date=dateEl?dateEl.value:'';
+  if(!date){showToast('⚠️ 날짜를 선택해주세요.');return;}
+
+  var amtEl=document.getElementById('fx-amt-'+i);
+  var amt=Number(amtEl?amtEl.value:'');
+  if(!amt){showToast('⚠️ 금액을 입력해주세요.');return;}
+
+  var mid=document.getElementById('fx-mid-'+i)?document.getElementById('fx-mid-'+i).value:fi.mid;
+  var sub=document.getElementById('fx-sub-'+i)?document.getElementById('fx-sub-'+i).value:fi.sub;
+  var pay=document.getElementById('fx-pay-'+i)?document.getElementById('fx-pay-'+i).value:fi.pay;
+  var memo=document.getElementById('fx-memo-'+i)?document.getElementById('fx-memo-'+i).value:fi.memo;
+  var type=fi.type||(CATS[mid]?CATS[mid].p:'지출');
+  var evalVal=(type==='수입'||type==='저축')?'':(fi.eval||'소비');
+  var ym=gYM();
+  var txsThisMonth=getTxs(ym);
+
+  // FX에서 같은 mid+sub 중 i번째가 몇번째인지 계산
+  var sameIdxInFX=0;
+  for(var j=0;j<i;j++){
+    if(FX[j].mid===fi.mid&&FX[j].sub===fi.sub)sameIdxInFX++;
+  }
+  // 이번달 같은 mid+sub 고정 거래들 중 sameIdxInFX번째 거래
+  var sameTxs=txsThisMonth.filter(function(t){
+    return t.fixed&&t.mid===mid&&t.sub===sub;
+  });
+  var existing=sameTxs[sameIdxInFX]||null;
+
+  if(existing){
+    updateTx(existing.id,{date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
+    showToast('✅ '+memo+' 수정 완료!');
+  }else{
+    addTx({date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
+    showToast('✅ '+memo+' 저장 완료!');
+  }
+
+  // FX 기본값 업데이트
+  FX[i].amt=amt;
+  saveFX();
+
+  buildFixed();
+  renderHis();
 }
 
 function getPrevYM(ym){
