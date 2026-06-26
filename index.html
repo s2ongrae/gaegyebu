@@ -794,13 +794,10 @@ function buildFixed(){
   var txsThisMonth=getTxs(ym);
   // enteredMap: mid|sub -> 배열 (FX 포지션 순서 기반)
   var enteredMap={};
-  txsThisMonth.filter(function(t){return t.fixed;})
-    .sort(function(a,b){return a.date>b.date?1:a.date<b.date?-1:0;})
-    .forEach(function(t){
-      var k=t.mid+'|'+t.sub;
-      if(!enteredMap[k])enteredMap[k]=[];
-      enteredMap[k].push(t);
-    });
+  txsThisMonth.filter(function(t){return t.fixed;}).forEach(function(t){
+    var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
+    enteredMap[k]=t;
+  });
 
   // 지난달 입력 이력 (예시값)
   var prevYM=getPrevYM(ym);
@@ -809,14 +806,8 @@ function buildFixed(){
   prevTxs.forEach(function(t){if(t.fixed){var k=t.mid+'|'+t.sub+'|'+(t.memo||'');prevMap[k]=t;}});
 
   function getEntered(fi){
-    // FX에서 fi가 같은 mid+sub 중 몇번째인지
-    var pos=0;
-    for(var j=0;j<FX.length;j++){
-      if(FX[j]===fi)break;
-      if(FX[j].mid===fi.mid&&FX[j].sub===fi.sub)pos++;
-    }
-    var arr=enteredMap[fi.mid+'|'+fi.sub]||[];
-    return arr[pos]||null;
+    var k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    return enteredMap[k]||null;
   }
   function getPrevVal(fi){
     var k1=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
@@ -828,10 +819,8 @@ function buildFixed(){
   var grpI=[],grpS=[],grpE=[];
   FX.forEach(function(fi,i){
     // FX에서 i번째가 같은 mid+sub 중 몇번째인지
-    var _fxPos=0;
-    for(var _j=0;_j<i;_j++){if(FX[_j].mid===fi.mid&&FX[_j].sub===fi.sub)_fxPos++;}
-    var _arr=enteredMap[fi.mid+'|'+fi.sub]||[];
-    var done=_fxPos<_arr.length;
+    var _k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    var done=!!enteredMap[_k];
     if(fi.type==='수입')grpI.push({fi:fi,i:i,done:done});
     else if(fi.type==='저축')grpS.push({fi:fi,i:i,done:done});
     else grpE.push({fi:fi,i:i,done:done});
