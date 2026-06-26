@@ -123,6 +123,17 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 /* 모달 */
 .mdbg{position:fixed;inset:0;background:#00000099;z-index:200;align-items:center;justify-content:center;display:none}
 .mdbg.on{display:flex}
+.ac-wrap{position:relative;width:100%}
+.ac-input{width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px 10px;border-radius:var(--rs);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box}
+.ac-input:focus{border-color:var(--bl);box-shadow:0 0 0 2px rgba(43,108,176,.15)}
+.ac-drop{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--sf);border:1px solid var(--bd2);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;display:none}
+.ac-drop.open{display:block}
+.ac-item{padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.ac-item:last-child{border-bottom:none}
+.ac-item:hover,.ac-item.sel{background:var(--sf2)}
+.ac-item .ac-main{font-weight:700;color:var(--tx)}
+.ac-item .ac-sub{font-size:11px;color:var(--mu);margin-left:auto}
+.ac-item .ac-badge{font-size:10px;padding:1px 6px;border-radius:10px}
 .md{background:var(--sf);border:1px solid var(--bd2);border-radius:var(--r);padding:20px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto}
 .mdh{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .mdh h3{font-size:15px;font-weight:700}.mdc{background:none;border:none;color:var(--mu);cursor:pointer;font-size:22px}
@@ -204,11 +215,11 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
         <input type="hidden" id="edit-id">
         <div class="fg c2">
           <div><label>날짜</label><input type="date" id="ti-date"></div>
-          <div><label>중분류</label><select id="ti-mid" onchange="onMid()"><option value="">-- 선택 --</option></select></div>
+          <div id="ti-mid-wrap"><label>중분류</label><select id="ti-mid" onchange="onMid()" style="display:none"><option value="">-- 선택 --</option></select></div>
         </div>
         <div class="fg c2">
           <div><label>대분류(자동)</label><input type="text" id="ti-type" readonly style="color:var(--mu2)"></div>
-          <div><label>소분류</label><select id="ti-sub"></select></div>
+          <div id="ti-sub-wrap"><label>소분류</label><select id="ti-sub" style="display:none"></select></div>
         </div>
         <div class="fg c2">
           <div><label>금액(원)</label><input type="number" id="ti-amt" placeholder="0" min="0"></div>
@@ -554,7 +565,7 @@ function gYM(){return document.getElementById('gYM').value;}
 function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;font-family:inherit;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}
-function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();}else if(p==='bud')renderBud();else if(p==='ast')renderAst();}
+function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();}
 function onYM(){
   curYM=gYM();
   calYM=curYM;
@@ -606,6 +617,102 @@ window.onload=function(){
 };
 function onMid(){var m=document.getElementById('ti-mid').value;var c=CATS[m];document.getElementById('ti-type').value=c?c.p:'';var ss=document.getElementById('ti-sub');ss.innerHTML='';if(c)c.s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});document.getElementById('ti-evg').style.visibility=(c&&c.p==='지출')?'visible':'hidden';}
 function onEmMid(){var m=document.getElementById('em-mid').value;var c=CATS[m];var p=c?c.p:'';document.getElementById('em-type').value=p;var ss=document.getElementById('em-sub');ss.innerHTML='';if(c)c.s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});var evg=document.getElementById('em-evg');if(evg)evg.style.display=(p==='지출')?'':'none';}
+// ── 자동완성 검색 데이터 생성 ─────────────────────────────
+function buildAcData(){
+  var data=[];
+  Object.keys(CATS).forEach(function(mid){
+    var cat=CATS[mid];
+    cat.s.forEach(function(sub){
+      data.push({mid:mid,sub:sub,type:cat.p,icon:CE[mid]||'',subIcon:SUB_ICON[sub]||''});
+    });
+  });
+  return data;
+}
+
+function makeAcInput(wrap, onSelect){
+  // wrap: 기존 select가 있던 컨테이너
+  // 검색 input + 드롭다운 생성
+  var acWrap=document.createElement('div');acWrap.className='ac-wrap';
+  var inp=document.createElement('input');
+  inp.className='ac-input';inp.placeholder='검색... (예: 식비, 커피, 주유)';inp.autocomplete='off';
+  var drop=document.createElement('div');drop.className='ac-drop';
+
+  var acData=buildAcData();
+  var selIdx=-1;
+
+  function renderDrop(kw){
+    drop.innerHTML='';selIdx=-1;
+    var kw2=kw.trim().toLowerCase();
+    var results=kw2?acData.filter(function(d){
+      return d.mid.includes(kw2)||d.sub.includes(kw2)||d.type.includes(kw2);
+    }):acData.slice(0,20);
+    if(!results.length){
+      drop.innerHTML='<div class="ac-item"><span style="color:var(--mu)">검색 결과 없음</span></div>';
+      drop.classList.add('open');return;
+    }
+    results.slice(0,30).forEach(function(d,i){
+      var item=document.createElement('div');item.className='ac-item';
+      item.innerHTML='<span style="font-size:14px">'+(d.subIcon||d.icon||'')+'</span>'
+        +'<span class="ac-main">'+(d.subIcon&&d.subIcon!==d.icon?d.sub:d.mid+' / '+d.sub)+'</span>'
+        +'<span class="ac-sub ac-badge '+(d.type==='수입'?'bg':d.type==='저축'?'bb':'br')+'">'+d.type+'</span>';
+      item.onmousedown=function(e){
+        e.preventDefault();
+        inp.value=d.mid+' / '+d.sub;
+        drop.classList.remove('open');
+        onSelect(d);
+      };
+      drop.appendChild(item);
+    });
+    drop.classList.add('open');
+  }
+
+  inp.oninput=function(){renderDrop(inp.value);};
+  inp.onfocus=function(){renderDrop(inp.value);};
+  inp.onblur=function(){setTimeout(function(){drop.classList.remove('open');},150);};
+  inp.onkeydown=function(e){
+    var items=drop.querySelectorAll('.ac-item');
+    if(e.key==='ArrowDown'){selIdx=Math.min(selIdx+1,items.length-1);}
+    else if(e.key==='ArrowUp'){selIdx=Math.max(selIdx-1,0);}
+    else if(e.key==='Enter'&&selIdx>=0){items[selIdx].onmousedown(e);return;}
+    else if(e.key==='Escape'){drop.classList.remove('open');return;}
+    items.forEach(function(it,i){it.classList.toggle('sel',i===selIdx);});
+    if(selIdx>=0)items[selIdx].scrollIntoView({block:'nearest'});
+  };
+
+  acWrap.appendChild(inp);acWrap.appendChild(drop);
+  wrap.appendChild(acWrap);
+  return {inp:inp,drop:drop};
+}
+
+function initTxAc(){
+  // 거래 입력 폼의 중분류/소분류를 자동완성으로 교체
+  var midWrap=document.getElementById('ti-mid-wrap');
+  var subWrap=document.getElementById('ti-sub-wrap');
+  if(!midWrap||!subWrap)return;
+
+  // 기존 select 숨기기
+  var midSel=document.getElementById('ti-mid');
+  var subSel=document.getElementById('ti-sub');
+  if(midSel)midSel.style.display='none';
+  if(subSel)subSel.style.display='none';
+
+  // 기존 자동완성 있으면 제거
+  var existing=midWrap.querySelector('.ac-wrap');
+  if(existing)existing.remove();
+
+  makeAcInput(midWrap, function(d){
+    // 선택 시 숨겨진 select 값도 동기화
+    document.getElementById('ti-type').value=d.type;
+    var ms=document.getElementById('ti-mid');
+    if(ms){ms.value=d.mid;onMid();}
+    var ss=document.getElementById('ti-sub');
+    if(ss)ss.value=d.sub;
+    // 지출유형 표시/숨김
+    var evg=document.getElementById('ti-evg');
+    if(evg)evg.style.visibility=(d.type==='지출')?'visible':'hidden';
+  });
+}
+
 function saveTx(){
   var id=document.getElementById('edit-id').value;
   var btn=document.getElementById('ti-btn');btn.disabled=true;
@@ -785,6 +892,13 @@ function buildFixed(){
     saveBtn.style.whiteSpace='nowrap';
     (function(ii){saveBtn.onclick=function(){saveSingleFixed(ii);};})(i);
     btnRow.appendChild(saveBtn);
+    // 항목 수정 버튼
+    var editFxBtn=document.createElement('button');
+    editFxBtn.className='btn bg2 bsm';editFxBtn.textContent='⚙️';editFxBtn.title='항목 기본값 수정';
+    editFxBtn.style.padding='4px 7px';
+    (function(ii){editFxBtn.onclick=function(){openEditFx(ii);};})(i);
+    btnRow.appendChild(editFxBtn);
+    // 삭제 버튼
     var delBtn=document.createElement('button');
     delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.title='항목 삭제';
     delBtn.style.padding='4px 7px';
@@ -1703,6 +1817,127 @@ function confirmBsImport(){
   showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)');
   if(curPage==='inp'){renderInpDash();renderHis();}
   else if(curPage==='dash')renderDash();
+}
+
+function openEditFx(i){
+  var fi=FX[i];
+  var existing=document.getElementById('edit-fx-md');
+  if(existing)existing.remove();
+
+  var md=document.createElement('div');
+  md.className='mdbg on';md.id='edit-fx-md';
+
+  var inner=document.createElement('div');inner.className='md';
+  inner.style.cssText='width:480px;max-width:96vw';
+
+  // 헤더
+  var hdr=document.createElement('div');hdr.className='mdh';
+  var h3=document.createElement('h3');h3.textContent='⚙️ 고정 항목 수정';hdr.appendChild(h3);
+  var xBtn=document.createElement('button');xBtn.className='mdc';xBtn.textContent='✕';
+  xBtn.onclick=function(){document.getElementById('edit-fx-md').remove();};
+  hdr.appendChild(xBtn);inner.appendChild(hdr);
+
+  // 안내
+  var info=document.createElement('div');
+  info.className='al inf mb12';
+  info.textContent='FX 기본값을 수정합니다. 이번달 이미 입력된 거래는 별도로 수정해주세요.';
+  inner.appendChild(info);
+
+  // 폼
+  var form=document.createElement('div');form.className='fg c2';
+
+  function mkField(label, id, val, type){
+    var wrap=document.createElement('div');
+    var lbl=document.createElement('label');lbl.textContent=label;wrap.appendChild(lbl);
+    var inp=document.createElement('input');
+    inp.type=type||'text';inp.id=id;inp.value=val||'';
+    inp.style.cssText='width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit';
+    wrap.appendChild(inp);return wrap;
+  }
+  function mkSelect(label, id, options, val){
+    var wrap=document.createElement('div');
+    var lbl=document.createElement('label');lbl.textContent=label;wrap.appendChild(lbl);
+    var sel=document.createElement('select');sel.id=id;
+    sel.style.cssText='width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit';
+    options.forEach(function(o){
+      var opt=document.createElement('option');opt.value=o;opt.textContent=o;
+      if(o===val)opt.selected=true;sel.appendChild(opt);
+    });
+    wrap.appendChild(sel);return wrap;
+  }
+
+  // 대분류
+  var typeWrap=document.createElement('div');typeWrap.appendChild(mkSelect('대분류','efx-type',['수입','저축','지출'],fi.type));
+  form.appendChild(typeWrap);
+
+  // 중분류
+  var midSel=document.createElement('div');
+  var midLabel=document.createElement('label');midLabel.textContent='중분류';midSel.appendChild(midLabel);
+  var midSelect=document.createElement('select');midSelect.id='efx-mid';
+  midSelect.style.cssText='width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit';
+  Object.keys(CATS).filter(function(m){return CATS[m].p===fi.type;}).forEach(function(m){
+    var o=document.createElement('option');o.value=o.textContent=m;
+    if(m===fi.mid)o.selected=true;midSelect.appendChild(o);
+  });
+  midSel.appendChild(midSelect);form.appendChild(midSel);
+
+  // 소분류
+  var subWrap=document.createElement('div');
+  var subLabel=document.createElement('label');subLabel.textContent='소분류';subWrap.appendChild(subLabel);
+  var subSelect=document.createElement('select');subSelect.id='efx-sub';
+  subSelect.style.cssText='width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit';
+  if(CATS[fi.mid])CATS[fi.mid].s.forEach(function(s){
+    var o=document.createElement('option');o.value=o.textContent=s;
+    if(s===fi.sub)o.selected=true;subSelect.appendChild(o);
+  });
+  subWrap.appendChild(subSelect);form.appendChild(subWrap);
+
+  // 기본금액
+  form.appendChild(mkField('기본금액','efx-amt',fi.amt||'','number'));
+
+  // 결제수단
+  form.appendChild(mkSelect('결제수단','efx-pay',PAYS,fi.pay));
+
+  // 평가 (지출만)
+  if(fi.type==='지출'){
+    form.appendChild(mkSelect('지출유형','efx-eval',['소비','낭비','투자'],fi.eval||'소비'));
+  }
+
+  // 메모
+  var memoWrap=document.createElement('div');memoWrap.style.gridColumn='1/-1';
+  var memoLabel=document.createElement('label');memoLabel.textContent='메모(보험사명 등)';memoWrap.appendChild(memoLabel);
+  var memoInp=document.createElement('input');memoInp.type='text';memoInp.id='efx-memo';memoInp.value=fi.memo||'';
+  memoInp.style.cssText='width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit';
+  memoWrap.appendChild(memoInp);form.appendChild(memoWrap);
+
+  inner.appendChild(form);
+
+  // 버튼
+  var btnRow=document.createElement('div');btnRow.className='fx g8 mt12';
+  var saveBtn=document.createElement('button');saveBtn.className='btn bp';saveBtn.textContent='💾 저장';
+  saveBtn.onclick=function(){
+    var newFi={
+      type:document.getElementById('efx-type').value,
+      mid:document.getElementById('efx-mid').value,
+      sub:document.getElementById('efx-sub').value,
+      amt:Number(document.getElementById('efx-amt').value)||0,
+      pay:document.getElementById('efx-pay').value,
+      memo:document.getElementById('efx-memo').value,
+      eval:document.getElementById('efx-eval')?document.getElementById('efx-eval').value:''
+    };
+    FX[i]=newFi;
+    saveFX();
+    document.getElementById('edit-fx-md').remove();
+    buildFixed();
+    showToast('✅ 항목 수정 완료!');
+  };
+  btnRow.appendChild(saveBtn);
+  var cancelBtn=document.createElement('button');cancelBtn.className='btn bg2';cancelBtn.textContent='취소';
+  cancelBtn.onclick=function(){document.getElementById('edit-fx-md').remove();};
+  btnRow.appendChild(cancelBtn);
+  inner.appendChild(btnRow);
+  md.appendChild(inner);
+  document.body.appendChild(md);
 }
 
 function renderInpDash(){
