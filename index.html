@@ -1016,9 +1016,7 @@ function saveSingleFixed(i){
     showToast('✅ '+memo+' 저장 완료!');
   }
 
-  // FX 기본값 업데이트
-  FX[i].amt=amt;
-  saveFX();
+  // FX 기본값은 수정하지 않음 (지난달 거래에서 자동으로 가져옴)
 
   buildFixed();
   renderHis();
@@ -1064,12 +1062,6 @@ function saveSingleFixed(i){
   }else{
     addTx({date:date,mid:mid,sub:sub,type:type,amount:amt,memo:memo,payment:pay,eval:evalVal,fixed:true});
     showToast('✅ '+sub+' 저장 완료!');
-  }
-
-  // FX 기본값도 업데이트 (금액이 바뀐 경우)
-  if(fi.amt !== amt){
-    FX[i].amt=amt;
-    saveFX();
   }
 
   buildFixed();
