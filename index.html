@@ -790,74 +790,74 @@ function buildFixed(){
   var w=document.getElementById('fi-list');
   if(!w)return;
 
-  // 이번달 입력된 고정항목
-  var txsThisMonth=getTxs(ym);
-  // enteredMap: mid|sub -> 배열 (FX 포지션 순서 기반)
-  var enteredMap={};
-  txsThisMonth.filter(function(t){return t.fixed;}).forEach(function(t){
+  // ── 이번달 입력된 고정거래 (fi.memo → tx)
+  var thisTxs=getTxs(ym).filter(function(t){return t.fixed;});
+  // doneMap: 보험료처럼 같은 mid|sub 여러개인 건 memo로, 나머지는 mid|sub만으로
+  var doneMap={};
+  thisTxs.forEach(function(t){
     var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
-    enteredMap[k]=t;
+    doneMap[k]=t;
+    // mid|sub만으로도 저장 (fallback용)
+    var k2=t.mid+'|'+t.sub;
+    if(!doneMap[k2])doneMap[k2]=t;
   });
 
-  // 지난달 입력 이력 (예시값)
-  var prevYM=getPrevYM(ym);
-  var prevTxs=getTxs(prevYM);
+  // ── 지난달 고정거래 (예시값용)
+  var prevTxs=getTxs(getPrevYM(ym)).filter(function(t){return t.fixed;});
   var prevMap={};
-  prevTxs.forEach(function(t){if(t.fixed){var k=t.mid+'|'+t.sub+'|'+(t.memo||'');prevMap[k]=t;}});
+  prevTxs.forEach(function(t){
+    var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
+    prevMap[k]=t;
+    var k2=t.mid+'|'+t.sub;
+    if(!prevMap[k2])prevMap[k2]=t;
+  });
 
-  function getEntered(fi){
-    var k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
-    return enteredMap[k]||null;
-  }
-  function getPrevVal(fi){
-    var k1=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
-    if(prevMap[k1])return prevMap[k1];
-    var any=Object.keys(prevMap).find(function(k){return k.indexOf(fi.mid+'|'+fi.sub+'|')===0;});
-    return any?prevMap[any]:null;
-  }
-
+  // ── 그룹 분류 + 미입력 먼저 정렬
   var grpI=[],grpS=[],grpE=[];
   FX.forEach(function(fi,i){
-    // FX에서 i번째가 같은 mid+sub 중 몇번째인지
-    var _k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
-    var done=!!enteredMap[_k];
-    if(fi.type==='수입')grpI.push({fi:fi,i:i,done:done});
-    else if(fi.type==='저축')grpS.push({fi:fi,i:i,done:done});
-    else grpE.push({fi:fi,i:i,done:done});
+    var k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    var k2=fi.mid+'|'+fi.sub;
+    var sameCount=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;}).length;
+    // memo 완전일치 우선, 없으면 mid|sub만으로 fallback (단일 항목인 경우)
+    var tx=doneMap[k]||(sameCount===1?doneMap[k2]:null)||null;
+    var prev=prevMap[k]||(sameCount===1?prevMap[k2]:null)||null;
+    var done=!!tx;
+    var obj={fi:fi,i:i,done:done,tx:tx,prev:prev};
+    if(fi.type==='수입')grpI.push(obj);
+    else if(fi.type==='저축')grpS.push(obj);
+    else grpE.push(obj);
   });
-  function sortGrp(g){return g.slice().sort(function(a,b){return a.done-b.done;});}
-  grpI=sortGrp(grpI);grpS=sortGrp(grpS);grpE=sortGrp(grpE);
+  function sortGrp(g){return g.sort(function(a,b){return a.done-b.done;});}
+  sortGrp(grpI);sortGrp(grpS);sortGrp(grpE);
 
+  // ── 각 항목 DOM 생성
   function mkRow(obj){
-    var fi=obj.fi,i=obj.i,done=obj.done;
-    var entered=getEntered(fi);
-    var prev=getPrevVal(fi);
-    var defAmt=done?(entered?entered.amount:fi.amt):(prev?prev.amount:(fi.amt||0));
-    var defMemo=done?(entered?entered.memo:fi.memo):(prev?prev.memo:fi.memo);
-    var defPay=done?(entered?entered.payment:fi.pay):(prev?prev.payment:fi.pay);
-    var defDate=done?(entered?entered.date:today):today;
+    var fi=obj.fi,i=obj.i,done=obj.done,tx=obj.tx,prev=obj.prev;
+
+    // 기본값: 입력됐으면 그 값, 아니면 지난달 값, 아니면 FX 기본값
+    var defAmt  = done?(tx.amount):(prev?prev.amount:(fi.amt||0));
+    var defPay  = done?(tx.payment):(prev?prev.payment:fi.pay);
+    var defDate = done?(tx.date):today;
 
     var wrap=document.createElement('div');
     wrap.id='fxi-'+i;
     wrap.className='fxi';
-    if(done)wrap.style.borderLeft='3px solid var(--gn)';
+    if(done)wrap.style.cssText='border-left:3px solid var(--gn);background:rgba(39,103,73,.04)';
 
-    // 헤더행
+    // 헤더
     var head=document.createElement('div');head.className='fxi-head';
 
-    // 정보
+    // 이름 + 뱃지
     var info=document.createElement('div');info.className='fxi-info';
-
     var nameDiv=document.createElement('div');nameDiv.className='fxi-name';
-    // 보험료처럼 sub가 같은 항목은 memo로 구분해서 표시
     var dispName=(fi.sub==='보험료'||fi.sub==='기타업무지출'||fi.sub==='기타수입')
-      ? (CE[fi.mid]||'')+' '+fi.memo
-      : (CE[fi.mid]||'')+' '+fi.sub;
+      ?(CE[fi.mid]||'')+' '+fi.memo
+      :(CE[fi.mid]||'')+' '+fi.sub;
     nameDiv.textContent=dispName+' ';
     var badge=document.createElement('span');
     badge.className='bk '+(done?'bg':'byw');
-    badge.style.fontSize='10px';badge.style.marginLeft='2px';
-    badge.textContent=done?('✓ '+ff(defAmt)):'미입력';
+    badge.style.fontSize='10px';
+    badge.textContent=done?('✓ '+ff(tx.amount)):'미입력';
     nameDiv.appendChild(badge);
     info.appendChild(nameDiv);
 
@@ -876,18 +876,27 @@ function buildFixed(){
     var subSel=document.createElement('select');
     subSel.id='fx-sub-'+i;
     subSel.style.cssText='background:var(--sf3);border:1px solid var(--bd2);color:var(--mu2);padding:2px 4px;border-radius:4px;font-size:10px;cursor:pointer;font-family:inherit';
-    if(CATS[fi.mid]){CATS[fi.mid].s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;if(s===fi.sub)o.selected=true;subSel.appendChild(o);});}
+    if(CATS[fi.mid])CATS[fi.mid].s.forEach(function(s){
+      var o=document.createElement('option');o.value=o.textContent=s;
+      if(s===fi.sub)o.selected=true;subSel.appendChild(o);
+    });
     subSel.id='fx-sub-'+i;subDiv.appendChild(subSel);
-    if(fi.eval){var ev=document.createElement('span');ev.className='bk '+(fi.eval==='투자'?'bpu':fi.eval==='낭비'?'br':'bgy');ev.style.fontSize='10px';ev.textContent=fi.eval;subDiv.appendChild(ev);}
+    if(fi.eval){
+      var ev=document.createElement('span');
+      ev.className='bk '+(fi.eval==='투자'?'bpu':fi.eval==='낭비'?'br':'bgy');
+      ev.style.fontSize='10px';ev.textContent=fi.eval;subDiv.appendChild(ev);
+    }
     info.appendChild(subDiv);
     head.appendChild(info);
 
-    // 오른쪽: 금액 + 메모버튼
+    // 금액 입력
     var rgt=document.createElement('div');rgt.className='fx fxc g8';
     var amtInp=document.createElement('input');
     amtInp.type='number';amtInp.id='fx-amt-'+i;
     amtInp.value=defAmt||'';amtInp.placeholder='금액';amtInp.min='0';
-    amtInp.style.cssText='width:85px;background:var(--sf3);border:1px solid var(--bd2);color:'+(done?'var(--gn)':'var(--tx)')+';padding:4px 7px;border-radius:var(--rs);font-size:12px;font-weight:700;outline:none;text-align:right;font-family:inherit';
+    amtInp.style.cssText='width:85px;background:var(--sf3);border:1px solid var(--bd2);'
+      +'color:'+(done?'var(--gn)':'var(--tx)')+';padding:4px 7px;border-radius:var(--rs);'
+      +'font-size:12px;font-weight:700;outline:none;text-align:right;font-family:inherit';
     rgt.appendChild(amtInp);
     var memoBtn=document.createElement('button');
     memoBtn.textContent='💬';
@@ -897,7 +906,7 @@ function buildFixed(){
     head.appendChild(rgt);
     wrap.appendChild(head);
 
-    // 메모/결제 영역 (접기)
+    // 메모/결제 영역
     var body=document.createElement('div');body.className='fxi-body';body.id='fxi-body-'+i;
     var bodyRow=document.createElement('div');bodyRow.className='fx fxc g8 mt8';
     var paySel=document.createElement('select');
@@ -906,13 +915,13 @@ function buildFixed(){
     PAYS.forEach(function(p){var o=document.createElement('option');o.value=o.textContent=p;if(p===defPay)o.selected=true;paySel.appendChild(o);});
     bodyRow.appendChild(paySel);
     var memoInp=document.createElement('input');
-    memoInp.type='text';memoInp.id='fx-memo-'+i;memoInp.value=defMemo;memoInp.placeholder='메모';
+    memoInp.type='text';memoInp.id='fx-memo-'+i;memoInp.value=fi.memo;memoInp.placeholder='메모';
     memoInp.style.cssText='flex:1;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:4px 7px;border-radius:var(--rs);font-size:11px;outline:none;font-family:inherit';
     bodyRow.appendChild(memoInp);
     body.appendChild(bodyRow);
     wrap.appendChild(body);
 
-    // 날짜 + 저장/수정 버튼
+    // 날짜 + 버튼 행
     var btnRow=document.createElement('div');btnRow.className='fx fxc g8 mt8';
     btnRow.style.cssText='padding-top:8px;border-top:1px solid var(--bd)';
     var dateInp=document.createElement('input');
@@ -923,22 +932,19 @@ function buildFixed(){
     saveBtn.className='btn bsm '+(done?'bor':'bs');
     saveBtn.textContent=done?'✏️ 수정':'💾 저장';
     saveBtn.style.whiteSpace='nowrap';
-    (function(ii){saveBtn.onclick=function(){saveSingleFixed(ii);};})(i);
+    (function(ii){saveBtn.onclick=function(){saveSingleFixed(ii);};}(i));
     btnRow.appendChild(saveBtn);
-    // 항목 수정 버튼
     var editFxBtn=document.createElement('button');
-    editFxBtn.className='btn bg2 bsm';editFxBtn.textContent='⚙️';editFxBtn.title='항목 기본값 수정';
+    editFxBtn.className='btn bg2 bsm';editFxBtn.textContent='⚙️';
     editFxBtn.style.padding='4px 7px';
-    (function(ii){editFxBtn.onclick=function(){openEditFx(ii);};})(i);
+    (function(ii){editFxBtn.onclick=function(){openEditFx(ii);};}(i));
     btnRow.appendChild(editFxBtn);
-    // 삭제 버튼
     var delBtn=document.createElement('button');
-    delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.title='항목 삭제';
+    delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';
     delBtn.style.padding='4px 7px';
-    (function(ii){delBtn.onclick=function(){deleteFxItem(ii);};})(i);
+    (function(ii){delBtn.onclick=function(){deleteFxItem(ii);};}(i));
     btnRow.appendChild(delBtn);
     wrap.appendChild(btnRow);
-
     return wrap;
   }
 
@@ -955,6 +961,50 @@ function buildFixed(){
   makeSection('💰 수입','var(--gn)',grpI);
   makeSection('🏦 저축/투자','var(--bl)',grpS);
   makeSection('💸 지출 고정','var(--rd)',grpE);
+}
+
+function saveSingleFixed(i){
+  var fi=FX[i];
+  var date=document.getElementById('fx-date-'+i)?document.getElementById('fx-date-'+i).value:'';
+  if(!date){showToast('⚠️ 날짜를 선택해주세요.');return;}
+  var amt=Number(document.getElementById('fx-amt-'+i)?document.getElementById('fx-amt-'+i).value:'');
+  if(!amt){showToast('⚠️ 금액을 입력해주세요.');return;}
+  var pay=document.getElementById('fx-pay-'+i)?document.getElementById('fx-pay-'+i).value:fi.pay;
+  var type=fi.type||(CATS[fi.mid]?CATS[fi.mid].p:'지출');
+  var evalVal=(type==='수입'||type==='저축')?'':(fi.eval||'소비');
+  var ym=gYM();
+
+  var key=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+  var fixedTxs=getTxs(ym).filter(function(t){return t.fixed;});
+  var sameInFX=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;});
+  // memo 완전일치 우선
+  var existing=fixedTxs.find(function(t){
+    return (t.mid+'|'+t.sub+'|'+(t.memo||''))===key;
+  })||null;
+  // 없으면 mid|sub만으로 fallback (FX에서 해당 mid|sub가 1개인 경우)
+  if(!existing&&sameInFX.length===1){
+    existing=fixedTxs.find(function(t){return t.mid===fi.mid&&t.sub===fi.sub;})||null;
+  }
+  // fallback: mid|sub 같고 FX에서 유일한 항목이면 memo 무시하고 매칭
+  if(!existing){
+    var sameInFX=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;});
+    if(sameInFX.length===1){
+      existing=fixedTxs.find(function(t){return t.mid===fi.mid&&t.sub===fi.sub;})||null;
+    }
+  }
+
+  var txData={date:date,mid:fi.mid,sub:fi.sub,type:type,
+    amount:amt,memo:fi.memo,payment:pay,eval:evalVal,fixed:true};
+
+  if(existing){
+    updateTx(existing.id,txData);
+    showToast('✅ '+fi.sub+' 수정 완료!');
+  }else{
+    addTx(txData);
+    showToast('✅ '+fi.sub+' 저장 완료!');
+  }
+  buildFixed();
+  renderHis();
 }
 
 function getPrevYM(ym){
