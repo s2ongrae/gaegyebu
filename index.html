@@ -166,7 +166,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div class="si"><div class="sync-dot" id="sync-dot"></div><span id="sync-status">연결 중...</span></div>
   <select id="gY" onchange="onYMPart()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 6px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px"></select>
   <select id="gM" onchange="onYMPart()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 6px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:4px"></select>
-  <select id="gYM" style="display:none"></select>
+  <input type="hidden" id="gYM" value="">
   <script>
   (function(){
     var now=new Date();
@@ -189,9 +189,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     // hidden gYM 초기값 세팅
     var hidden=document.getElementById('gYM');
     if(hidden){
-      var v=curY+'-'+String(now.getMonth()+1).padStart(2,'0');
-      var ho=document.createElement('option');ho.value=v;ho.selected=true;
-      hidden.appendChild(ho);
+      hidden.value=curY+'-'+String(now.getMonth()+1).padStart(2,'0');
     }
   })();
   </script>
