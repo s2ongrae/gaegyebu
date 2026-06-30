@@ -160,23 +160,38 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <button class="nb" onclick="go('inp')" id="nb-inp">✏️ 입력/내역</button>
   <button class="nb" onclick="go('bud')" id="nb-bud">🎯 예산</button>
   <button class="nb" onclick="go('ast')" id="nb-ast">🏦 자산</button>
+  <button class="nb" onclick="go('stk')" id="nb-stk">📈 주식</button>
 </nav>
 <div class="sbar">
   <div class="si"><div class="sync-dot" id="sync-dot"></div><span id="sync-status">연결 중...</span></div>
-  <select id="gYM" onchange="onYM()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 8px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px;min-width:110px"></select>
+  <select id="gY" onchange="onYMPart()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 6px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px"></select>
+  <select id="gM" onchange="onYMPart()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 6px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:4px"></select>
+  <select id="gYM" style="display:none"></select>
   <script>
   (function(){
     var now=new Date();
-    var sel=document.getElementById('gYM');
-    if(!sel)return;
-    for(var i=0;i<24;i++){
-      var d=new Date(now.getFullYear(),now.getMonth()-i,1);
-      var v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-      var o=document.createElement('option');
-      o.value=v;
-      o.textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월';
-      if(i===0)o.selected=true;
-      sel.appendChild(o);
+    var ySel=document.getElementById('gY');
+    var mSel=document.getElementById('gM');
+    if(!ySel||!mSel)return;
+    // 연도: 2024 ~ 현재년도
+    var curY=now.getFullYear();
+    for(var y=curY;y>=2024;y--){
+      var o=document.createElement('option');o.value=y;o.textContent=y+'년';
+      if(y===curY)o.selected=true;
+      ySel.appendChild(o);
+    }
+    // 월: 1~12
+    for(var m=1;m<=12;m++){
+      var o2=document.createElement('option');o2.value=m;o2.textContent=m+'월';
+      if(m===now.getMonth()+1)o2.selected=true;
+      mSel.appendChild(o2);
+    }
+    // hidden gYM 초기값 세팅
+    var hidden=document.getElementById('gYM');
+    if(hidden){
+      var v=curY+'-'+String(now.getMonth()+1).padStart(2,'0');
+      var ho=document.createElement('option');ho.value=v;ho.selected=true;
+      hidden.appendChild(ho);
     }
   })();
   </script>
@@ -205,6 +220,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     </div>
     <div id="cal-detail" style="display:none" class="cal-detail"></div>
   </div>
+
+  <div id="mon-extra"></div>
 </div>
 <div class="pg" id="pg-inp">
   <div id="inp-dash" class="mb12"></div>
@@ -285,6 +302,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     <div class="card-title">🏦 자산 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 포커스 이동 시 자동 저장</span></div>
     <div id="d-ast"></div>
   </div>
+</div>
+
+<div class="pg" id="pg-stk">
+  <div id="d-stk"></div>
 </div>
 </div>
 
@@ -567,7 +588,15 @@ function gYM(){return document.getElementById('gYM').value;}
 function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;font-family:inherit;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}
-function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();}
+function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();else if(p==='stk')renderStock();}
+function onYMPart(){
+  var y=document.getElementById('gY').value;
+  var m=document.getElementById('gM').value;
+  var v=y+'-'+String(m).padStart(2,'0');
+  var hidden=document.getElementById('gYM');
+  if(hidden)hidden.value=v;
+  onYM();
+}
 function onYM(){
   curYM=gYM();
   calYM=curYM;
@@ -599,8 +628,6 @@ window.onload=function(){
   PAYS.forEach(function(p){var o=document.createElement('option');o.value=o.textContent=p;ps.appendChild(o);var o2=document.createElement('option');o2.value=o2.textContent=p;eps.appendChild(o2);});
   ['ti-mid','em-mid'].forEach(function(elId){var ms=document.getElementById(elId);['지출','수입','저축'].forEach(function(g){var og=document.createElement('optgroup');og.label=g;Object.keys(CATS).forEach(function(m){if(CATS[m].p===g){var o=document.createElement('option');o.value=o.textContent=m;og.appendChild(o);}});ms.appendChild(og);});});
   var sm=document.getElementById('s-mid');Object.keys(CATS).forEach(function(m){var o=document.createElement('option');o.value=o.textContent=m;sm.appendChild(o);});
-  var ys=document.getElementById('gYM');
-  for(var i=0;i<24;i++){var d=new Date(now.getFullYear(),now.getMonth()-i,1);var v=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');var o=document.createElement('option');o.value=v;o.textContent=d.getFullYear()+'년 '+(d.getMonth()+1)+'월';if(v===curYM)o.selected=true;ys.appendChild(o);}
   // 로컬 데이터 먼저 즉시 렌더링
   renderDash();
   // 서버에서 최신 데이터 백그라운드로 불러오기
@@ -1376,6 +1403,7 @@ function renderCal(){
     grid.appendChild(el);
   }
   document.getElementById('cal-detail').style.display='none';
+  renderMonExtra();
 }
 
 function calSelect(ds){
@@ -1457,6 +1485,10 @@ function renderDash(){
     var head=document.createElement('div');head.className='mon-card-head';
     var body=document.createElement('div');body.className='mon-card-body';
     head.onclick=function(){body.classList.toggle('open');};
+    body.addEventListener('click',function(e){
+      var tab=e.target.closest('.sec-tab');
+      if(tab&&tab.dataset.target)swMon(tab,tab.dataset.target);
+    });
     // 연월
     var ym_el=document.createElement('div');ym_el.className='mon-card-ym';ym_el.textContent=s.ym.replace('-','/');head.appendChild(ym_el);
     // 바
@@ -1496,7 +1528,7 @@ function renderDash(){
     dC=new Chart(document.getElementById('dC'),{type:'bar',data:{labels:lb,datasets:[{label:'수입',data:sums.map(function(s){return s.income;}),backgroundColor:'rgba(16,185,129,.65)',borderRadius:5,borderSkipped:false},{label:'지출',data:sums.map(function(s){return s.expense;}),backgroundColor:'rgba(239,68,68,.65)',borderRadius:5,borderSkipped:false},{label:'저축',data:sums.map(function(s){return s.income-s.expense;}),type:'line',borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.08)',fill:true,borderWidth:2,pointRadius:3,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#2b6cb0',font:{size:11},boxRadius:3}}},scales:{x:{ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.08)'}}}}});
     if(rC)rC.destroy();
     rC=new Chart(document.getElementById('rC'),{type:'bar',data:{labels:lb,datasets:[{label:'저축률',data:sums.map(function(s){return s.income>0?+((s.income-s.expense)/s.income*100).toFixed(1):0;}),backgroundColor:sums.map(function(s){return(s.income-s.expense)>=0?'rgba(59,130,246,.7)':'rgba(239,68,68,.7)';}),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},y:{ticks:{color:'#4a6fa5',callback:function(v){return v+'%';}},grid:{color:'rgba(0,0,0,.08)'}}}}});
-    if(nwData.length>1&&document.getElementById('nwC')){if(nwC)nwC.destroy();nwC=new Chart(document.getElementById('nwC'),{type:'line',data:{labels:nwData.map(function(d){return d.ym.replace('-','/');}),datasets:[{label:'순자산',data:nwData.map(function(d){return d.nw;}),borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.1)',fill:true,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#8b5cf6',tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.08)'}}}}});}
+    if(nwData.length>1&&document.getElementById('nwC')){if(nwC)nwC.destroy();nwC=new Chart(document.getElementById('nwC'),{type:'line',data:{labels:nwData.map(function(d,i){var p=d.ym.split('-');var yy=p[0].slice(2);var mm=parseInt(p[1]);var py=i>0?nwData[i-1].ym.split('-')[0]:null;return(i===0||p[0]!==py)?(yy+'년'):(mm+'월');}),datasets:[{label:'순자산',data:nwData.map(function(d){return d.nw;}),borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.1)',fill:true,borderWidth:2.5,pointRadius:4,pointBackgroundColor:'#8b5cf6',tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.08)'}}}}});}
   },100);
 }
 function renderMonDetail(ym){
@@ -1511,6 +1543,7 @@ function renderMonDetail(ym){
   var savTotal=savTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   var EC={'소비':'bgy','낭비':'br','투자':'bpu'};
   var uid='md'+ym.replace('-','');
+
   function mkRow(t,col){
     var fix=isFixed(t)?'<span class="bk bcy" style="font-size:10px;margin-left:2px">고정</span>':'';
     return'<div class="fx fxb fxc" style="padding:5px 0;border-bottom:1px solid var(--bd)">'
@@ -1524,27 +1557,32 @@ function renderMonDetail(ym){
       +'<span class="fw" style="color:'+col+';font-size:12px;white-space:nowrap">'+ff(t.amount)+'</span>'
       +'</div>';
   }
+
   var fixExp=expTxs.filter(isFixed);
   var varExp=expTxs.filter(function(t){return!isFixed(t);});
   var fixT=fixExp.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   var varT=varExp.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
-  // 카테고리별 지출 집계
   var byMid={};
   expTxs.forEach(function(t){byMid[t.mid]=(byMid[t.mid]||0)+(Number(t.amount)||0);});
   var expRanked=Object.keys(byMid).map(function(k){return{name:k,amt:byMid[k]};})
     .sort(function(a,b){return b.amt-a.amt;});
   var maxAmt=expRanked.length?expRanked[0].amt:1;
 
-  var t1btn='<button class="sec-tab income on" onclick="swMon(this,\''+uid+'-inc\'\')">💚 수입 '+f(incTotal)+'</button>';
-  var t2btn='<button class="sec-tab expense" onclick="swMon(this,\''+uid+'-exp\'\')">❤️ 지출 '+f(expTotal)+'</button>';
-  var t3btn='<button class="sec-tab saving" onclick="swMon(this,\''+uid+'-sav\'\')">💙 저축 '+f(savTotal)+'</button>';
-  return'<div class="sec-tabs">'+t1btn+t2btn+t3btn+'</div>'
-    // 수입
-    +'<div class="sec-content on" id="'+uid+'-inc" style="padding:10px 14px">'
+  var incId=uid+'-inc';
+  var expId=uid+'-exp';
+  var savId=uid+'-sav';
+
+  var tabsHtml='<div class="sec-tabs">'
+    +'<button class="sec-tab income on" data-target="'+incId+'">💚 수입 '+f(incTotal)+'</button>'
+    +'<button class="sec-tab expense" data-target="'+expId+'">❤️ 지출 '+f(expTotal)+'</button>'
+    +'<button class="sec-tab saving" data-target="'+savId+'">💙 저축 '+f(savTotal)+'</button>'
+    +'</div>';
+
+  var incHtml='<div class="sec-content on" id="'+incId+'" style="padding:10px 14px">'
     +(incTxs.length?incTxs.map(function(t){return mkRow(t,'var(--gn)');}).join(''):'<div class="em" style="padding:10px">없음</div>')
-    +'</div>'
-    // 지출 (고정/변동 + 카테고리 순위)
-    +'<div class="sec-content" id="'+uid+'-exp" style="padding:10px 14px">'
+    +'</div>';
+
+  var expHtml='<div class="sec-content" id="'+expId+'" style="padding:10px 14px">'
     +'<div class="g2" style="margin-bottom:10px">'
     +'<div><div class="tx-section-title">📌 고정 <span>'+ff(fixT)+'</span></div>'
     +(fixExp.length?fixExp.map(function(t){return mkRow(t,'var(--rd)');}).join(''):'<div class="em" style="padding:6px;font-size:11px">없음</div>')
@@ -1565,12 +1603,26 @@ function renderMonDetail(ym){
         +'<span style="font-size:10px;color:var(--mu);min-width:35px;text-align:right">'+(expTotal?Math.round(x.amt/expTotal*100)+'%':'')+'</span>'
         +'</div>';
     }).join('')
-    +'</div>'
-    // 저축
-    +'<div class="sec-content" id="'+uid+'-sav" style="padding:10px 14px">'
+    +'</div>';
+
+  var savHtml='<div class="sec-content" id="'+savId+'" style="padding:10px 14px">'
     +(savTxs.length?savTxs.map(function(t){return mkRow(t,'var(--bl)');}).join(''):'<div class="em" style="padding:10px">없음</div>')
     +'</div>';
+
+  return tabsHtml+incHtml+expHtml+savHtml;
 }
+
+function swMon(el,secId){
+  var tabs=el.parentElement.querySelectorAll('.sec-tab');
+  tabs.forEach(function(t){t.classList.remove('on');});
+  el.classList.add('on');
+  var parent=el.closest('.mon-card-body')||el.parentElement.parentElement;
+  parent.querySelectorAll('.sec-content').forEach(function(c){c.classList.remove('on');});
+  var target=document.getElementById(secId);
+  if(target)target.classList.add('on');
+}
+
+
 function swMon(el,secId){
   var tabs=el.parentElement.querySelectorAll('.sec-tab');
   tabs.forEach(function(t){t.classList.remove('on');});
@@ -2009,6 +2061,428 @@ function openEditFx(i){
   md.appendChild(inner);
   document.body.appendChild(md);
 }
+
+// ── 토스증권 API 연동 ────────────────────────────────────
+function loadTossConfig(){
+  try{
+    return JSON.parse(localStorage.getItem('toss_config')||'{}');
+  }catch(e){return{};}
+}
+function saveTossConfigLocal(cfg){
+  localStorage.setItem('toss_config', JSON.stringify(cfg));
+}
+function toggleTossSetup(){
+  var el=document.getElementById('toss-setup');
+  if(!el)return;
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(!isOpen){
+    var cfg=loadTossConfig();
+    if(document.getElementById('toss-cid'))document.getElementById('toss-cid').value=cfg.clientId||'';
+    if(document.getElementById('toss-acc'))document.getElementById('toss-acc').value=cfg.accountSeq||'';
+    // secret은 보안상 다시 안 채움
+  }
+}
+function saveTossConfig(){
+  var clientId=document.getElementById('toss-cid').value.trim();
+  var clientSecret=document.getElementById('toss-secret').value.trim();
+  var accountSeq=document.getElementById('toss-acc').value.trim();
+  if(!clientId||!accountSeq){showToast('⚠️ Client ID와 계좌번호를 입력해주세요.');return;}
+  var cfg={clientId:clientId,accountSeq:accountSeq};
+  if(clientSecret)cfg.clientSecret=clientSecret; // 비워두면 기존 값 서버에 유지
+  saveTossConfigLocal(cfg);
+
+  // 서버(Apps Script)에 Secret 전달 - GET 요청에 secret 노출 안되게 POST 사용
+  var url=localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;
+  if(!url){showToast('⚠️ 서버 URL이 설정되지 않았어요. 서버설정에서 먼저 연결해주세요.');return;}
+
+  showToast('💾 서버에 저장 중...');
+  fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify({action:'saveTossConfig',clientId:clientId,clientSecret:clientSecret,accountSeq:accountSeq})
+  }).then(function(r){return r.json();})
+    .then(function(res){
+      if(res&&res.ok){
+        showToast('✅ 토스증권 연동 정보 저장 완료!');
+        document.getElementById('toss-status').textContent='연동 설정됨';
+        document.getElementById('toss-status').style.color='var(--gn)';
+        toggleTossSetup();
+      }else{
+        showToast('❌ 저장 실패: '+(res&&res.error||'알 수 없는 오류'));
+      }
+    })
+    .catch(function(e){showToast('❌ 서버 연결 실패: '+e.message);});
+}
+
+// ── 📈 주식 탭 대시보드 ──────────────────────────────────
+function renderMonExtra(){
+  var el=document.getElementById('mon-extra');
+  if(!el)return;
+  var ym=calYM;
+  var db=loadDB();
+  var txs=getTxs(ym);
+  if(!txs.length){el.innerHTML='';return;}
+
+  // 수입 항목별
+  var incBySub={};
+  txs.filter(function(t){return t.type==='수입';}).forEach(function(t){
+    incBySub[t.sub]=(incBySub[t.sub]||0)+(Number(t.amount)||0);
+  });
+  var incTotal=Object.values(incBySub).reduce(function(s,v){return s+v;},0);
+  var incRanked=Object.keys(incBySub).map(function(k){return{name:k,amt:incBySub[k]};}).sort(function(a,b){return b.amt-a.amt;});
+
+  // 지출 항목별(카테고리)
+  var expByMid={};
+  txs.filter(function(t){return t.type==='지출';}).forEach(function(t){
+    expByMid[t.mid]=(expByMid[t.mid]||0)+(Number(t.amount)||0);
+  });
+  var expTotal=Object.values(expByMid).reduce(function(s,v){return s+v;},0);
+  var expRanked=Object.keys(expByMid).map(function(k){return{name:k,amt:expByMid[k]};}).sort(function(a,b){return b.amt-a.amt;});
+
+  // 저축 항목별 (어디에 쌓였는지)
+  var savBySub={};
+  txs.filter(function(t){return t.type==='저축';}).forEach(function(t){
+    savBySub[t.sub]=(savBySub[t.sub]||0)+(Number(t.amount)||0);
+  });
+  var savTotal=Object.values(savBySub).reduce(function(s,v){return s+v;},0);
+  var savRanked=Object.keys(savBySub).map(function(k){return{name:k,amt:savBySub[k]};}).sort(function(a,b){return b.amt-a.amt;});
+
+  var cidInc='monInc_'+Date.now();
+  var cidExp='monExp_'+Date.now();
+  var cidSav='monSav_'+Date.now();
+
+  function donutCard(title, total, ranked, cid, colorFn, emptyMsg){
+    if(!ranked.length){
+      return '<div class="card"><div class="card-title">'+title+'</div><div class="em" style="padding:12px;font-size:12px">'+emptyMsg+'</div></div>';
+    }
+    var h='<div class="card"><div class="card-title">'+title+' <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">총 '+ff(total)+'</span></div>';
+    h+='<div style="display:flex;align-items:center;gap:14px">';
+    h+='<div style="position:relative;width:110px;height:110px;flex-shrink:0"><canvas id="'+cid+'" width="110" height="110"></canvas></div>';
+    h+='<div style="flex:1;min-width:0">';
+    ranked.forEach(function(x,i){
+      var pct=total>0?Math.round(x.amt/total*100):0;
+      var color=colorFn(i);
+      h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+      h+='<div style="width:8px;height:8px;border-radius:2px;background:'+color+';flex-shrink:0"></div>';
+      h+='<span style="font-size:11px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(CE[x.name]||'')+x.name+'</span>';
+      h+='<span style="font-size:11px;font-weight:700;color:'+color+'">'+pct+'%</span>';
+      h+='<span style="font-size:11px;color:var(--mu2);min-width:55px;text-align:right">'+ff(x.amt)+'</span>';
+      h+='</div>';
+    });
+    h+='</div></div></div>';
+    return h;
+  }
+
+  var incColors=['#276749','#2f855a','#38a169','#48bb78','#68d391','#9ae6b4'];
+  var expColors=['#c53030','#e53e3e','#f56565','#fc8181','#feb2b2','#fed7d7'];
+  var savColors=['#2b6cb0','#3182ce','#4299e1','#63b3ed','#90cdf4','#bee3f8'];
+
+  var html='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">';
+  html+=donutCard('💰 수입 현황', incTotal, incRanked, cidInc, function(i){return incColors[i%incColors.length];}, '이달 수입 내역이 없어요');
+  html+=donutCard('💸 지출 현황', expTotal, expRanked, cidExp, function(i){return expColors[i%expColors.length];}, '이달 지출 내역이 없어요');
+  html+=donutCard('🏦 저축 현황', savTotal, savRanked, cidSav, function(i){return savColors[i%savColors.length];}, '이달 저축 내역이 없어요');
+  html+='</div>';
+
+  // ── 자산 변화 매핑 카드 ────────────────────────────────────
+  // 저축 거래 sub명을 AI(자산 항목) 매핑해서 어디로 늘었는지 표시
+  var assetMap={
+    '주택청약':'주택청약','ISA':'ISA','IRP':'퇴직연금IRP','연금저축펀드':'연금저축펀드',
+    '종신(KDB)':'KDB종신','종신(라이나)':'라이나종신','대출상환':'마통(신용대출)'
+  };
+  var prevAm=db.assets&&db.assets[getPrevYM(ym)]?db.assets[getPrevYM(ym)]:{};
+  var curAm=db.assets&&db.assets[ym]?db.assets[ym]:{};
+  var savDetail=savRanked.map(function(x){
+    var assetKey=assetMap[x.name]||x.name;
+    var before=Number(prevAm[assetKey])||0;
+    var after=Number(curAm[assetKey])||0;
+    var diff=after-before;
+    return {name:x.name, txAmt:x.amt, assetKey:assetKey, before:before, after:after, diff:diff};
+  });
+
+  if(savDetail.length){
+    html+='<div class="card mt12"><div class="card-title">📊 이달 저축이 늘어난 자산 항목</div>';
+    html+='<div class="ovx"><table class="tbl"><thead><tr>';
+    html+='<th>저축 항목</th><th class="tr">이달 납입액</th><th class="tr">'+getPrevYM(ym).slice(5)+'월말</th><th class="tr">'+ym.slice(5)+'월말</th><th class="tr">실제 증가</th>';
+    html+='</tr></thead><tbody>';
+    savDetail.forEach(function(x){
+      var diffColor=x.diff>=0?'var(--gn)':'var(--rd)';
+      var note=(x.before===0&&x.after===0)?'<span style="font-size:10px;color:var(--mu)">(자산탭 미입력)</span>':'';
+      html+='<tr>'
+        +'<td style="font-size:12px">'+(CE[x.assetKey]||'')+' '+x.name+'</td>'
+        +'<td class="tr fw" style="font-size:12px;color:var(--bl)">'+ff(x.txAmt)+'</td>'
+        +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+ff(x.before)+'</td>'
+        +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+ff(x.after)+'</td>'
+        +'<td class="tr fw" style="font-size:12px;color:'+diffColor+'">'+(x.diff>=0?'+':'')+ff(x.diff)+' '+note+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table></div>';
+    html+='<div style="font-size:10px;color:var(--mu);margin-top:6px;padding:0 4px">💡 "실제 증가"는 자산탭에 입력한 월말 잔액 기준이라 이자/평가손익이 포함될 수 있어요.</div>';
+    html+='</div>';
+  }
+
+  el.innerHTML=html;
+
+  setTimeout(function(){
+    function drawDonut(cid, ranked, colorFn){
+      var c=document.getElementById(cid);
+      if(!c||typeof Chart==='undefined'||!ranked.length)return;
+      new Chart(c,{type:'doughnut',data:{
+        labels:ranked.map(function(x){return x.name;}),
+        datasets:[{data:ranked.map(function(x){return x.amt;}),
+          backgroundColor:ranked.map(function(x,i){return colorFn(i);}),
+          borderWidth:2,borderColor:'#ffffff',hoverOffset:6}]
+      },options:{responsive:false,cutout:'62%',plugins:{legend:{display:false}}}});
+    }
+    drawDonut(cidInc, incRanked, function(i){return incColors[i%incColors.length];});
+    drawDonut(cidExp, expRanked, function(i){return expColors[i%expColors.length];});
+    drawDonut(cidSav, savRanked, function(i){return savColors[i%savColors.length];});
+  },150);
+}
+
+
+function renderStock(){
+  var el=document.getElementById('d-stk');
+  if(!el)return;
+  var db=loadDB();
+  var assets=db.assets||{};
+  var allAM=Object.keys(assets).sort().filter(function(m){return m<=curYM;});
+  if(!allAM.length){el.innerHTML='<div class="em">자산 데이터가 없어요</div>';return;}
+
+  var latestYM=allAM[allAM.length-1];
+  var latestAm=assets[latestYM]||{};
+  var stockVal=Number(latestAm['주식계좌'])||0;
+  var debt=Number(latestAm['마통(신용대출)'])||0;
+
+  // 월별 주식계좌 변화
+  var stockHist=allAM.map(function(ym){
+    return {ym:ym, val:Number(assets[ym]['주식계좌'])||0};
+  }).filter(function(x){return x.val>0;});
+
+  // 월별 투자수입(실현수익) - 거래내역에서
+  var txs=db.txs||[];
+  var investByMonth={};
+  txs.filter(function(t){return t.type==='수입'&&t.sub==='투자수입';}).forEach(function(t){
+    var ym=(t.date||'').slice(0,7);
+    if(!ym||ym>curYM)return;
+    investByMonth[ym]=(investByMonth[ym]||0)+(Number(t.amount)||0);
+  });
+  var investMonths=Object.keys(investByMonth).sort();
+  var totalRealized=Object.values(investByMonth).reduce(function(s,v){return s+v;},0);
+
+  // 주식 순자산/부채 투입 비율
+  // 가정: 주식계좌 자금 중 마통(부채)으로 투입된 비율 = min(debt, stockVal)/stockVal
+  var debtInStock=Math.min(debt, stockVal);
+  var equityInStock=Math.max(stockVal-debtInStock,0);
+  var leverageRatio=stockVal>0?Math.round(debtInStock/stockVal*100):0;
+
+  // 전월 대비 변화
+  var prevVal=stockHist.length>1?stockHist[stockHist.length-2].val:stockVal;
+  var momChange=stockVal-prevVal;
+  var momPct=prevVal>0?((momChange/prevVal)*100).toFixed(1):'0';
+
+  // 최초~현재 누적 성장
+  var firstVal=stockHist.length?stockHist[0].val:stockVal;
+  var totalGrowth=stockVal-firstVal;
+  var totalGrowthPct=firstVal>0?((totalGrowth/firstVal)*100).toFixed(1):'0';
+
+  var html='';
+
+  // KPI 카드 5개
+  html+='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:12px">';
+  function kpi(label,val,color,sub){
+    return '<div style="background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px;position:relative;overflow:hidden">'
+      +'<div style="font-size:10px;color:var(--mu);margin-bottom:3px">'+label+'</div>'
+      +'<div style="font-size:16px;font-weight:900;color:'+color+'">'+val+'</div>'
+      +(sub?'<div style="font-size:10px;color:var(--mu);margin-top:2px">'+sub+'</div>':'')
+      +'<div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:'+color+'"></div></div>';
+  }
+  html+=kpi('주식계좌 평가금액', ff(stockVal), 'var(--gn)', latestYM+' 기준');
+  html+=kpi('전월대비', (momChange>=0?'+':'')+ff(momChange), momChange>=0?'var(--gn)':'var(--rd)', momPct+'%');
+  html+=kpi('순자산 투입', ff(equityInStock), 'var(--pu)', stockVal>0?Math.round(equityInStock/stockVal*100)+'%':'0%');
+  html+=kpi('부채(마통) 투입', ff(debtInStock), 'var(--rd)', leverageRatio+'% 레버리지');
+  html+=kpi('실현수익 총액', ff(totalRealized), 'var(--yw)', investMonths.length+'개월 누적');
+  html+='</div>';
+
+  // 차트 영역 - 2단
+  var cid1='stkGrowth_'+Date.now();
+  var cid2='stkRealized_'+Date.now();
+  var cid3='stkLevPie_'+Date.now();
+
+  html+='<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:12px;margin-bottom:12px">';
+
+  // 주식 성장 곡선
+  html+='<div class="card"><div class="card-title">📈 주식계좌 성장 곡선</div>';
+  html+='<div style="position:relative;height:240px;width:100%;max-height:240px;overflow:hidden"><canvas id="'+cid1+'"></canvas></div></div>';
+
+  // 순자산/부채 투입 비율 도넛
+  html+='<div class="card"><div class="card-title">⚖️ 자금 구성</div>';
+  html+='<div style="display:flex;align-items:center;gap:16px">';
+  html+='<div style="position:relative;width:140px;height:140px;flex-shrink:0">';
+  html+='<canvas id="'+cid3+'" width="140" height="140"></canvas>';
+  html+='<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">';
+  html+='<div style="font-size:10px;color:var(--mu)">레버리지</div><div style="font-size:16px;font-weight:900;color:'+(leverageRatio>50?'var(--rd)':'var(--gn)')+'">'+leverageRatio+'%</div></div></div>';
+  html+='<div style="flex:1">';
+  html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">';
+  html+='<div style="width:10px;height:10px;border-radius:2px;background:#553c9a"></div>';
+  html+='<span style="font-size:12px;font-weight:700;flex:1">내 자본</span>';
+  html+='<span style="font-size:12px;font-weight:700;color:var(--pu)">'+ff(equityInStock)+'</span></div>';
+  html+='<div style="display:flex;align-items:center;gap:6px">';
+  html+='<div style="width:10px;height:10px;border-radius:2px;background:#c53030"></div>';
+  html+='<span style="font-size:12px;font-weight:700;flex:1">마통(빌린돈)</span>';
+  html+='<span style="font-size:12px;font-weight:700;color:var(--rd)">'+ff(debtInStock)+'</span></div>';
+  if(leverageRatio>50){
+    html+='<div class="al' +' '+'rd mt8" style="font-size:11px;padding:8px">⚠️ 빌린 돈 비중이 자본보다 높아요. 하락 시 리스크가 커요.</div>';
+  }
+  html+='</div></div></div>';
+
+  html+='</div>'; // 2단 그리드 끝
+
+  // 월간 실현수익 바 차트
+  html+='<div class="card mb12"><div class="card-title">💰 월간 실현수익(투자수입) 현황</div>';
+  html+='<div style="position:relative;height:220px;width:100%"><canvas id="'+cid2+'"></canvas></div></div>';
+
+  // 월별 상세 테이블
+  html+='<div class="card"><div class="card-title">📋 월별 주식계좌 변화 내역</div>';
+  html+='<div class="ovx"><table class="tbl"><thead><tr>';
+  html+='<th>월</th><th class="tr">평가금액</th><th class="tr">전월대비</th><th class="tr">실현수익</th>';
+  html+='</tr></thead><tbody>';
+  stockHist.slice().reverse().forEach(function(x,idx){
+    var realIdx=stockHist.length-1-idx;
+    var prev=realIdx>0?stockHist[realIdx-1].val:x.val;
+    var chg=x.val-prev;
+    var chgColor=chg>=0?'var(--gn)':'var(--rd)';
+    var realized=investByMonth[x.ym]||0;
+    html+='<tr>'
+      +'<td style="font-size:12px">'+x.ym.replace('-','년 ')+'월</td>'
+      +'<td class="tr fw" style="font-size:12px">'+ff(x.val)+'</td>'
+      +'<td class="tr" style="font-size:12px;color:'+chgColor+'">'+(chg>=0?'+':'')+ff(chg)+'</td>'
+      +'<td class="tr" style="font-size:12px;color:var(--yw)">'+(realized?ff(realized):'-')+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div></div>';
+
+  // 토스증권 연동 카드 (맨 아래로 이동)
+  html+='<div class="card mt12">'
+    +'<div class="card-title">'
+    +'🔗 토스증권 API 연동'
+    +'<span id="toss-status" style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px">미연동</span>'
+    +'<button class="btn bg2 bsm" onclick="toggleTossSetup()" style="margin-left:auto;font-size:11px">⚙️ 설정</button>'
+    +'</div>'
+    +'<div id="toss-setup" style="display:none;margin-top:10px">'
+    +'<div class="al inf mb8" style="font-size:11px">토스증권 Open API 승인 후 Client ID/Secret/계좌번호를 입력하면 자동 연동돼요.</div>'
+    +'<div class="fg c2">'
+    +'<div><label>Client ID</label><input type="text" id="toss-cid" placeholder="발급받은 Client ID"></div>'
+    +'<div><label>Client Secret</label><input type="password" id="toss-secret" placeholder="발급받은 Client Secret"></div>'
+    +'</div>'
+    +'<div class="fg c2">'
+    +'<div><label>Account Seq</label><input type="text" id="toss-acc" placeholder="예: 1"></div>'
+    +'<div style="display:flex;align-items:flex-end"><button class="btn bp" style="width:100%" onclick="saveTossConfig()">💾 저장</button></div>'
+    +'</div></div>'
+    +'<div id="toss-holdings" style="margin-top:10px"></div>'
+    +'<div class="fx g8 mt8"><button class="btn bs" onclick="syncTossHoldings()">🔄 토스증권 잔고 동기화</button>'
+    +'<span id="toss-sync-msg" style="font-size:11px;color:var(--mu);align-self:center"></span></div>'
+    +'</div>';
+
+  el.innerHTML=html;
+
+  // 차트 그리기
+  setTimeout(function(){
+    var c1=document.getElementById(cid1);
+    if(c1&&typeof Chart!=='undefined'){
+      new Chart(c1,{type:'line',data:{
+        labels:stockHist.map(function(x){return x.ym.slice(5)+'월';}),
+        datasets:[{label:'주식계좌',data:stockHist.map(function(x){return x.val;}),
+          borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.1)',fill:true,tension:.3,pointRadius:3}]
+      },options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},
+                x:{ticks:{color:'#4a6fa5'},grid:{display:false}}}}});
+    }
+    var c2=document.getElementById(cid2);
+    if(c2&&typeof Chart!=='undefined'){
+      new Chart(c2,{type:'bar',data:{
+        labels:investMonths.map(function(m){return m.slice(5)+'월';}),
+        datasets:[{label:'실현수익',data:investMonths.map(function(m){return investByMonth[m];}),
+          backgroundColor:investMonths.map(function(m){return investByMonth[m]>=0?'#276749':'#c53030';}),
+          borderRadius:4}]
+      },options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},
+                x:{ticks:{color:'#4a6fa5'},grid:{display:false}}}}});
+    }
+    var c3=document.getElementById(cid3);
+    if(c3&&typeof Chart!=='undefined'){
+      new Chart(c3,{type:'doughnut',data:{
+        labels:['내 자본','마통(빌린돈)'],
+        datasets:[{data:[equityInStock,debtInStock],
+          backgroundColor:['#553c9a','#c53030'],borderWidth:2,borderColor:'#ffffff',hoverOffset:6}]
+      },options:{responsive:false,cutout:'70%',plugins:{legend:{display:false}}}});
+    }
+  },150);
+}
+
+
+function syncTossHoldings(){
+  var cfg=loadTossConfig();
+  if(!cfg.clientId||!cfg.accountSeq){
+    showToast('⚠️ 먼저 ⚙️ 설정에서 토스증권 연동 정보를 입력해주세요.');
+    toggleTossSetup();
+    return;
+  }
+  var url=localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;
+  if(!url){showToast('⚠️ 서버 URL이 설정되지 않았어요.');return;}
+
+  var msgEl=document.getElementById('toss-sync-msg');
+  if(msgEl)msgEl.textContent='⏳ 토스증권에서 잔고 가져오는 중...';
+
+  fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify({action:'getTossHoldings',accountSeq:cfg.accountSeq})
+  }).then(function(r){return r.json();})
+    .then(function(res){
+      if(!res||!res.ok){
+        if(msgEl)msgEl.textContent='';
+        showToast('❌ 동기화 실패: '+(res&&res.error||'서버에 getTossHoldings 함수가 아직 없어요.'));
+        return;
+      }
+      renderTossHoldings(res.holdings||[], res.totalValue||0);
+      // 자산 탭의 주식계좌 항목에 자동 입력
+      var ym=gYM();
+      var db=loadDB();
+      if(!db.assets)db.assets={};
+      if(!db.assets[ym])db.assets[ym]={};
+      db.assets[ym]['주식계좌']=res.totalValue||0;
+      saveDB(db);
+      renderAst();
+      if(msgEl)msgEl.textContent='✅ '+new Date().toLocaleTimeString()+' 동기화 완료';
+      document.getElementById('toss-status').textContent='연동됨 · 평가금액 '+ff(res.totalValue||0);
+      document.getElementById('toss-status').style.color='var(--gn)';
+      showToast('✅ 토스증권 잔고 '+ff(res.totalValue||0)+' 동기화 완료!');
+    })
+    .catch(function(e){
+      if(msgEl)msgEl.textContent='';
+      showToast('❌ 동기화 실패: '+e.message);
+    });
+}
+
+function renderTossHoldings(holdings, totalValue){
+  var el=document.getElementById('toss-holdings');
+  if(!el)return;
+  if(!holdings.length){el.innerHTML='';return;}
+  var rows=holdings.map(function(h){
+    var pnlColor=(h.profitRate||0)>=0?'var(--rd)':'var(--bl)';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd)">'
+      +'<span style="font-size:12px;flex:1">'+(h.name||h.symbol||'')+'</span>'
+      +'<span style="font-size:11px;color:var(--mu)">'+(h.quantity||0)+'주</span>'
+      +'<span style="font-size:12px;font-weight:700;min-width:90px;text-align:right">'+ff(h.evalAmount||0)+'</span>'
+      +'<span style="font-size:11px;color:'+pnlColor+';min-width:55px;text-align:right">'+((h.profitRate||0)>=0?'+':'')+(h.profitRate||0).toFixed(1)+'%</span>'
+      +'</div>';
+  }).join('');
+  el.innerHTML='<div style="font-size:11px;color:var(--mu2);margin-bottom:4px;font-weight:700">보유 종목 ('+holdings.length+'개) · 총 '+ff(totalValue)+'</div>'+rows;
+}
+
 
 function renderInpDash(){
   var ym=gYM();
