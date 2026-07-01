@@ -884,6 +884,15 @@ function buildFixed(){
     badge.style.fontSize='10px';
     badge.textContent=done?('✓ '+ff(tx.amount)):'미입력';
     nameDiv.appendChild(badge);
+    // 기본값 배지: FX 기본값이 있고, 실제 표시값과 다를 때 보여줌
+    if(fi.amt>0){
+      var defBadge=document.createElement('span');
+      defBadge.className='bk bgy';
+      defBadge.style.cssText='font-size:10px;margin-left:3px';
+      defBadge.title='FX 기본값';
+      defBadge.textContent='기본 '+ff(fi.amt);
+      nameDiv.appendChild(defBadge);
+    }
     info.appendChild(nameDiv);
 
     var subDiv=document.createElement('div');subDiv.className='fxi-sub';
@@ -918,7 +927,9 @@ function buildFixed(){
     var rgt=document.createElement('div');rgt.className='fx fxc g8';
     var amtInp=document.createElement('input');
     amtInp.type='number';amtInp.id='fx-amt-'+i;
-    amtInp.value=defAmt||'';amtInp.placeholder='금액';amtInp.min='0';
+    amtInp.value=defAmt||'';
+    amtInp.placeholder=fi.amt>0?('기본: '+fi.amt):'금액';
+    amtInp.min='0';
     amtInp.style.cssText='width:85px;background:var(--sf3);border:1px solid var(--bd2);'
       +'color:'+(done?'var(--gn)':'var(--tx)')+';padding:4px 7px;border-radius:var(--rs);'
       +'font-size:12px;font-weight:700;outline:none;text-align:right;font-family:inherit';
@@ -2047,6 +2058,16 @@ function openEditFx(i){
     // ⚙️ 수정 내용 별도 저장
     FX[i]=newFi;
     saveFX();
+    // 이번달 이미 입력된 거래도 업데이트할지 확인
+    var ym=gYM();
+    var fixedKey=newFi.mid+'|'+newFi.sub+'|'+(newFi.memo||'');
+    var existingTx=getTxs(ym).find(function(t){
+      return t.fixed&&(t.mid+'|'+t.sub+'|'+(t.memo||''))===fixedKey;
+    });
+    if(existingTx&&confirm('이번달 이미 입력된 "'+newFi.sub+'" 거래도 기본값으로 업데이트할까요?\n현재: '+ff(existingTx.amount)+'원 → 변경: '+ff(newFi.amt)+'원')){
+      updateTx(existingTx.id,{amount:newFi.amt,payment:newFi.pay,eval:newFi.eval||existingTx.eval});
+      renderHis();
+    }
     document.getElementById('edit-fx-md').remove();
     buildFixed();
     showToast('✅ 항목 수정 완료!');
