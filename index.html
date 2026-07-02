@@ -64,8 +64,11 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .cal-day.today{border-color:var(--bl)}.cal-day.selected{background:rgba(59,130,246,.15);border-color:var(--bl)}.cal-day.other-month{opacity:.25}
 .cal-day-num{font-size:12px;font-weight:700;color:var(--mu2);margin-bottom:3px}
 .cal-day.today .cal-day-num{color:var(--bl)}
-.cal-day-inc{font-size:10px;color:var(--gn);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cal-day-exp{font-size:10px;color:var(--rd);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-day-sum{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px}
+.cds{font-size:9px;font-weight:700;white-space:nowrap;border-radius:3px;padding:1px 4px}
+.cds-in{background:rgba(16,185,129,.14);color:var(--gn)}
+.cds-ex{background:rgba(239,68,68,.12);color:var(--rd)}
+.cds-sv{background:rgba(59,130,246,.14);color:var(--bl)}
 .cal-detail{margin-top:12px;background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
 /* 월별 카드 */
 .mon-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:8px;overflow:hidden}
@@ -1397,10 +1400,11 @@ function renderCal(){
   var txs=getTxs(calYM);var byDate={};
   txs.forEach(function(t){
     var d=t.date;if(!d)return;
-    if(!byDate[d])byDate[d]={income:0,expense:0};
+    if(!byDate[d])byDate[d]={income:0,expense:0,saving:0};
     var a=Number(t.amount)||0;
     if(t.type==='수입')byDate[d].income+=a;
     else if(t.type==='지출')byDate[d].expense+=a;
+    else if(t.type==='저축')byDate[d].saving+=a;
   });
   var firstDay=new Date(y,m-1,1).getDay();
   var daysInMonth=new Date(y,m,0).getDate();
@@ -1428,10 +1432,14 @@ function renderCal(){
     el.id='calday-'+ds;
     // 날짜 숫자
     var num=document.createElement('div');num.className='cal-day-num';num.textContent=d2;el.appendChild(num);
-    // 수입
-    if(bd&&bd.income){var inc=document.createElement('div');inc.className='cal-day-inc';inc.textContent='+'+f(bd.income);el.appendChild(inc);}
-    // 지출
-    if(bd&&bd.expense){var exp=document.createElement('div');exp.className='cal-day-exp';exp.textContent='-'+f(bd.expense);el.appendChild(exp);}
+    // 수입/지출/저축을 한 줄에 배지로 표시
+    if(bd&&(bd.income||bd.expense||bd.saving)){
+      var sum=document.createElement('div');sum.className='cal-day-sum';
+      if(bd.income){var bi=document.createElement('span');bi.className='cds cds-in';bi.textContent='수입 +'+f(bd.income);sum.appendChild(bi);}
+      if(bd.expense){var be=document.createElement('span');be.className='cds cds-ex';be.textContent='지출 -'+f(bd.expense);sum.appendChild(be);}
+      if(bd.saving){var bs=document.createElement('span');bs.className='cds cds-sv';bs.textContent='저축 '+f(bd.saving);sum.appendChild(bs);}
+      el.appendChild(sum);
+    }
     // 클릭 이벤트
     (function(dateStr){el.onclick=function(){calSelect(dateStr);};})(ds);
     grid.appendChild(el);
