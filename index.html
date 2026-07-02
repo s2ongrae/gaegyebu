@@ -298,7 +298,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div id="d-bud-summary"></div>
   <div id="d-bud-warn"></div>
   <div class="card">
-    <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
+    <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="openBulkVarBudget()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">🪄 전월 변동지출 95%</button><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
     <div class="bud-grid" id="d-bud"></div>
   </div>
 </div>
@@ -2012,6 +2012,74 @@ function deleteBudgetTemplateItem(i){
   removeBudgetTemplateItem(i);
   renderBud();
   showToast('🗑️ 삭제됐어요.');
+}
+
+// ── 지난달 변동지출 95%로 예산 일괄설정 (고정지출은 건드리지 않음) ──
+function openBulkVarBudget(){
+  var ym=gYM();var prevYm=getPrevYM(ym);
+  var prevTxs=getTxs(prevYm).filter(function(t){return t.type==='지출'&&!isFixed(t);});
+  var sums={};
+  prevTxs.forEach(function(t){
+    var key=t.mid+'|'+t.sub;
+    sums[key]=(sums[key]||0)+(Number(t.amount)||0);
+  });
+  var proposals=Object.keys(sums).map(function(key){
+    var parts=key.split('|');var mid=parts[0],sub=parts[1];
+    var actual=sums[key];
+    var suggested=Math.round(actual*0.95/1000)*1000;
+    var btIdx=BT.findIndex(function(b){return b.mid===mid&&b.sub===sub;});
+    var oldAmt=btIdx>=0?(BT[btIdx].amount||0):null;
+    return{mid:mid,sub:sub,actual:actual,suggested:suggested,btIdx:btIdx,oldAmt:oldAmt};
+  }).sort(function(a,b){return b.actual-a.actual;});
+
+  if(!proposals.length){showToast('📭 '+prevYm+'에 변동 지출 내역이 없어요.');return;}
+
+  var existing=document.getElementById('bulk-bud-md');if(existing)existing.remove();
+  var md=document.createElement('div');md.className='mdbg on';md.id='bulk-bud-md';
+  var totalActual=proposals.reduce(function(s,p){return s+p.actual;},0);
+  var totalSuggested=proposals.reduce(function(s,p){return s+p.suggested;},0);
+  var rows=proposals.map(function(p,i){
+    var changeNote=p.oldAmt===null?'<span class="bk bcy" style="font-size:9px">신규</span>':(p.oldAmt!==p.suggested?'<span class="bk bgy" style="font-size:9px">'+ff(p.oldAmt)+' → 변경</span>':'<span class="bk bg2" style="font-size:9px">동일</span>');
+    return'<label style="display:flex;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px solid var(--bd);cursor:pointer">'
+      +'<input type="checkbox" class="bulk-bud-chk" data-idx="'+i+'" checked style="width:15px;height:15px">'
+      +'<span style="flex:1;font-size:12px">'+(CE[p.mid]||'')+' '+p.mid+' &gt; '+p.sub+'</span>'
+      +'<span style="font-size:11px;color:var(--mu)">'+prevYm.split('-')[1]+'월 '+ff(p.actual)+'</span>'
+      +'<span style="font-size:12px;font-weight:700;color:var(--pu);min-width:80px;text-align:right">'+ff(p.suggested)+'</span>'
+      +changeNote
+      +'</label>';
+  }).join('');
+  md.innerHTML='<div class="md" style="max-width:560px">'
+    +'<div class="mdh"><h3>🪄 '+prevYm+' 변동지출 95%로 예산 설정</h3><button class="mdc" onclick="document.getElementById(\'bulk-bud-md\').remove()">✕</button></div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-bottom:8px">'+prevYm+'에 <strong>고정거래로 등록되지 않은</strong> 변동 지출만 대상으로, 실사용액의 95%를 '+ym+' 예산 기본값으로 제안해요. 필요없는 항목은 체크 해제하세요.</div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px;padding:8px;background:var(--sf2);border-radius:8px">'
+    +'<span>'+prevYm+' 변동지출 합계 <strong>'+ff(totalActual)+'</strong></span>'
+    +'<span>→ 제안 총액 <strong style="color:var(--pu)">'+ff(totalSuggested)+'</strong></span>'
+    +'</div>'
+    +'<div style="max-height:340px;overflow-y:auto">'+rows+'</div>'
+    +'<div class="fx g8 mt8">'
+    +'<button class="btn bp" onclick="confirmBulkVarBudget()">💾 선택 항목 적용</button>'
+    +'<button class="btn bg2" onclick="document.getElementById(\'bulk-bud-md\').remove()">취소</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(md);
+  window._bulkBudProposals=proposals;
+}
+function confirmBulkVarBudget(){
+  var proposals=window._bulkBudProposals||[];
+  var checked=Array.prototype.slice.call(document.querySelectorAll('.bulk-bud-chk:checked'));
+  var applied=0;
+  checked.forEach(function(chk){
+    var p=proposals[Number(chk.dataset.idx)];if(!p)return;
+    if(p.btIdx>=0){
+      updateBudgetTemplateItem(p.btIdx,{mid:p.mid,sub:p.sub,amount:p.suggested});
+    }else{
+      addBudgetTemplateItem({mid:p.mid,sub:p.sub,amount:p.suggested});
+    }
+    applied++;
+  });
+  document.getElementById('bulk-bud-md').remove();
+  renderBud();
+  showToast('✅ '+applied+'개 항목 예산 반영됐어요!');
 }
 
 function onBud(el,ym,m,s){var a=Number(el.value)||0;if(!a)return;el.style.borderColor='var(--bl)';saveBudgetItem(ym,m,s,a);el.style.borderColor='var(--gn)';setTimeout(function(){el.style.borderColor='';renderBud();},700);}
