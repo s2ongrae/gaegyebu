@@ -290,6 +290,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   </div>
 </div>
 <div class="pg" id="pg-bud">
+  <div id="d-bud-summary"></div>
   <div id="d-bud-warn"></div>
   <div class="card">
     <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
@@ -611,6 +612,31 @@ function removeBudgetTemplateItem(i){BT.splice(i,1);saveBT();}
 function isBTItemValid(item){
   var cat=CATS[item.mid];
   return!!(cat&&cat.p==='지출'&&cat.s.indexOf(item.sub)>=0);
+}
+// 특정 월에 "실제로 적용되는" 예산 계산: 이번달 명시값 > 항목 기본값 > 전월실적 95% 순으로 우선.
+// renderBud(월별 화면)와 renderAnnual(연간 결산)이 같은 로직을 공유해서 두 탭 숫자가 항상 일치하게 한다.
+function getEffectiveBudget(ym){
+  var bg=getBudget(ym);
+  var prevTxs=getTxs(getPrevYM(ym));
+  var bySub={},byMid={},tags={},total=0;
+  BT.forEach(function(item){
+    if(!isBTItemValid(item))return;
+    var bgm=bg[item.mid]||{};
+    var amt,tag;
+    if(bgm[item.sub]){amt=bgm[item.sub];tag='explicit';}
+    else if(item.amount>0){amt=item.amount;tag='template';}
+    else{
+      var prevActual=0;
+      prevTxs.forEach(function(t){if(t.mid===item.mid&&t.sub===item.sub&&t.type==='지출')prevActual+=Number(t.amount)||0;});
+      amt=prevActual>0?Math.round(prevActual*0.95/1000)*1000:0;
+      tag=prevActual>0?'prev95':null;
+    }
+    var key=item.mid+'|'+item.sub;
+    bySub[key]=amt;tags[key]=tag;
+    byMid[item.mid]=(byMid[item.mid]||0)+amt;
+    total+=amt;
+  });
+  return{bySub:bySub,byMid:byMid,tags:tags,total:total};
 }
 function getAssets(ym){var db=loadDB();return(db.assets&&db.assets[ym])||{};}
 function saveAssetItem(ym,name,amt){var db=loadDB();if(!db.assets)db.assets={};if(!db.assets[ym])db.assets[ym]={};db.assets[ym][name]=amt;saveDB(db);}
@@ -1659,8 +1685,70 @@ function swMon(el,secId){
 }
 
 function swTab(el,secId){var tabs=el.parentElement.querySelectorAll('.sec-tab');tabs.forEach(function(t){t.classList.remove('on');});el.classList.add('on');var suffix=secId.slice(-3);var prefix=secId.slice(0,-4);['inc','exp','sav'].forEach(function(s){var sc=document.getElementById(prefix+'-'+s);if(sc)sc.classList.toggle('on',s===suffix);});}
+// ── 예산탭 상단: 이번달 결산 카드 (전체탭의 연간결산과 같은 스타일, 범위만 '이번달') ──
+function renderBudMonthSummary(ym,eb,sm){
+  var wrap=document.getElementById('d-bud-summary');
+  if(!wrap)return;
+  var totalBudget=eb.total;
+  var totalExp=sm.expense;
+  var pct=totalBudget>0?Math.round(totalExp/totalBudget*100):0;
+  var color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
+  var p=ym.split('-');var label=p[0]+'년 '+parseInt(p[1])+'월';
+
+  if(!totalBudget){
+    wrap.innerHTML='<div class="card mb12"><div class="card-title">📊 '+label+' 예산 결산</div>'
+      +'<div class="em">아직 이번달에 적용된 예산이 없어요. 아래에서 항목을 추가해보세요.</div></div>';
+    return;
+  }
+
+  var ranked=Object.keys(eb.byMid).map(function(m){
+    return{name:m,budget:eb.byMid[m],actual:sm.byMid[m]||0};
+  }).sort(function(a,b){return b.actual-a.actual;});
+
+  var html='<div class="card mb12"><div class="card-title">📊 '+label+' 예산 결산</div>'
+    +'<div style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+    +'<span style="font-size:13px;font-weight:700">이번달 예산 사용률</span>'
+    +'<span style="font-size:18px;font-weight:900;color:'+color+'">'+pct+'%</span>'
+    +'</div>'
+    +'<div style="display:flex;gap:16px;font-size:12px;margin-bottom:8px;flex-wrap:wrap">'
+    +'<span style="color:var(--mu2)">예산 <strong style="color:var(--tx)">'+ff(totalBudget)+'</strong></span>'
+    +'<span style="color:var(--mu2)">실적 <strong style="color:var(--rd)">'+ff(totalExp)+'</strong></span>'
+    +'<span style="color:var(--mu2)">잔액 <strong style="color:'+(totalBudget-totalExp>=0?'var(--gn)':'var(--rd)')+'">'+ff(totalBudget-totalExp)+'</strong></span>'
+    +'</div>'
+    +'<div style="height:10px;background:var(--sf3);border-radius:5px;overflow:hidden">'
+    +'<div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+color+';border-radius:5px;transition:width .5s"></div>'
+    +'</div></div>'
+    +'<table style="width:100%;border-collapse:collapse"><thead><tr>'
+    +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">카테고리</th>'
+    +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">예산</th>'
+    +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
+    +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">잔액</th>'
+    +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:80px">사용률</th>'
+    +'</tr></thead><tbody>'
+    +ranked.map(function(r){
+      var pct2=r.budget>0?Math.min(Math.round(r.actual/r.budget*100),999):0;
+      var remain=r.budget-r.actual;
+      var c=pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)';
+      var w=Math.min(pct2,100);
+      return'<tr>'
+        +'<td style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd)">'+(CE[r.name]||'')+' '+r.name+'</td>'
+        +'<td class="tr" style="font-size:12px;color:var(--mu2);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.budget)+'</td>'
+        +'<td class="tr" style="font-weight:700;font-size:12px;color:var(--rd);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.actual)+'</td>'
+        +'<td class="tr" style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd);color:'+(remain>=0?'var(--gn)':'var(--rd)')+'">'+ff(remain)+'</td>'
+        +'<td style="padding:6px 6px;border-bottom:1px solid var(--bd)">'
+        +'<div style="display:flex;align-items:center;gap:4px">'
+        +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden"><div style="width:'+w+'%;height:100%;background:'+c+';border-radius:2px"></div></div>'
+        +'<span style="font-size:10px;color:'+c+';font-weight:700;min-width:28px;text-align:right">'+pct2+'%</span>'
+        +'</div></td>'
+        +'</tr>';
+    }).join('')
+    +'</tbody></table></div>';
+  wrap.innerHTML=html;
+}
+
 function renderBud(){
-  var ym=gYM();var bg=getBudget(ym);var sm=getMonthSummary(ym);
+  var ym=gYM();var sm=getMonthSummary(ym);
   var container=document.getElementById('d-bud');
   var warnEl=document.getElementById('d-bud-warn');
   container.innerHTML='';
@@ -1672,6 +1760,9 @@ function renderBud(){
     if(isBTItemValid(item))validItems.push({item:item,i:i});
     else invalidItems.push({item:item,i:i});
   });
+
+  var eb=getEffectiveBudget(ym);
+  renderBudMonthSummary(ym,eb,sm);
 
   if(invalidItems.length&&warnEl){
     var warn=document.createElement('div');
@@ -1706,7 +1797,6 @@ function renderBud(){
     return;
   }
 
-  var prevTxs=getTxs(getPrevYM(ym));
   var groups={};
   validItems.forEach(function(o){
     var m=o.item.mid;
@@ -1716,24 +1806,11 @@ function renderBud(){
 
   Object.keys(groups).forEach(function(m){
     var items=groups[m];
-    var bgm=bg[m]||{};
     var rows=items.map(function(o){
-      var item=o.item;var sub=item.sub;
-      var explicit=bgm[sub];
-      var autoTag=null,amount;
-      if(explicit){
-        amount=explicit;
-      }else if(item.amount>0){
-        amount=item.amount;autoTag='template';
-      }else{
-        var prevActual=0;
-        prevTxs.forEach(function(t){if(t.mid===m&&t.sub===sub&&t.type==='지출')prevActual+=Number(t.amount)||0;});
-        if(prevActual>0){amount=Math.round(prevActual*0.95/1000)*1000;autoTag='prev95';}
-        else amount=0;
-      }
-      return{i:o.i,sub:sub,amount:amount,autoTag:autoTag};
+      var key=o.item.mid+'|'+o.item.sub;
+      return{i:o.i,sub:o.item.sub,amount:eb.bySub[key]||0,autoTag:eb.tags[key]};
     });
-    var totalBudget=rows.reduce(function(s,r){return s+(r.amount||0);},0);
+    var totalBudget=eb.byMid[m]||0;
     var actual=sm.byMid[m]||0;
     var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
     var over=totalBudget>0&&pct2>100;
@@ -3225,7 +3302,14 @@ function renderAnnual(months){
     {sub:'연금저축펀드',goal:2000000},{sub:'종신(KDB)',goal:1203957},
     {sub:'종신(라이나)',goal:1345767},{sub:'대출상환',goal:20400000}
   ];
-  var ANNUAL_BUDGET_TOTAL=51472989;
+  // 연간 총 예산: 하드코딩 숫자 대신, 해당 연도 각 달에 "실제로 적용된" 예산(예산탭과 동일 로직)을 합산
+  var ANNUAL_BUDGET_TOTAL=0;
+  var ANNUAL_BUDGET_BY_MID={};
+  months.forEach(function(monthYm){
+    var eb=getEffectiveBudget(monthYm);
+    ANNUAL_BUDGET_TOTAL+=eb.total;
+    Object.keys(eb.byMid).forEach(function(m){ANNUAL_BUDGET_BY_MID[m]=(ANNUAL_BUDGET_BY_MID[m]||0)+eb.byMid[m];});
+  });
   var db=loadDB();
   var allTxs=(db.txs||[]).filter(function(t){return months.indexOf(t.date.slice(0,7))>=0;});
 
@@ -3406,14 +3490,9 @@ function renderAnnual(months){
     +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:70px">사용률</th>'
     +'</tr></thead><tbody>'
     +function(){
-      var budgets=[
-        {name:'식비',budget:2880000},{name:'생활',budget:780000},{name:'꾸밈',budget:1200000},
-        {name:'교통',budget:600000},{name:'자동차',budget:22838213},{name:'주거',budget:4383000},
-        {name:'통신',budget:536800},{name:'건강',budget:720000},{name:'금융지출',budget:3666208},
-        {name:'문화여가',budget:452800},{name:'교육',budget:360000},{name:'유흥',budget:7460000},
-        {name:'반려동물',budget:710532},{name:'경조선물',budget:2593160},{name:'여행',budget:1200000},
-        {name:'업무지출',budget:1092276}
-      ];
+      var budgets=Object.keys(ANNUAL_BUDGET_BY_MID).map(function(m){return{name:m,budget:ANNUAL_BUDGET_BY_MID[m]};})
+        .sort(function(a,b){return b.budget-a.budget;});
+      if(!budgets.length)return'<tr><td colspan="5" style="font-size:12px;color:var(--mu);padding:12px 6px;text-align:center">예산탭에서 항목을 추가하면 여기 표시돼요</td></tr>';
       return budgets.map(function(b){
         var actual=expMap[b.name]||0;
         var pct=b.budget>0?Math.min(Math.round(actual/b.budget*100),999):0;
