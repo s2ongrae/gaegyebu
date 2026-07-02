@@ -290,8 +290,9 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   </div>
 </div>
 <div class="pg" id="pg-bud">
+  <div id="d-bud-warn"></div>
   <div class="card">
-    <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span></div>
+    <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
     <div class="bud-grid" id="d-bud"></div>
   </div>
 </div>
@@ -570,10 +571,55 @@ function updateTx(id,upd){var db=loadDB();var idx=-1;(db.txs||[]).forEach(functi
 function deleteTx(id){var db=loadDB();db.txs=(db.txs||[]).filter(function(t){return t.id!==id;});saveDB(db);}
 function getBudget(ym){var db=loadDB();return(db.budgets&&db.budgets[ym])||{};}
 function saveBudgetItem(ym,mid,sub,amt){var db=loadDB();if(!db.budgets)db.budgets={};if(!db.budgets[ym])db.budgets[ym]={};if(!db.budgets[ym][mid])db.budgets[ym][mid]={};db.budgets[ym][mid][sub]=amt;saveDB(db);}
+
+// ── 예산 항목 템플릿: 고정거래(FX)처럼 매달 자동 적용되는 "기본 예산" 목록 ──
+// 사용자가 직접 추가/수정/삭제 가능. {mid, sub, amount}
+var BT_KEY='gaegyebu_budget_template';
+var BT=[];
+function loadBT(){
+  try{
+    var saved=localStorage.getItem(BT_KEY);
+    if(saved){
+      BT=JSON.parse(saved);
+    }else{
+      // 처음 도입 시: 기존에 입력해뒀던 월별 예산값들을 그대로 항목으로 옮겨온다 (데이터 유실 방지)
+      BT=migrateBTFromExistingBudgets();
+      saveBT();
+    }
+  }catch(e){BT=[];}
+}
+function migrateBTFromExistingBudgets(){
+  var db=loadDB();
+  var budgets=db.budgets||{};
+  var items={}; // 'mid|sub' → {mid,sub,amount} (가장 최근 달에 입력된 값을 기본값으로 사용)
+  Object.keys(budgets).sort().forEach(function(ym){
+    var bym=budgets[ym]||{};
+    Object.keys(bym).forEach(function(mid){
+      Object.keys(bym[mid]||{}).forEach(function(sub){
+        var amt=Number(bym[mid][sub])||0;
+        if(amt>0)items[mid+'|'+sub]={mid:mid,sub:sub,amount:amt};
+      });
+    });
+  });
+  return Object.keys(items).map(function(k){return items[k];});
+}
+function saveBT(){localStorage.setItem(BT_KEY,JSON.stringify(BT));}
+function addBudgetTemplateItem(item){BT.push(item);saveBT();}
+function updateBudgetTemplateItem(i,item){BT[i]=item;saveBT();}
+function removeBudgetTemplateItem(i){BT.splice(i,1);saveBT();}
+// 현재 CATS 구조상 유효한 항목인지 (카테고리 개편으로 mid/sub가 사라졌는지) 확인
+function isBTItemValid(item){
+  var cat=CATS[item.mid];
+  return!!(cat&&cat.p==='지출'&&cat.s.indexOf(item.sub)>=0);
+}
 function getAssets(ym){var db=loadDB();return(db.assets&&db.assets[ym])||{};}
 function saveAssetItem(ym,name,amt){var db=loadDB();if(!db.assets)db.assets={};if(!db.assets[ym])db.assets[ym]={};db.assets[ym][name]=amt;saveDB(db);}
 function getAllMonths(){var db=loadDB();var all=db.txs||[];var m={};all.forEach(function(t){if(t.date)m[t.date.slice(0,7)]=true;});return Object.keys(m).sort();}
 function isFixed(tx){return tx.fixed||FX_KEYS.indexOf(tx.mid+'|'+tx.sub+'|'+tx.memo)>=0;}
+// 고정수입(근로) 판정: "고정거래 목록에 등록됐는지"와는 별개로, 실제로 매달 끊이지 않는 근로소득만 고정으로 본다.
+// (AZ 급여/투자수입/돌보미수입은 FX에 등록되어 있어도 사실상 변동수입이라 여기서 제외)
+var FIXED_INCOME_SUBS=['레드윗 급여'];
+function isFixedIncome(tx){return FIXED_INCOME_SUBS.indexOf(tx.sub)>=0;}
 function calcNW(am){var ta=AI.filter(function(a){return!a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);var td=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);return{ta:ta,td:td,nw:ta-td};}
 function getMonthSummary(ym){
   var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
@@ -581,7 +627,7 @@ function getMonthSummary(ym){
     var a=Number(t.amount)||0;
     if(t.type==='수입'){
       income+=a;
-      if(isFixed(t))incomeFixed+=a;else incomeVar+=a;
+      if(isFixedIncome(t))incomeFixed+=a;else incomeVar+=a;
     }
     else if(t.type==='저축'){if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;}
     else{expense+=a;byMid[t.mid]=(byMid[t.mid]||0)+a;if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;}
@@ -648,6 +694,7 @@ window.onload=function(){
   ['gaegyebu_fx','gaegyebu_fx_ver','gaegyebu_fx_removed','gaegyebu_fx_added','gaegyebu_fx_edited'].forEach(function(k){localStorage.removeItem(k);});
   loadFX();
   loadAI();
+  loadBT();
   // 수입/저축 거래의 eval 정리 (기존 데이터 마이그레이션)
   (function(){
     var db=loadDB();var changed=false;
@@ -1614,35 +1661,84 @@ function swMon(el,secId){
 function swTab(el,secId){var tabs=el.parentElement.querySelectorAll('.sec-tab');tabs.forEach(function(t){t.classList.remove('on');});el.classList.add('on');var suffix=secId.slice(-3);var prefix=secId.slice(0,-4);['inc','exp','sav'].forEach(function(s){var sc=document.getElementById(prefix+'-'+s);if(sc)sc.classList.toggle('on',s===suffix);});}
 function renderBud(){
   var ym=gYM();var bg=getBudget(ym);var sm=getMonthSummary(ym);
-  var mids=Object.keys(CATS).filter(function(m){return CATS[m].p==='지출';});
   var container=document.getElementById('d-bud');
+  var warnEl=document.getElementById('d-bud-warn');
   container.innerHTML='';
+  if(warnEl)warnEl.innerHTML='';
+
+  // 유효하지 않은 항목(카테고리 개편으로 mid/sub가 사라짐) 분리
+  var validItems=[],invalidItems=[];
+  BT.forEach(function(item,i){
+    if(isBTItemValid(item))validItems.push({item:item,i:i});
+    else invalidItems.push({item:item,i:i});
+  });
+
+  if(invalidItems.length&&warnEl){
+    var warn=document.createElement('div');
+    warn.className='card mb12';
+    warn.style.cssText='border:1px solid rgba(239,68,68,.4);background:rgba(239,68,68,.06)';
+    var wt=document.createElement('div');
+    wt.style.cssText='font-size:13px;font-weight:800;color:var(--rd);margin-bottom:8px';
+    wt.textContent='⚠️ 카테고리 개편으로 사라진 예산 항목 ('+invalidItems.length+'개)';
+    warn.appendChild(wt);
+    var wd=document.createElement('div');
+    wd.style.cssText='font-size:11px;color:var(--mu);margin-bottom:10px';
+    wd.textContent='아래 항목이 가리키는 대분류/소분류가 더 이상 없어서 예산에 반영되지 않고 있어요. 새 카테고리로 다시 설정하거나 삭제해주세요.';
+    warn.appendChild(wd);
+    invalidItems.forEach(function(o){
+      var row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:8px;background:var(--sf2);border-radius:8px;padding:8px 10px;margin-bottom:6px';
+      row.innerHTML='<span style="font-size:12px;color:var(--rd);font-weight:700;flex:1">'+(o.item.mid||'?')+' &gt; '+(o.item.sub||'?')+'</span>'
+        +'<span style="font-size:11px;color:var(--mu)">기본 '+ff(o.item.amount||0)+'</span>';
+      var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️ 재설정';editBtn.style.cssText='padding:4px 8px';
+      (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(o.i);
+      row.appendChild(editBtn);
+      var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 8px';
+      (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(o.i);
+      row.appendChild(delBtn);
+      warn.appendChild(row);
+    });
+    warnEl.appendChild(warn);
+  }
+
+  if(!validItems.length){
+    container.innerHTML='<div class="em">🎯 아직 예산 항목이 없어요. 위 "＋ 항목추가"로 관리하고 싶은 예산 항목을 추가해보세요.</div>';
+    return;
+  }
+
   var prevTxs=getTxs(getPrevYM(ym));
-  var autoFilled={}; // 'mid|sub' → 이번 렌더에서 전월 95%로 자동 채워졌음
-  mids.forEach(function(m){
-    var cat=CATS[m];var bgm=bg[m]||{};
-    // 이번달 예산이 비어있는 소분류는 전월 실제 지출의 95%를 기본값으로 자동 채움
-    cat.s.forEach(function(sub){
-      if(!bgm[sub]){
+  var groups={};
+  validItems.forEach(function(o){
+    var m=o.item.mid;
+    if(!groups[m])groups[m]=[];
+    groups[m].push(o);
+  });
+
+  Object.keys(groups).forEach(function(m){
+    var items=groups[m];
+    var bgm=bg[m]||{};
+    var rows=items.map(function(o){
+      var item=o.item;var sub=item.sub;
+      var explicit=bgm[sub];
+      var autoTag=null,amount;
+      if(explicit){
+        amount=explicit;
+      }else if(item.amount>0){
+        amount=item.amount;autoTag='template';
+      }else{
         var prevActual=0;
         prevTxs.forEach(function(t){if(t.mid===m&&t.sub===sub&&t.type==='지출')prevActual+=Number(t.amount)||0;});
-        if(prevActual>0){
-          var suggested=Math.round(prevActual*0.95/1000)*1000; // 1천원 단위로 반올림
-          if(suggested>0){
-            bgm[sub]=suggested;
-            saveBudgetItem(ym,m,sub,suggested);
-            autoFilled[m+'|'+sub]=true;
-          }
-        }
+        if(prevActual>0){amount=Math.round(prevActual*0.95/1000)*1000;autoTag='prev95';}
+        else amount=0;
       }
+      return{i:o.i,sub:sub,amount:amount,autoTag:autoTag};
     });
-    var totalBudget=cat.s.reduce(function(s,sub){return s+(bgm[sub]||0);},0);
+    var totalBudget=rows.reduce(function(s,r){return s+(r.amount||0);},0);
     var actual=sm.byMid[m]||0;
     var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
     var over=totalBudget>0&&pct2>100;
-    // 카드
+
     var card=document.createElement('div');card.className='bud-card';
-    // 헤더
     var head=document.createElement('div');head.className='bud-card-head';
     var name=document.createElement('div');name.className='bud-card-name';
     name.textContent=(CE[m]||'')+' '+m+' ';
@@ -1650,35 +1746,127 @@ function renderBud(){
     head.appendChild(name);
     var total=document.createElement('div');total.className='bud-card-total';total.textContent=totalBudget?ff(totalBudget):'미설정';head.appendChild(total);
     card.appendChild(head);
-    // 프로그레스 바
     if(totalBudget){
       var prg=document.createElement('div');prg.className='prg mb8';
       var prb=document.createElement('div');prb.className='prb';prb.style.cssText='width:'+Math.min(pct2,100)+'%;background:'+(over?'var(--rd)':'var(--gn)');
       prg.appendChild(prb);card.appendChild(prg);
     }
-    // 소분류 행
-    cat.s.forEach(function(sub){
-      var v=bgm[sub]||'';
+    rows.forEach(function(r){
       var act=0;
-      getTxs(ym).forEach(function(t){if(t.mid===m&&t.sub===sub&&t.type==='지출')act+=Number(t.amount)||0;});
+      getTxs(ym).forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type==='지출')act+=Number(t.amount)||0;});
       var row=document.createElement('div');row.className='bud-sub-row';
-      var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=sub+' ';
-      if(autoFilled[m+'|'+sub]){
-        var abk=document.createElement('span');abk.className='bk bcy';abk.style.fontSize='9px';abk.title='전월 실사용액의 95%로 자동 채워졌어요. 직접 수정하면 그 값으로 저장돼요.';abk.textContent='🔁 전월 95%';
+      var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub+' ';
+      if(r.autoTag==='prev95'){
+        var abk=document.createElement('span');abk.className='bk bcy';abk.style.fontSize='9px';abk.title='전월 실사용액의 95%로 자동 채워졌어요.';abk.textContent='🔁 전월 95%';
         subName.appendChild(abk);
+      }else if(r.autoTag==='template'){
+        var tbk=document.createElement('span');tbk.className='bk bpu';tbk.style.fontSize='9px';tbk.title='설정해두신 기본 예산이 적용됐어요. 이번달만 다르게 하려면 값을 바꾸고 포커스를 옮기세요.';tbk.textContent='📌 기본값';
+        subName.appendChild(tbk);
       }
       row.appendChild(subName);
       var actEl=document.createElement('span');actEl.className='bud-sub-actual';if(act)actEl.textContent=ff(act);row.appendChild(actEl);
-      var inp=document.createElement('input');inp.type='number';inp.value=v||'';inp.placeholder='예산';inp.min='0';inp.className='bud-sub-input';
-      if(autoFilled[m+'|'+sub])inp.style.borderColor='rgba(8,151,160,.4)';
+      var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder='예산';inp.min='0';inp.className='bud-sub-input';
+      if(r.autoTag)inp.style.borderColor='rgba(8,151,160,.4)';
       (function(ym2,m2,s2){
         inp.onfocus=function(){this.style.borderColor='var(--bl)';};
         inp.onblur=function(){onBud(this,ym2,m2,s2);};
-      })(ym,m,sub);
-      row.appendChild(inp);card.appendChild(row);
+      })(ym,m,r.sub);
+      row.appendChild(inp);
+      var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:4px 7px;margin-left:4px';
+      (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
+      row.appendChild(editBtn);
+      var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 7px;margin-left:4px';
+      (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
+      row.appendChild(delBtn);
+      card.appendChild(row);
     });
     container.appendChild(card);
   });
+}
+
+// ── 예산 항목 추가/수정/삭제 모달 ──────────────────────────────
+function budgetMidOptions(selectedMid){
+  return Object.keys(CATS).filter(function(m){return CATS[m].p==='지출';}).map(function(m){
+    return'<option value="'+m+'"'+(m===selectedMid?' selected':'')+'>'+m+'</option>';
+  }).join('');
+}
+function fillBudgetSubOptions(selId,mid,selectedSub){
+  var el=document.getElementById(selId);if(!el)return;
+  var cat=CATS[mid];
+  el.innerHTML=(cat?cat.s:[]).map(function(s){return'<option value="'+s+'"'+(s===selectedSub?' selected':'')+'>'+s+'</option>';}).join('');
+}
+function openAddBudgetItem(){
+  var existing=document.getElementById('add-bud-md');if(existing)existing.remove();
+  var mids=Object.keys(CATS).filter(function(m){return CATS[m].p==='지출';});
+  var defMid=mids[0];
+  var md=document.createElement('div');md.className='mdbg on';md.id='add-bud-md';
+  md.innerHTML='<div class="md">'
+    +'<div class="mdh"><h3>➕ 예산 항목 추가</h3><button class="mdc" onclick="document.getElementById(\'add-bud-md\').remove()">✕</button></div>'
+    +'<div class="fg c2">'
+    +'<div><label>대분류</label><select id="abud-mid" onchange="fillBudgetSubOptions(\'abud-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
+    +'<div><label>소분류</label><select id="abud-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'</div>'
+    +'<div><label>기본 예산액(원)</label><input type="number" id="abud-amt" placeholder="예: 100000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-top:6px">매달 이 금액이 기본으로 적용돼요. 특정 달만 다르게 하고 싶으면 예산탭에서 그 달 값만 수정하면 돼요.</div>'
+    +'<div class="fx g8 mt8">'
+    +'<button class="btn bp" onclick="confirmAddBudgetItem()">💾 추가</button>'
+    +'<button class="btn bg2" onclick="document.getElementById(\'add-bud-md\').remove()">취소</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(md);
+  fillBudgetSubOptions('abud-sub',defMid);
+}
+function confirmAddBudgetItem(){
+  var mid=document.getElementById('abud-mid').value;
+  var sub=document.getElementById('abud-sub').value;
+  if(!sub){showToast('⚠️ 소분류를 선택해주세요.');return;}
+  if(BT.some(function(b){return b.mid===mid&&b.sub===sub;})){showToast('⚠️ 이미 추가된 항목이에요.');return;}
+  var amount=Number(document.getElementById('abud-amt').value)||0;
+  addBudgetTemplateItem({mid:mid,sub:sub,amount:amount});
+  document.getElementById('add-bud-md').remove();
+  renderBud();
+  showToast('✅ 예산 항목 추가됐어요!');
+}
+function openEditBudgetItem(i){
+  var item=BT[i];if(!item)return;
+  var existing=document.getElementById('edit-bud-md');if(existing)existing.remove();
+  var valid=isBTItemValid(item);
+  var mids=Object.keys(CATS).filter(function(m){return CATS[m].p==='지출';});
+  var defMid=valid?item.mid:mids[0];
+  var md=document.createElement('div');md.className='mdbg on';md.id='edit-bud-md';
+  md.innerHTML='<div class="md">'
+    +'<div class="mdh"><h3>⚙️ 예산 항목 수정</h3><button class="mdc" onclick="document.getElementById(\'edit-bud-md\').remove()">✕</button></div>'
+    +(valid?'':'<div class="al inf mb8" style="font-size:11px;color:var(--rd)">이전 카테고리("'+item.mid+' &gt; '+item.sub+'")가 더 이상 없어서, 새 대분류/소분류를 다시 선택해주세요.</div>')
+    +'<div class="fg c2">'
+    +'<div><label>대분류</label><select id="ebud-mid" onchange="fillBudgetSubOptions(\'ebud-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
+    +'<div><label>소분류</label><select id="ebud-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'</div>'
+    +'<div><label>기본 예산액(원)</label><input type="number" id="ebud-amt" value="'+(item.amount||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="fx g8 mt8">'
+    +'<button class="btn bp" onclick="confirmEditBudgetItem('+i+')">💾 저장</button>'
+    +'<button class="btn bg2" onclick="document.getElementById(\'edit-bud-md\').remove()">취소</button>'
+    +'</div>'
+    +'</div>';
+  document.body.appendChild(md);
+  fillBudgetSubOptions('ebud-sub',defMid,valid?item.sub:null);
+}
+function confirmEditBudgetItem(i){
+  var mid=document.getElementById('ebud-mid').value;
+  var sub=document.getElementById('ebud-sub').value;
+  if(!sub){showToast('⚠️ 소분류를 선택해주세요.');return;}
+  if(BT.some(function(b,idx){return idx!==i&&b.mid===mid&&b.sub===sub;})){showToast('⚠️ 이미 있는 항목이에요.');return;}
+  var amount=Number(document.getElementById('ebud-amt').value)||0;
+  updateBudgetTemplateItem(i,{mid:mid,sub:sub,amount:amount});
+  document.getElementById('edit-bud-md').remove();
+  renderBud();
+  showToast('✅ 예산 항목 수정됐어요!');
+}
+function deleteBudgetTemplateItem(i){
+  var item=BT[i];if(!item)return;
+  if(!confirm('"'+(item.mid||'?')+' > '+(item.sub||'?')+'" 예산 항목을 삭제할까요?'))return;
+  removeBudgetTemplateItem(i);
+  renderBud();
+  showToast('🗑️ 삭제됐어요.');
 }
 
 function onBud(el,ym,m,s){var a=Number(el.value)||0;if(!a)return;el.style.borderColor='var(--bl)';saveBudgetItem(ym,m,s,a);el.style.borderColor='var(--gn)';setTimeout(function(){el.style.borderColor='';renderBud();},700);}
