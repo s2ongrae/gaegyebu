@@ -613,28 +613,56 @@ function saveBT(){localStorage.setItem(BT_KEY,JSON.stringify(BT));}
 function addBudgetTemplateItem(item){BT.push(item);saveBT();}
 function updateBudgetTemplateItem(i,item){BT[i]=item;saveBT();}
 function removeBudgetTemplateItem(i){BT.splice(i,1);saveBT();}
+// 예산탭이 수입/저축 목표도 지원하게 된 뒤 처음 접속하는 기존 사용자를 위한 1회성 백필.
+// 이미 수입/저축 항목이 하나라도 BT에 있으면(직접 추가했든, 이미 백필됐든) 다시 건드리지 않는다.
+function backfillIncomeSavingsGoals(){
+  var hasNonExpense=BT.some(function(b){var cat=CATS[b.mid];return cat&&(cat.p==='수입'||cat.p==='저축');});
+  if(hasNonExpense)return;
+  var added=false;
+  ANNUAL_INCOME_GOALS.forEach(function(g){
+    if(BT.some(function(b){return b.mid==='수입'&&b.sub===g.sub;}))return;
+    BT.push({mid:'수입',sub:g.sub,amount:Math.round(g.goal/12/1000)*1000});
+    added=true;
+  });
+  ANNUAL_SAVING_GOALS.forEach(function(g){
+    if(BT.some(function(b){return b.mid==='저축'&&b.sub===g.sub;}))return;
+    BT.push({mid:'저축',sub:g.sub,amount:Math.round(g.goal/12/1000)*1000});
+    added=true;
+  });
+  if(added)saveBT();
+}
 // 현재 CATS 구조상 유효한 항목인지 (카테고리 개편으로 mid/sub가 사라졌는지) 확인
 function isBTItemValid(item){
   var cat=CATS[item.mid];
-  return!!(cat&&cat.p==='지출'&&cat.s.indexOf(item.sub)>=0);
+  return!!(cat&&cat.s.indexOf(item.sub)>=0);
 }
-// 특정 월에 "실제로 적용되는" 예산 계산: 이번달 명시값 > 항목 기본값 > 전월실적 95% 순으로 우선.
+// 특정 월에 "실제로 적용되는" 예산/목표 계산: 이번달 명시값 > 항목 기본값 > 전월실적 95% 순으로 우선.
+// wantType('지출' 또는 '저축')으로 지출예산과 저축목표를 분리해서 계산 - 둘의 의미(초과=나쁨 vs 초과=좋음)가 다르기 때문.
 // renderBud(월별 화면)와 renderAnnual(연간 결산)이 같은 로직을 공유해서 두 탭 숫자가 항상 일치하게 한다.
-function getEffectiveBudget(ym){
+function getEffectiveBudget(ym,wantType){
+  wantType=wantType||'지출';
   var bg=getBudget(ym);
   var prevTxs=getTxs(getPrevYM(ym));
   var bySub={},byMid={},tags={},total=0;
   BT.forEach(function(item){
     if(!isBTItemValid(item))return;
+    var cat=CATS[item.mid];
+    if(!cat||cat.p!==wantType)return;
     var bgm=bg[item.mid]||{};
     var amt,tag;
     if(bgm[item.sub]){amt=bgm[item.sub];tag='explicit';}
     else if(item.amount>0){amt=item.amount;tag='template';}
     else{
       var prevActual=0;
-      prevTxs.forEach(function(t){if(t.mid===item.mid&&t.sub===item.sub&&t.type==='지출')prevActual+=Number(t.amount)||0;});
-      amt=prevActual>0?Math.round(prevActual*0.95/1000)*1000:0;
-      tag=prevActual>0?'prev95':null;
+      prevTxs.forEach(function(t){if(t.mid===item.mid&&t.sub===item.sub&&t.type===wantType)prevActual+=Number(t.amount)||0;});
+      if(wantType==='지출'){
+        amt=prevActual>0?Math.round(prevActual*0.95/1000)*1000:0;
+        tag=prevActual>0?'prev95':null;
+      }else{
+        // 수입/저축 목표를 굳이 5% 깎아서 제안하면 "덜 벌고 덜 모으기"를 유도하는 셈이라, 전월과 동일한 금액을 기본 제안
+        amt=prevActual>0?Math.round(prevActual/1000)*1000:0;
+        tag=prevActual>0?'prev100':null;
+      }
     }
     var key=item.mid+'|'+item.sub;
     bySub[key]=amt;tags[key]=tag;
@@ -726,6 +754,7 @@ window.onload=function(){
   loadFX();
   loadAI();
   loadBT();
+  backfillIncomeSavingsGoals();
   // 수입/저축 거래의 eval 정리 (기존 데이터 마이그레이션)
   (function(){
     var db=loadDB();var changed=false;
@@ -1754,64 +1783,94 @@ function swMon(el,secId){
 
 function swTab(el,secId){var tabs=el.parentElement.querySelectorAll('.sec-tab');tabs.forEach(function(t){t.classList.remove('on');});el.classList.add('on');var suffix=secId.slice(-3);var prefix=secId.slice(0,-4);['inc','exp','sav'].forEach(function(s){var sc=document.getElementById(prefix+'-'+s);if(sc)sc.classList.toggle('on',s===suffix);});}
 // ── 예산탭 상단: 이번달 결산 카드 (전체탭의 연간결산과 같은 스타일, 범위만 '이번달') ──
-function renderBudMonthSummary(ym,eb,sm){
+function renderBudMonthSummary(ym,eb,sm,savActual){
   var wrap=document.getElementById('d-bud-summary');
   if(!wrap)return;
-  var totalBudget=eb.total;
-  var totalExp=sm.expense;
-  var pct=totalBudget>0?Math.round(totalExp/totalBudget*100):0;
-  var color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
   var p=ym.split('-');var label=p[0]+'년 '+parseInt(p[1])+'월';
+  var ebExp=eb['지출'],ebInc=eb['수입'],ebSav=eb['저축'];
 
-  if(!totalBudget){
-    wrap.innerHTML='<div class="card mb12"><div class="card-title">📊 '+label+' 예산 결산</div>'
-      +'<div class="em">아직 이번달에 적용된 예산이 없어요. 아래에서 항목을 추가해보세요.</div></div>';
+  var expBudget=ebExp.total,expActual=sm.expense;
+  var expPct=expBudget>0?Math.round(expActual/expBudget*100):0;
+  var expColor=expPct>100?'var(--rd)':expPct>80?'var(--yw)':'var(--gn)';
+
+  if(!expBudget&&!ebInc.total&&!ebSav.total){
+    wrap.innerHTML='<div class="card mb12"><div class="card-title">📊 '+label+' 결산</div>'
+      +'<div class="em">아직 이번달에 적용된 예산/목표가 없어요. 아래에서 항목을 추가해보세요.</div></div>';
     return;
   }
 
-  var ranked=Object.keys(eb.byMid).map(function(m){
-    return{name:m,budget:eb.byMid[m],actual:sm.byMid[m]||0};
+  function goalBar(title,budget,actual,color){
+    if(!budget)return'';
+    var pct=Math.round(actual/budget*100);
+    var barColor=pct>=100?'var(--gn)':pct>=70?'var(--yw)':'var(--rd)';
+    return'<div style="background:var(--sf2);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
+      +'<span style="font-size:12px;font-weight:700;color:'+color+'">'+title+'</span>'
+      +'<span style="font-size:11px;color:var(--mu2)">실적 '+ff(actual)+' / 목표 '+ff(budget)+'</span>'
+      +'</div>'
+      +'<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden">'
+      +'<div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+barColor+';border-radius:3px"></div></div>'
+      +'<div style="text-align:right;font-size:11px;font-weight:700;color:'+barColor+';margin-top:2px">'+pct+'% 달성</div>'
+      +'</div>';
+  }
+
+  var ranked=Object.keys(ebExp.byMid).map(function(m){
+    return{name:m,budget:ebExp.byMid[m],actual:sm.byMid[m]||0};
   }).sort(function(a,b){return b.actual-a.actual;});
 
-  var html='<div class="card mb12"><div class="card-title">📊 '+label+' 예산 결산</div>'
-    +'<div style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-    +'<span style="font-size:13px;font-weight:700">이번달 예산 사용률</span>'
-    +'<span style="font-size:18px;font-weight:900;color:'+color+'">'+pct+'%</span>'
-    +'</div>'
-    +'<div style="display:flex;gap:16px;font-size:12px;margin-bottom:8px;flex-wrap:wrap">'
-    +'<span style="color:var(--mu2)">예산 <strong style="color:var(--tx)">'+ff(totalBudget)+'</strong></span>'
-    +'<span style="color:var(--mu2)">실적 <strong style="color:var(--rd)">'+ff(totalExp)+'</strong></span>'
-    +'<span style="color:var(--mu2)">잔액 <strong style="color:'+(totalBudget-totalExp>=0?'var(--gn)':'var(--rd)')+'">'+ff(totalBudget-totalExp)+'</strong></span>'
-    +'</div>'
-    +'<div style="height:10px;background:var(--sf3);border-radius:5px;overflow:hidden">'
-    +'<div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+color+';border-radius:5px;transition:width .5s"></div>'
-    +'</div></div>'
-    +'<table style="width:100%;border-collapse:collapse"><thead><tr>'
-    +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">카테고리</th>'
-    +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">예산</th>'
-    +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
-    +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">잔액</th>'
-    +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:80px">사용률</th>'
-    +'</tr></thead><tbody>'
-    +ranked.map(function(r){
-      var pct2=r.budget>0?Math.min(Math.round(r.actual/r.budget*100),999):0;
-      var remain=r.budget-r.actual;
-      var c=pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)';
-      var w=Math.min(pct2,100);
-      return'<tr>'
-        +'<td style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd)">'+(CE[r.name]||'')+' '+r.name+'</td>'
-        +'<td class="tr" style="font-size:12px;color:var(--mu2);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.budget)+'</td>'
-        +'<td class="tr" style="font-weight:700;font-size:12px;color:var(--rd);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.actual)+'</td>'
-        +'<td class="tr" style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd);color:'+(remain>=0?'var(--gn)':'var(--rd)')+'">'+ff(remain)+'</td>'
-        +'<td style="padding:6px 6px;border-bottom:1px solid var(--bd)">'
-        +'<div style="display:flex;align-items:center;gap:4px">'
-        +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden"><div style="width:'+w+'%;height:100%;background:'+c+';border-radius:2px"></div></div>'
-        +'<span style="font-size:10px;color:'+c+';font-weight:700;min-width:28px;text-align:right">'+pct2+'%</span>'
-        +'</div></td>'
-        +'</tr>';
-    }).join('')
-    +'</tbody></table></div>';
+  var html='<div class="card mb12"><div class="card-title">📊 '+label+' 결산</div>';
+
+  if(expBudget){
+    html+='<div style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
+      +'<span style="font-size:13px;font-weight:700">이번달 지출 예산 사용률</span>'
+      +'<span style="font-size:18px;font-weight:900;color:'+expColor+'">'+expPct+'%</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:16px;font-size:12px;margin-bottom:8px;flex-wrap:wrap">'
+      +'<span style="color:var(--mu2)">예산 <strong style="color:var(--tx)">'+ff(expBudget)+'</strong></span>'
+      +'<span style="color:var(--mu2)">실적 <strong style="color:var(--rd)">'+ff(expActual)+'</strong></span>'
+      +'<span style="color:var(--mu2)">잔액 <strong style="color:'+(expBudget-expActual>=0?'var(--gn)':'var(--rd)')+'">'+ff(expBudget-expActual)+'</strong></span>'
+      +'</div>'
+      +'<div style="height:10px;background:var(--sf3);border-radius:5px;overflow:hidden">'
+      +'<div style="width:'+Math.min(expPct,100)+'%;height:100%;background:'+expColor+';border-radius:5px;transition:width .5s"></div>'
+      +'</div></div>';
+  }
+
+  if(ebInc.total||ebSav.total){
+    html+='<div class="g2" style="margin-bottom:12px">'
+      +'<div>'+(ebInc.total?goalBar('💰 수입 목표',ebInc.total,sm.income,'var(--gn)'):'<div class="em" style="padding:12px;font-size:11px">수입 목표를 추가하면 여기 표시돼요</div>')+'</div>'
+      +'<div>'+(ebSav.total?goalBar('🏦 저축 목표',ebSav.total,savActual,'var(--bl)'):'<div class="em" style="padding:12px;font-size:11px">저축 목표를 추가하면 여기 표시돼요</div>')+'</div>'
+      +'</div>';
+  }
+
+  if(ranked.length){
+    html+='<table style="width:100%;border-collapse:collapse"><thead><tr>'
+      +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">카테고리</th>'
+      +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">예산</th>'
+      +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
+      +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">잔액</th>'
+      +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:80px">사용률</th>'
+      +'</tr></thead><tbody>'
+      +ranked.map(function(r){
+        var pct2=r.budget>0?Math.min(Math.round(r.actual/r.budget*100),999):0;
+        var remain=r.budget-r.actual;
+        var c=pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)';
+        var w=Math.min(pct2,100);
+        return'<tr>'
+          +'<td style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd)">'+(CE[r.name]||'')+' '+r.name+'</td>'
+          +'<td class="tr" style="font-size:12px;color:var(--mu2);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.budget)+'</td>'
+          +'<td class="tr" style="font-weight:700;font-size:12px;color:var(--rd);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.actual)+'</td>'
+          +'<td class="tr" style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd);color:'+(remain>=0?'var(--gn)':'var(--rd)')+'">'+ff(remain)+'</td>'
+          +'<td style="padding:6px 6px;border-bottom:1px solid var(--bd)">'
+          +'<div style="display:flex;align-items:center;gap:4px">'
+          +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden"><div style="width:'+w+'%;height:100%;background:'+c+';border-radius:2px"></div></div>'
+          +'<span style="font-size:10px;color:'+c+';font-weight:700;min-width:28px;text-align:right">'+pct2+'%</span>'
+          +'</div></td>'
+          +'</tr>';
+      }).join('')
+      +'</tbody></table>';
+  }
+  html+='</div>';
   wrap.innerHTML=html;
 }
 
@@ -1829,8 +1888,10 @@ function renderBud(){
     else invalidItems.push({item:item,i:i});
   });
 
-  var eb=getEffectiveBudget(ym);
-  renderBudMonthSummary(ym,eb,sm);
+  var eb={'지출':getEffectiveBudget(ym,'지출'),'수입':getEffectiveBudget(ym,'수입'),'저축':getEffectiveBudget(ym,'저축')};
+  var savActual=0;
+  getTxs(ym).forEach(function(t){if(t.type==='저축')savActual+=Number(t.amount)||0;});
+  renderBudMonthSummary(ym,eb,sm,savActual);
 
   if(invalidItems.length&&warnEl){
     var warn=document.createElement('div');
@@ -1842,7 +1903,7 @@ function renderBud(){
     warn.appendChild(wt);
     var wd=document.createElement('div');
     wd.style.cssText='font-size:11px;color:var(--mu);margin-bottom:10px';
-    wd.textContent='아래 항목이 가리키는 대분류/소분류가 더 이상 없어서 예산에 반영되지 않고 있어요. 새 카테고리로 다시 설정하거나 삭제해주세요.';
+    wd.textContent='아래 항목이 가리키는 대분류/소분류가 더 이상 없어서 반영되지 않고 있어요. 새 카테고리로 다시 설정하거나 삭제해주세요.';
     warn.appendChild(wd);
     invalidItems.forEach(function(o){
       var row=document.createElement('div');
@@ -1861,79 +1922,112 @@ function renderBud(){
   }
 
   if(!validItems.length){
-    container.innerHTML='<div class="em">🎯 아직 예산 항목이 없어요. 위 "＋ 항목추가"로 관리하고 싶은 예산 항목을 추가해보세요.</div>';
+    container.innerHTML='<div class="em">🎯 아직 예산/목표 항목이 없어요. 위 "＋ 항목추가"로 지출 예산은 물론, 수입·저축 목표도 추가해보세요.</div>';
     return;
   }
 
-  var groups={};
-  validItems.forEach(function(o){
-    var m=o.item.mid;
-    if(!groups[m])groups[m]=[];
-    groups[m].push(o);
-  });
+  var sections=[
+    {type:'지출',title:'🎯 지출 예산'},
+    {type:'수입',title:'💰 수입 목표'},
+    {type:'저축',title:'🏦 저축 목표'}
+  ];
 
-  Object.keys(groups).forEach(function(m){
-    var items=groups[m];
-    var rows=items.map(function(o){
-      var key=o.item.mid+'|'+o.item.sub;
-      return{i:o.i,sub:o.item.sub,amount:eb.bySub[key]||0,autoTag:eb.tags[key]};
+  sections.forEach(function(sec){
+    var itemsOfType=validItems.filter(function(o){var c=CATS[o.item.mid];return c&&c.p===sec.type;});
+    if(!itemsOfType.length)return;
+    var sectionEb=eb[sec.type];
+    var isExpense=sec.type==='지출';
+
+    var secHead=document.createElement('div');
+    secHead.style.cssText='font-size:13px;font-weight:800;color:var(--tx);margin:18px 0 8px';
+    secHead.textContent=sec.title;
+    container.appendChild(secHead);
+
+    var groups={};
+    itemsOfType.forEach(function(o){
+      var m=o.item.mid;
+      if(!groups[m])groups[m]=[];
+      groups[m].push(o);
     });
-    var totalBudget=eb.byMid[m]||0;
-    var actual=sm.byMid[m]||0;
-    var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
-    var over=totalBudget>0&&pct2>100;
 
-    var card=document.createElement('div');card.className='bud-card';
-    var head=document.createElement('div');head.className='bud-card-head';
-    var name=document.createElement('div');name.className='bud-card-name';
-    name.textContent=(CE[m]||'')+' '+m+' ';
-    if(totalBudget){var badge=document.createElement('span');badge.className='bk '+(over?'br':'bgy');badge.style.fontSize='10px';badge.textContent=pct2+'%';name.appendChild(badge);}
-    head.appendChild(name);
-    var total=document.createElement('div');total.className='bud-card-total';total.textContent=totalBudget?ff(totalBudget):'미설정';head.appendChild(total);
-    card.appendChild(head);
-    if(totalBudget){
-      var prg=document.createElement('div');prg.className='prg mb8';
-      var prb=document.createElement('div');prb.className='prb';prb.style.cssText='width:'+Math.min(pct2,100)+'%;background:'+(over?'var(--rd)':'var(--gn)');
-      prg.appendChild(prb);card.appendChild(prg);
-    }
-    rows.forEach(function(r){
-      var act=0;
-      getTxs(ym).forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type==='지출')act+=Number(t.amount)||0;});
-      var row=document.createElement('div');row.className='bud-sub-row';
-      var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub+' ';
-      if(r.autoTag==='prev95'){
-        var abk=document.createElement('span');abk.className='bk bcy';abk.style.fontSize='9px';abk.title='전월 실사용액의 95%로 자동 채워졌어요.';abk.textContent='🔁 전월 95%';
-        subName.appendChild(abk);
-      }else if(r.autoTag==='template'){
-        var tbk=document.createElement('span');tbk.className='bk bpu';tbk.style.fontSize='9px';tbk.title='설정해두신 기본 예산이 적용됐어요. 이번달만 다르게 하려면 값을 바꾸고 포커스를 옮기세요.';tbk.textContent='📌 기본값';
-        subName.appendChild(tbk);
+    Object.keys(groups).forEach(function(m){
+      var items=groups[m];
+      var rows=items.map(function(o){
+        var key=o.item.mid+'|'+o.item.sub;
+        return{i:o.i,sub:o.item.sub,amount:sectionEb.bySub[key]||0,autoTag:sectionEb.tags[key]};
+      });
+      var totalBudget=sectionEb.byMid[m]||0;
+      var actual=0;
+      getTxs(ym).forEach(function(t){if(t.mid===m&&t.type===sec.type)actual+=Number(t.amount)||0;});
+      var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
+      var over=isExpense&&totalBudget>0&&pct2>100;
+      var achieved=!isExpense&&totalBudget>0&&pct2>=100;
+      var barColor=isExpense?(pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)')
+                            :(pct2>=100?'var(--gn)':pct2>=70?'var(--yw)':'var(--rd)');
+      var badgeCls=isExpense?(over?'br':'bgy'):(achieved?'bg':(pct2>=70?'bgy':'br'));
+
+      var card=document.createElement('div');card.className='bud-card';
+      var head=document.createElement('div');head.className='bud-card-head';
+      var name=document.createElement('div');name.className='bud-card-name';
+      name.textContent=(CE[m]||'')+' '+m+' ';
+      if(totalBudget){var badge=document.createElement('span');badge.className='bk '+badgeCls;badge.style.fontSize='10px';badge.textContent=pct2+'%';name.appendChild(badge);}
+      head.appendChild(name);
+      var total=document.createElement('div');total.className='bud-card-total';total.textContent=totalBudget?ff(totalBudget):'미설정';head.appendChild(total);
+      card.appendChild(head);
+      if(totalBudget){
+        var prg=document.createElement('div');prg.className='prg mb8';
+        var prb=document.createElement('div');prb.className='prb';prb.style.cssText='width:'+Math.min(pct2,100)+'%;background:'+barColor;
+        prg.appendChild(prb);card.appendChild(prg);
       }
-      row.appendChild(subName);
-      var actEl=document.createElement('span');actEl.className='bud-sub-actual';if(act)actEl.textContent=ff(act);row.appendChild(actEl);
-      var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder='예산';inp.min='0';inp.className='bud-sub-input';
-      if(r.autoTag)inp.style.borderColor='rgba(8,151,160,.4)';
-      (function(ym2,m2,s2){
-        inp.onfocus=function(){this.style.borderColor='var(--bl)';};
-        inp.onblur=function(){onBud(this,ym2,m2,s2);};
-      })(ym,m,r.sub);
-      row.appendChild(inp);
-      var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:4px 7px;margin-left:4px';
-      (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
-      row.appendChild(editBtn);
-      var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 7px;margin-left:4px';
-      (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
-      row.appendChild(delBtn);
-      card.appendChild(row);
+      rows.forEach(function(r){
+        var act=0;
+        getTxs(ym).forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type===sec.type)act+=Number(t.amount)||0;});
+        var row=document.createElement('div');row.className='bud-sub-row';
+        var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub+' ';
+        if(r.autoTag==='prev95'){
+          var abk=document.createElement('span');abk.className='bk bcy';abk.style.fontSize='9px';abk.title='전월 실사용액의 95%로 자동 채워졌어요.';abk.textContent='🔁 전월 95%';
+          subName.appendChild(abk);
+        }else if(r.autoTag==='prev100'){
+          var pbk=document.createElement('span');pbk.className='bk bcy';pbk.style.fontSize='9px';pbk.title='전월 실적과 동일한 금액이 목표로 자동 채워졌어요.';pbk.textContent='🔁 전월과 동일';
+          subName.appendChild(pbk);
+        }else if(r.autoTag==='template'){
+          var tbk=document.createElement('span');tbk.className='bk bpu';tbk.style.fontSize='9px';tbk.title='설정해두신 기본값이 적용됐어요. 이번달만 다르게 하려면 값을 바꾸고 포커스를 옮기세요.';tbk.textContent='📌 기본값';
+          subName.appendChild(tbk);
+        }
+        row.appendChild(subName);
+        var actEl=document.createElement('span');actEl.className='bud-sub-actual';if(act)actEl.textContent=ff(act);row.appendChild(actEl);
+        var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder=isExpense?'예산':'목표';inp.min='0';inp.className='bud-sub-input';
+        if(r.autoTag)inp.style.borderColor='rgba(8,151,160,.4)';
+        (function(ym2,m2,s2){
+          inp.onfocus=function(){this.style.borderColor='var(--bl)';};
+          inp.onblur=function(){onBud(this,ym2,m2,s2);};
+        })(ym,m,r.sub);
+        row.appendChild(inp);
+        var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:4px 7px;margin-left:4px';
+        (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
+        row.appendChild(editBtn);
+        var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 7px;margin-left:4px';
+        (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
+        row.appendChild(delBtn);
+        card.appendChild(row);
+      });
+      container.appendChild(card);
     });
-    container.appendChild(card);
   });
 }
 
 // ── 예산 항목 추가/수정/삭제 모달 ──────────────────────────────
 function budgetMidOptions(selectedMid){
-  return Object.keys(CATS).filter(function(m){return CATS[m].p==='지출';}).map(function(m){
+  var expOpts=Object.keys(CATS).filter(function(m){return CATS[m].p==='지출';}).map(function(m){
     return'<option value="'+m+'"'+(m===selectedMid?' selected':'')+'>'+m+'</option>';
   }).join('');
+  var incOpts=Object.keys(CATS).filter(function(m){return CATS[m].p==='수입';}).map(function(m){
+    return'<option value="'+m+'"'+(m===selectedMid?' selected':'')+'>'+m+'</option>';
+  }).join('');
+  var savOpts=Object.keys(CATS).filter(function(m){return CATS[m].p==='저축';}).map(function(m){
+    return'<option value="'+m+'"'+(m===selectedMid?' selected':'')+'>'+m+'</option>';
+  }).join('');
+  return'<optgroup label="지출(예산)">'+expOpts+'</optgroup><optgroup label="수입(목표)">'+incOpts+'</optgroup><optgroup label="저축(목표)">'+savOpts+'</optgroup>';
 }
 function fillBudgetSubOptions(selId,mid,selectedSub){
   var el=document.getElementById(selId);if(!el)return;
@@ -1951,7 +2045,7 @@ function openAddBudgetItem(){
     +'<div><label>대분류</label><select id="abud-mid" onchange="fillBudgetSubOptions(\'abud-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
     +'<div><label>소분류</label><select id="abud-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
     +'</div>'
-    +'<div><label>기본 예산액(원)</label><input type="number" id="abud-amt" placeholder="예: 100000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="abud-amt" placeholder="예: 100000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div style="font-size:11px;color:var(--mu);margin-top:6px">매달 이 금액이 기본으로 적용돼요. 특정 달만 다르게 하고 싶으면 예산탭에서 그 달 값만 수정하면 돼요.</div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmAddBudgetItem()">💾 추가</button>'
@@ -1986,7 +2080,7 @@ function openEditBudgetItem(i){
     +'<div><label>대분류</label><select id="ebud-mid" onchange="fillBudgetSubOptions(\'ebud-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
     +'<div><label>소분류</label><select id="ebud-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
     +'</div>'
-    +'<div><label>기본 예산액(원)</label><input type="number" id="ebud-amt" value="'+(item.amount||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="ebud-amt" value="'+(item.amount||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmEditBudgetItem('+i+')">💾 저장</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'edit-bud-md\').remove()">취소</button>'
@@ -3426,18 +3520,19 @@ function renderAssetComp(){
   return wrap.outerHTML;
 }
 
+// 연간 수입/저축 목표 (renderAnnual과 예산탭 백필이 공유)
+var ANNUAL_INCOME_GOALS=[
+  {sub:'레드윗 급여', goal:38890404},{sub:'AZ 급여',goal:18000000},
+  {sub:'투자수입',goal:6000000},{sub:'돌보미수입',goal:3600000},
+  {sub:'보험금수입',goal:2400000},{sub:'중고거래수입',goal:2300000},{sub:'기타수입',goal:2400000}
+];
+var ANNUAL_SAVING_GOALS=[
+  {sub:'주택청약',goal:1040000},{sub:'ISA',goal:1200000},{sub:'IRP',goal:1500000},
+  {sub:'연금저축펀드',goal:2000000},{sub:'종신(KDB)',goal:1203957},
+  {sub:'종신(라이나)',goal:1345767},{sub:'대출상환',goal:20400000}
+];
+
 function renderAnnual(months){
-  // 연간 목표 (함수 내부 선언으로 항상 사용 가능)
-  var ANNUAL_INCOME_GOALS=[
-    {sub:'레드윗 급여', goal:38890404},{sub:'AZ 급여',goal:18000000},
-    {sub:'투자수입',goal:6000000},{sub:'돌보미수입',goal:3600000},
-    {sub:'보험금수입',goal:2400000},{sub:'중고거래수입',goal:2300000},{sub:'기타수입',goal:2400000}
-  ];
-  var ANNUAL_SAVING_GOALS=[
-    {sub:'주택청약',goal:1040000},{sub:'ISA',goal:1200000},{sub:'IRP',goal:1500000},
-    {sub:'연금저축펀드',goal:2000000},{sub:'종신(KDB)',goal:1203957},
-    {sub:'종신(라이나)',goal:1345767},{sub:'대출상환',goal:20400000}
-  ];
   // 연간 총 예산: 하드코딩 숫자 대신, 해당 연도 각 달에 "실제로 적용된" 예산(예산탭과 동일 로직)을 합산
   var ANNUAL_BUDGET_TOTAL=0;
   var ANNUAL_BUDGET_BY_MID={};
