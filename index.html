@@ -1893,13 +1893,14 @@ function renderBud(){
   getTxs(ym).forEach(function(t){if(t.type==='저축')savActual+=Number(t.amount)||0;});
   renderBudMonthSummary(ym,eb,sm,savActual);
 
-  // 항목별 "그동안의 월평균 실적" 계산용 (예산 잡을 때 참고하라고 보여줌)
-  var allTxs=loadDB().txs||[];
-  var allMonthsCount=getAllMonths().length||1;
+  // 항목별 "올해 월평균 실적" 계산용 (예산 잡을 때 참고하라고 보여줌) - 당해년도 데이터만 사용
+  var curYear=ym.slice(0,4);
+  var yearTxs=(loadDB().txs||[]).filter(function(t){return t.date&&t.date.slice(0,4)===curYear;});
+  var yearMonthsCount=getAllMonths().filter(function(m){return m.slice(0,4)===curYear;}).length||1;
   function getHistAvg(mid,sub,type){
     var sum=0;
-    allTxs.forEach(function(t){if(t.mid===mid&&t.sub===sub&&t.type===type)sum+=Number(t.amount)||0;});
-    return Math.round(sum/allMonthsCount);
+    yearTxs.forEach(function(t){if(t.mid===mid&&t.sub===sub&&t.type===type)sum+=Number(t.amount)||0;});
+    return Math.round(sum/yearMonthsCount);
   }
 
   if(invalidItems.length&&warnEl){
@@ -2008,7 +2009,7 @@ function renderBud(){
         if(histAvg>0){
           var avgEl=document.createElement('span');
           avgEl.style.cssText='font-size:9px;color:var(--pu);display:block;margin-top:1px';
-          avgEl.title='최근까지의 전체 데이터 기준 월평균 (예산 잡을 때 참고하세요)';
+          avgEl.title='올해('+curYear+') 데이터 기준 월평균 (예산 잡을 때 참고하세요)';
           avgEl.textContent='평균 '+ff(histAvg);
           subName.appendChild(avgEl);
         }
