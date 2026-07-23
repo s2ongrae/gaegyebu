@@ -1893,6 +1893,15 @@ function renderBud(){
   getTxs(ym).forEach(function(t){if(t.type==='저축')savActual+=Number(t.amount)||0;});
   renderBudMonthSummary(ym,eb,sm,savActual);
 
+  // 항목별 "그동안의 월평균 실적" 계산용 (예산 잡을 때 참고하라고 보여줌)
+  var allTxs=loadDB().txs||[];
+  var allMonthsCount=getAllMonths().length||1;
+  function getHistAvg(mid,sub,type){
+    var sum=0;
+    allTxs.forEach(function(t){if(t.mid===mid&&t.sub===sub&&t.type===type)sum+=Number(t.amount)||0;});
+    return Math.round(sum/allMonthsCount);
+  }
+
   if(invalidItems.length&&warnEl){
     var warn=document.createElement('div');
     warn.className='card mb12';
@@ -1995,6 +2004,14 @@ function renderBud(){
           subName.appendChild(tbk);
         }
         row.appendChild(subName);
+        var histAvg=getHistAvg(m,r.sub,sec.type);
+        if(histAvg>0){
+          var avgEl=document.createElement('span');
+          avgEl.style.cssText='font-size:9px;color:var(--pu);display:block;margin-top:1px';
+          avgEl.title='최근까지의 전체 데이터 기준 월평균 (예산 잡을 때 참고하세요)';
+          avgEl.textContent='평균 '+ff(histAvg);
+          subName.appendChild(avgEl);
+        }
         var actEl=document.createElement('span');actEl.className='bud-sub-actual';if(act)actEl.textContent=ff(act);row.appendChild(actEl);
         var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder=isExpense?'예산':'목표';inp.min='0';inp.className='bud-sub-input';
         if(r.autoTag)inp.style.borderColor='rgba(8,151,160,.4)';
