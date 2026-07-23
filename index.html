@@ -3589,13 +3589,15 @@ function renderAnnual(months){
     return '<div class="prg" style="height:4px;margin-top:3px"><div class="prb" style="width:'+w+'%;background:'+oc+'"></div></div>'
       +'<span style="font-size:10px;color:'+(pct>100?'var(--rd)':oc)+';font-weight:700">'+pct+'%</span>';
   }
-  function mkGoalRow(name,val,goal,color){
+  function mkGoalRow(name,val,goal,color,numMonths){
     var pct=goal>0?Math.min(Math.round(val/goal*100),999):0;
     var oc=pct>100?'var(--rd)':color;
     var w=Math.min(pct,100);
+    var avg=numMonths?Math.round(val/numMonths):0;
     return '<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd);gap:8px">'
       +'<span style="flex:1;font-size:12px;color:var(--tx)">'+name+'</span>'
       +'<span style="font-size:11px;color:var(--mu2);min-width:60px;text-align:right">'+f(goal)+'</span>'
+      +'<span style="font-size:11px;color:var(--pu);min-width:55px;text-align:right" title="월평균">'+f(avg)+'/월</span>'
       +'<span style="font-size:12px;font-weight:700;color:'+color+';min-width:65px;text-align:right">'+f(val)+'</span>'
       +'<div style="width:80px">'
       +'<div style="height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
@@ -3666,7 +3668,7 @@ function renderAnnual(months){
     +'</div>'
     +ANNUAL_INCOME_GOALS.map(function(g){
       var v=incMap[g.sub]||0;
-      return mkGoalRow(g.sub,v,g.goal,'var(--gn)');
+      return mkGoalRow(g.sub,v,g.goal,'var(--gn)',months.length);
     }).join('')
     +'</div>'
     +'<div>'
@@ -3676,7 +3678,7 @@ function renderAnnual(months){
     +'</div>'
     +ANNUAL_SAVING_GOALS.map(function(g){
       var v=savMap[g.sub]||0;
-      return mkGoalRow(g.sub,v,g.goal,'var(--bl)');
+      return mkGoalRow(g.sub,v,g.goal,'var(--bl)',months.length);
     }).join('')
     +'</div></div>'
 
@@ -3690,6 +3692,7 @@ function renderAnnual(months){
     +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:28px">순위</th>'
     +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">카테고리</th>'
     +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">금액</th>'
+    +'<th style="text-align:right;font-size:11px;color:var(--pu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">월평균</th>'
     +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">비중</th>'
     +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:80px">비율</th>'
     +'</tr></thead><tbody>'
@@ -3697,10 +3700,12 @@ function renderAnnual(months){
       var pct2=totalExp>0?(x.amt/totalExp*100).toFixed(1):0;
       var w=Math.min(Math.round(x.amt/expRanked[0].amt*100),100);
       var color=MC[x.name]||'var(--mu)';
+      var avg=months.length?Math.round(x.amt/months.length):0;
       return'<tr>'
         +'<td style="font-size:11px;font-weight:700;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd)">'+(idx+1)+'</td>'
         +'<td style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd)">'+(CE[x.name]||'')+' '+x.name+'</td>'
         +'<td style="text-align:right;font-weight:700;font-size:11px;color:var(--rd);padding:5px 6px;border-bottom:1px solid var(--bd)">'+ff(x.amt)+'</td>'
+        +'<td style="text-align:right;font-size:11px;color:var(--pu);padding:5px 6px;border-bottom:1px solid var(--bd)">'+ff(avg)+'</td>'
         +'<td style="text-align:right;font-size:11px;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd)">'+pct2+'%</td>'
         +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd)">'
         +'<div style="height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
