@@ -3448,84 +3448,70 @@ function renderLeverageCard(ym,am,r){
 }
 
 // ── 대환(리파이낸싱) 이자 절감 계산기 ──────────────────────────
-var REFI_RATE_KEY='gaegyebu_refi_rate';
-function getRefiRate(){var v=Number(localStorage.getItem(REFI_RATE_KEY));return isNaN(v)?0:v;}
-function setRefiRate(v){localStorage.setItem(REFI_RATE_KEY,String(v||0));}
+var PREPAY_KEY='gaegyebu_prepay_amounts';
+function getPrepayAmounts(){try{return JSON.parse(localStorage.getItem(PREPAY_KEY)||'{}');}catch(e){return{};}}
+function setPrepayAmount(name,amt){
+  var m=getPrepayAmounts();
+  if(amt>0)m[name]=amt;else delete m[name];
+  localStorage.setItem(PREPAY_KEY,JSON.stringify(m));
+}
+function onPrepayInput(el){
+  setPrepayAmount(el.dataset.name,Number(el.value)||0);
+  renderRefiCard();
+}
 function renderRefiCard(){
   var wrap=document.getElementById('d-refi');
   if(!wrap)return;
   var ym=gYM();var am=getAssets(ym);
-  var refiRate=getRefiRate();
+  var prepay=getPrepayAmounts();
   var debtItems=AI.map(function(a,i){return{a:a,i:i};}).filter(function(o){return o.a.d;});
   var rated=debtItems.filter(function(o){return Number(o.a.rate)>0&&(Number(am[o.a.n])||0)>0;});
 
-  var card=document.createElement('div');
-  card.style.cssText='background:linear-gradient(135deg,rgba(139,92,246,.14),rgba(59,130,246,.10));'
-    +'border:1px solid rgba(139,92,246,.35);border-radius:var(--r);padding:16px 18px;position:relative;overflow:hidden';
-
-  var head=document.createElement('div');
-  head.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px';
-  var h=document.createElement('div');
-  h.innerHTML='<span style="font-size:14px;font-weight:900;color:var(--pu)">💡 대환 시 예상 절감액</span> <span style="font-size:11px;color:var(--mu);font-weight:400">· 부채 항목에 금리를 입력하면 실시간으로 계산돼요</span>';
-  head.appendChild(h);
-
-  var rateInpWrap=document.createElement('div');
-  rateInpWrap.style.cssText='display:flex;align-items:center;gap:6px';
-  var rateLbl=document.createElement('span');rateLbl.style.cssText='font-size:11px;color:var(--mu2);white-space:nowrap';rateLbl.textContent='대환 가능 금리(%)';
-  var rateInp=document.createElement('input');rateInp.type='number';rateInp.step='0.01';rateInp.value=refiRate||'';rateInp.placeholder='예: 4.5';
-  rateInp.style.cssText='width:80px;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:12px;font-weight:700;text-align:right;font-family:inherit';
-  rateInp.oninput=function(){setRefiRate(Number(this.value)||0);renderRefiCard();};
-  rateInpWrap.appendChild(rateLbl);rateInpWrap.appendChild(rateInp);
-  head.appendChild(rateInpWrap);
-  card.appendChild(head);
+  var html='<div class="card"><div class="card-title">💰 선납(중도상환) 시 예상 이자 절감액 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 미리 갚을 금액을 입력해보세요</span></div>';
 
   if(!debtItems.length){
-    var em=document.createElement('div');em.className='em';em.style.padding='8px 0';
-    em.textContent='등록된 부채 항목이 없어요. "＋ 항목추가"로 부채 항목을 만들어보세요.';
-    card.appendChild(em);
-    wrap.innerHTML='';wrap.appendChild(card);return;
+    html+='<div class="em">등록된 부채 항목이 없어요. "＋ 항목추가"로 부채 항목을 만들어보세요.</div></div>';
+    wrap.innerHTML=html;return;
   }
   if(!rated.length){
-    var em2=document.createElement('div');em2.className='em';em2.style.padding='8px 0';
-    em2.textContent='부채 항목(⚙️ 수정)에 "현재 금리"와 이번달 잔액을 입력하면 대환 절감액이 계산돼요.';
-    card.appendChild(em2);
-    wrap.innerHTML='';wrap.appendChild(card);return;
+    html+='<div class="em">부채 항목(⚙️ 수정)에 "현재 금리"와 이번달 잔액을 입력하면 계산돼요.</div></div>';
+    wrap.innerHTML=html;return;
   }
 
-  var rows=document.createElement('div');rows.style.cssText='display:flex;flex-direction:column;gap:8px;margin-bottom:10px';
-  var totalAnnual=0,totalMonthly=0,totalBal=0;
+  var totalPrepay=0,totalAnnual=0,totalMonthly=0;
+  html+='<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">';
   rated.forEach(function(o){
-    var a=o.a;var bal=Number(am[a.n])||0;var curRate=Number(a.rate)||0;
-    var diff=curRate-refiRate;
-    var annual=diff>0?Math.round(bal*diff/100):0;
+    var a=o.a;var bal=Number(am[a.n])||0;var rate=Number(a.rate)||0;
+    var pv=Math.min(Number(prepay[a.n])||0,bal);
+    var annual=Math.round(pv*rate/100);
     var monthly=Math.round(annual/12);
-    totalAnnual+=annual;totalMonthly+=monthly;totalBal+=bal;
-    var row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.5);border-radius:8px;padding:8px 10px';
-    row.innerHTML='<span style="font-size:16px">'+a.emoji+'</span>'
-      +'<span style="font-size:12px;font-weight:700;color:var(--tx);flex:1">'+a.n+'</span>'
-      +'<span style="font-size:11px;color:var(--mu)">잔액 '+ff(bal)+'</span>'
-      +'<span style="font-size:11px;color:var(--rd);font-weight:700">현재 '+curRate+'%</span>'
-      +'<span style="font-size:11px;color:var(--mu)">→</span>'
-      +'<span style="font-size:11px;color:'+(diff>0?'var(--gn)':'var(--mu)')+';font-weight:700">대환 '+(refiRate||'-')+'%</span>'
-      +'<span style="font-size:12px;font-weight:900;color:'+(annual>0?'var(--gn)':'var(--mu)')+';min-width:90px;text-align:right">'+(annual>0?'연 '+ff(annual)+' 절감':'절감 없음')+'</span>';
-    rows.appendChild(row);
+    var newBal=bal-pv;
+    totalPrepay+=pv;totalAnnual+=annual;totalMonthly+=monthly;
+    html+='<div style="background:var(--sf2);border-radius:8px;padding:10px 12px">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      +'<span style="font-size:16px">'+a.emoji+'</span>'
+      +'<span style="font-size:12px;font-weight:700;min-width:110px">'+a.n+'</span>'
+      +'<span style="font-size:11px;color:var(--mu);flex:1">잔액 '+ff(bal)+' · 금리 '+rate+'%</span>'
+      +'<span style="font-size:11px;color:var(--mu2);white-space:nowrap">선납액(원)</span>'
+      +'<input type="number" data-name="'+a.n.replace(/"/g,'&quot;')+'" onblur="onPrepayInput(this)" value="'+(pv||'')+'" placeholder="0" style="width:120px;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:12px;font-weight:700;text-align:right;font-family:inherit">'
+      +'</div>'
+      +(pv>0?('<div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--mu);flex-wrap:wrap">'
+        +'<span>선납 후 잔액 <b style="color:var(--tx)">'+ff(newBal)+'</b></span>'
+        +'<span>연간 이자절감 <b style="color:var(--gn)">'+ff(annual)+'</b></span>'
+        +'<span>월간 이자절감 <b style="color:var(--gn)">'+ff(monthly)+'</b></span>'
+        +'</div>'):'')
+      +'</div>';
   });
-  card.appendChild(rows);
+  html+='</div>';
 
-  var summary=document.createElement('div');
-  summary.style.cssText='display:flex;gap:24px;padding-top:10px;border-top:1px solid rgba(139,92,246,.25);flex-wrap:wrap';
-  function mkSum(label,val,color){
-    var d=document.createElement('div');
-    d.innerHTML='<div style="font-size:10px;color:var(--mu)">'+label+'</div><div style="font-size:18px;font-weight:900;color:'+color+'">'+val+'</div>';
-    return d;
-  }
-  summary.appendChild(mkSum('대상 부채 잔액',ff(totalBal),'var(--tx)'));
-  summary.appendChild(mkSum('예상 연간 절감액',ff(totalAnnual),totalAnnual>0?'var(--gn)':'var(--mu)'));
-  summary.appendChild(mkSum('예상 월간 절감액',ff(totalMonthly),totalMonthly>0?'var(--gn)':'var(--mu)'));
-  card.appendChild(summary);
+  html+='<div class="g3">'
+    +'<div class="kpi"><div class="kl">총 선납 예정액</div><div class="kv" style="font-size:16px">'+f(totalPrepay)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'<div class="kpi"><div class="kl">예상 연간 이자절감</div><div class="kv" style="font-size:16px;color:'+(totalAnnual>0?'var(--gn)':'var(--mu)')+'">'+f(totalAnnual)+'</div><div class="kb" style="background:'+(totalAnnual>0?'var(--gn)':'var(--mu2)')+'"></div></div>'
+    +'<div class="kpi"><div class="kl">예상 월간 이자절감</div><div class="kv" style="font-size:16px;color:'+(totalMonthly>0?'var(--gn)':'var(--mu)')+'">'+f(totalMonthly)+'</div><div class="kb" style="background:'+(totalMonthly>0?'var(--gn)':'var(--mu2)')+'"></div></div>'
+    +'</div>'
+    +'</div>';
 
-  wrap.innerHTML='';wrap.appendChild(card);
+  wrap.innerHTML=html;
 }
 
 // ── 자산 항목 추가/수정/삭제 ──────────────────────────────────
