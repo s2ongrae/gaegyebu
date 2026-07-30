@@ -632,8 +632,8 @@ function getLatestAssetSnapshot(){
   var lastM=months[months.length-1];
   return{ym:lastM,am:assetsAll[lastM]};
 }
-function goalMetricValue(goal,am){
-  if(goal.type==='networth')return calcNW(am).nw;
+function goalMetricValue(goal,am,ym){
+  if(goal.type==='networth')return calcNW(am,ym).nw;
   return Number(am[goal.linkedName])||0;
 }
 function computeGoalProgress(goal){
@@ -649,7 +649,7 @@ function computeGoalProgress(goal){
   }
   var snap=getLatestAssetSnapshot();
   var am=snap?snap.am:{};
-  var cur=goalMetricValue(goal,am);
+  var cur=goalMetricValue(goal,am,snap?snap.ym:null);
   if(goal.type==='debt'){
     var start2=goal.startBalance>0?goal.startBalance:cur;
     var paid=start2-cur;
@@ -669,7 +669,7 @@ function estimateMonthsToGoal(goal){
   var months=Object.keys(assetsAll).sort();
   if(months.length<3)return null;
   var recent=months.slice(-3);
-  var vals=recent.map(function(ym){return goalMetricValue(goal,assetsAll[ym]);});
+  var vals=recent.map(function(ym){return goalMetricValue(goal,assetsAll[ym],ym);});
   var avgChange=(vals[vals.length-1]-vals[0])/(vals.length-1);
   if(goal.type==='debt'){
     if(avgChange>=0)return null;
@@ -946,7 +946,18 @@ function isFixed(tx){return tx.fixed||FX_KEYS.indexOf(tx.mid+'|'+tx.sub+'|'+tx.m
 // (AZ 급여/투자수입/돌보미수입은 FX에 등록되어 있어도 사실상 변동수입이라 여기서 제외)
 var FIXED_INCOME_SUBS=['레드윗 급여'];
 function isFixedIncome(tx){return FIXED_INCOME_SUBS.indexOf(tx.sub)>=0;}
-function calcNW(am){var ta=AI.filter(function(a){return!a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);var td=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);return{ta:ta,td:td,nw:ta-td};}
+function calcNW(am,ym){
+  var ta=AI.filter(function(a){return!a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);
+  var td=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);
+  var insDebt=0;
+  if(ym&&typeof INSTALLMENTS!=='undefined'){
+    INSTALLMENTS.forEach(function(item){
+      insDebt+=getInsStatus(item,ym).remaining;
+    });
+  }
+  td+=insDebt;
+  return{ta:ta,td:td,nw:ta-td,insDebt:insDebt};
+}
 function getMonthSummary(ym){
   var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
   txs.forEach(function(t){
@@ -2294,7 +2305,7 @@ function renderAnomalyCard(curYM2){
 
 function renderDash(){
   var db=loadDB();var assets=db.assets||{};var allAM=Object.keys(assets).sort();
-  var nwData=allAM.filter(function(m){return m<=curYM;}).map(function(ym){var r=calcNW(assets[ym]||{});return{ym:ym,nw:r.nw};}).filter(function(d){return d.nw!==0;});
+  var nwData=allAM.filter(function(m){return m<=curYM;}).map(function(ym){var r=calcNW(assets[ym]||{},ym);return{ym:ym,nw:r.nw};}).filter(function(d){return d.nw!==0;});
   var latestNW=nwData.length?nwData[nwData.length-1].nw:0;
   var months=getAllMonths().filter(function(m){return m<=curYM;});
   // 항상 즉시 렌더링 (데이터 없으면 안내 메시지, 단 목표 카드는 데이터 유무와 무관하게 항상 표시)
@@ -2355,7 +2366,7 @@ function renderDash(){
     var rn=document.createElement('div');rn.style.cssText='font-size:13px;font-weight:900;color:'+rc;rn.textContent=sr2+'%';rate.appendChild(rn);
     var rl=document.createElement('div');rl.style.cssText='font-size:10px;color:var(--mu)';rl.textContent=(ns>=0?'+':'')+f(ns);rate.appendChild(rl);head.appendChild(rate);
     // 순자산 (그 달 자산 데이터 있으면)
-    var nwv=calcNW(assets[s.ym]||{}).nw;
+    var nwv=calcNW(assets[s.ym]||{},s.ym).nw;
     if(nwv){
       var nwCell=document.createElement('div');nwCell.style.cssText='min-width:56px;text-align:center';
       var nwn=document.createElement('div');nwn.style.cssText='font-size:13px;font-weight:900;color:var(--pu)';nwn.textContent=f(nwv);nwCell.appendChild(nwn);
@@ -2914,7 +2925,7 @@ function confirmBulkVarBudget(){
 
 function onBud(el,ym,m,s){var a=Number(el.value)||0;if(!a)return;el.style.borderColor='var(--bl)';saveBudgetItem(ym,m,s,a);el.style.borderColor='var(--gn)';setTimeout(function(){el.style.borderColor='';renderBud();},700);}
 function renderAst(){
-  var ym=gYM();var am=getAssets(ym);var r=calcNW(am);
+  var ym=gYM();var am=getAssets(ym);var r=calcNW(am,ym);
   renderLiquidityCard(am,r);
   renderDsrCard(ym);
   renderTaxLimitCard(ym);
@@ -2981,7 +2992,7 @@ function onAst(el,ym,n){var a=Number(el.value)||0;el.style.borderColor='var(--bl
 function getLeverageHistory(){
   var db=loadDB();var assetsAll=db.assets||{};
   return Object.keys(assetsAll).sort().map(function(ym2){
-    var am2=assetsAll[ym2];var r2=calcNW(am2);
+    var am2=assetsAll[ym2];var r2=calcNW(am2,ym2);
     var ratio=r2.nw>0?Math.round(r2.td/r2.nw*100):(r2.td>0?999:0);
     return{ym:ym2,debt:r2.td,nw:r2.nw,ratio:ratio};
   });
@@ -3040,12 +3051,12 @@ function renderRealPLCard(){
       debtRated.forEach(function(d){mCost+=(Number(amX[d.n])||0)*d.rate/100/12;});
       if(mCost>0)interestByMonth.push({ym:months[i2],cost:mCost});
     }
-    html+='<div class="dtl-card" id="dtl-invest" onclick="toggleDtl(\'dtl-invest\')" style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'
+    html+='<div class="dtl-card" id="dtl-invest" onclick="toggleDtl(\'dtl-invest\')" style="border-radius:var(--r);margin-bottom:12px">'
       +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">📈 레버리지 조정 주식투자 성과 ('+months[firstIdx]+' ~ '+months[months.length-1]+')</div>'
-      +'<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">'
-      +'<div><div style="font-size:11px;color:var(--mu)">주식자산 표면 증가</div><div style="font-size:15px;font-weight:800;color:var(--tx)">'+ff(investGain)+'</div></div>'
-      +'<div><div style="font-size:11px;color:var(--mu)">− 마통 등 레버리지 이자비용(추정)</div><div style="font-size:15px;font-weight:800;color:var(--rd)">'+ff(Math.round(totalInterestCost))+'</div></div>'
-      +'<div><div style="font-size:11px;color:var(--mu)">= 실질 순수익</div><div style="font-size:18px;font-weight:900;color:'+realColor+'">'+ff(Math.round(realGain))+'</div></div>'
+      +'<div class="g3 mb8">'
+      +'<div class="kpi"><div class="kl">주식자산 표면 증가</div><div class="kv" style="font-size:16px">'+f(investGain)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
+      +'<div class="kpi"><div class="kl">− 레버리지 이자비용(추정)</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(Math.round(totalInterestCost))+'</div><div class="kb" style="background:var(--rd)"></div></div>'
+      +'<div class="kpi"><div class="kl">= 실질 순수익</div><div class="kv" style="font-size:16px;color:'+realColor+'">'+f(Math.round(realGain))+'</div><div class="kb" style="background:'+realColor+'"></div></div>'
       +'</div>'
       +'<div style="font-size:11px;color:var(--mu)">⚠️ 이자비용은 부채 항목에 설정해둔 <b>현재 금리</b>를 과거 잔액에도 그대로 적용한 추정치예요 (실제 계약 금리가 매달 바뀌었다면 오차가 있을 수 있어요). 또한 주식자산 증가분에는 신규 매수 입금액도 섞여있어서, 100% 순수 투자수익률은 아니에요.</div>'
       +'<div class="dtl-hint">눌러서 월별 이자비용 내역보기 ▾</div>'
@@ -3059,12 +3070,12 @@ function renderRealPLCard(){
     var insColor=insuranceReceived-premiumPaid>=0?'var(--gn)':'var(--mu)';
     var premiumRows=allTxs.filter(function(t){return t.sub&&t.sub.indexOf('종신')>=0&&(t.type==='지출'||t.type==='저축');});
     var receivedRows=allTxs.filter(function(t){return t.type==='수입'&&t.sub==='보험금수입';});
-    html+='<div class="dtl-card" id="dtl-ins" onclick="toggleDtl(\'dtl-ins\')" style="background:var(--sf2);border-radius:var(--r);padding:14px">'
+    html+='<div class="dtl-card" id="dtl-ins" onclick="toggleDtl(\'dtl-ins\')" style="border-radius:var(--r)">'
       +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">🛡️ 종신보험 실질 손익 (전체 기간 누적)</div>'
-      +'<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">'
-      +'<div><div style="font-size:11px;color:var(--mu)">누적 납입액</div><div style="font-size:15px;font-weight:800;color:var(--rd)">'+ff(premiumPaid)+'</div></div>'
-      +'<div><div style="font-size:11px;color:var(--mu)">실제 수령액(보험금수입)</div><div style="font-size:15px;font-weight:800;color:var(--gn)">'+ff(insuranceReceived)+'</div></div>'
-      +'<div><div style="font-size:11px;color:var(--mu)">= 현재까지 순손익</div><div style="font-size:18px;font-weight:900;color:'+insColor+'">'+(insuranceReceived-premiumPaid>=0?'+':'')+ff(insuranceReceived-premiumPaid)+'</div></div>'
+      +'<div class="g3 mb8">'
+      +'<div class="kpi"><div class="kl">누적 납입액</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(premiumPaid)+'</div><div class="kb" style="background:var(--rd)"></div></div>'
+      +'<div class="kpi"><div class="kl">실제 수령액(보험금수입)</div><div class="kv" style="font-size:16px;color:var(--gn)">'+f(insuranceReceived)+'</div><div class="kb" style="background:var(--gn)"></div></div>'
+      +'<div class="kpi"><div class="kl">현재까지 순손익</div><div class="kv" style="font-size:16px;color:'+insColor+'">'+(insuranceReceived-premiumPaid>=0?'+':'')+f(insuranceReceived-premiumPaid)+'</div><div class="kb" style="background:'+insColor+'"></div></div>'
       +'</div>'
       +'<div style="font-size:11px;color:var(--mu)">💡 아직 해지·만기 전이라면 순손익이 마이너스로 보이는 게 정상이에요 — 저축성 보험은 원래 초반엔 사업비 때문에 납입액 대비 손실 구간을 거치다가, 유지 기간이 길어질수록 회복돼요. "몇 년째 얼마나 회복됐는지"를 보는 용도로 참고하세요.</div>'
       +'<div class="dtl-hint">눌러서 납입/수령 내역보기 ▾</div>'
@@ -3202,22 +3213,22 @@ function renderDsrCard(ym){
 
   var html='<div class="card"><div class="card-title">💳 상환부담률 (DSR 유사) <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· '+ym+' 기준</span></div>'
     +'<div class="dtl-card" id="dtl-dsr" onclick="toggleDtl(\'dtl-dsr\')">'
-    +'<div style="display:flex;gap:20px;flex-wrap:wrap;background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:10px">'
-    +'<div><div style="font-size:11px;color:var(--mu)">할부 납입</div><div style="font-size:14px;font-weight:800">'+ff(insDue)+'</div></div>'
-    +'<div><div style="font-size:11px;color:var(--mu)">부채 이자(추정)</div><div style="font-size:14px;font-weight:800">'+ff(debtInterest)+'</div></div>'
-    +'<div><div style="font-size:11px;color:var(--mu)">대출상환</div><div style="font-size:14px;font-weight:800">'+ff(loanRepay)+'</div></div>'
-    +'<div><div style="font-size:11px;color:var(--mu)">= 월 상환부담 합계</div><div style="font-size:16px;font-weight:900;color:var(--rd)">'+ff(totalBurden)+'</div></div>'
+    +'<div class="g4 mb12">'
+    +'<div class="kpi"><div class="kl">할부 납입</div><div class="kv" style="font-size:16px">'+f(insDue)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'<div class="kpi"><div class="kl">부채 이자(추정)</div><div class="kv" style="font-size:16px">'+f(debtInterest)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'<div class="kpi"><div class="kl">대출상환</div><div class="kv" style="font-size:16px">'+f(loanRepay)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'<div class="kpi"><div class="kl">월 상환부담 합계</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(totalBurden)+'</div><div class="kb" style="background:var(--rd)"></div></div>'
     +'</div>'
-    +'<div class="g2">'
-    +'<div><div style="font-size:11px;color:var(--mu);margin-bottom:4px">평균 총수입 대비</div><div style="font-size:22px;font-weight:900;color:'+dsrColor(dsrTotal)+'">'+dsrTotal+'%</div></div>'
-    +'<div><div style="font-size:11px;color:var(--mu);margin-bottom:4px">평균 고정수입 대비</div><div style="font-size:22px;font-weight:900;color:'+dsrColor(dsrFixed)+'">'+dsrFixed+'%</div></div>'
+    +'<div class="g2 mb8">'
+    +'<div class="kpi"><div class="kl">평균 총수입 대비</div><div class="kv" style="color:'+dsrColor(dsrTotal)+'">'+dsrTotal+'%</div><div class="kb" style="background:'+dsrColor(dsrTotal)+'"></div></div>'
+    +'<div class="kpi"><div class="kl">평균 고정수입 대비</div><div class="kv" style="color:'+dsrColor(dsrFixed)+'">'+dsrFixed+'%</div><div class="kb" style="background:'+dsrColor(dsrFixed)+'"></div></div>'
     +'</div>'
-    +'<div style="font-size:10px;color:var(--mu);margin-top:8px">통상 40% 이상이면 상환부담이 높은 편으로 봐요. 변동수입 의존도가 높다면 "고정수입 대비" 쪽을 더 보수적으로 참고하세요.</div>'
+    +'<div style="font-size:11px;color:var(--mu)">통상 40% 이상이면 상환부담이 높은 편으로 봐요. 변동수입 의존도가 높다면 "고정수입 대비" 쪽을 더 보수적으로 참고하세요.</div>'
     +'<div class="dtl-hint">눌러서 구성 내역 상세보기 ▾</div>'
     +'<div class="dtl-body">'
-    +(insRows.length?'<div style="font-size:11px;font-weight:700;margin-bottom:4px">💳 할부 항목</div>'+insRows.map(function(x){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+x.name+' ('+x.num+'/'+x.total+'회차)</span><span style="font-weight:700">'+ff(x.amt)+'</span></div>';}).join(''):'')
-    +(debtRows.length?'<div style="font-size:11px;font-weight:700;margin:8px 0 4px">⚠️ 부채별 이자</div>'+debtRows.map(function(x){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+x.name+' (잔액 '+ff(x.bal)+' · 금리 '+x.rate+'%)</span><span style="font-weight:700;color:var(--rd)">'+ff(x.interest)+'</span></div>';}).join(''):'')
-    +(loanRows.length?'<div style="font-size:11px;font-weight:700;margin:8px 0 4px">🏦 대출상환 내역</div>'+loanRows.map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+(t.date||'').slice(5)+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';}).join(''):'')
+    +(insRows.length?'<div style="font-size:11px;font-weight:700;margin-bottom:4px">💳 할부 항목</div>'+insRows.map(function(x){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 2px;border-bottom:1px solid var(--bd)"><span>'+x.name+' ('+x.num+'/'+x.total+'회차)</span><span style="font-weight:700">'+ff(x.amt)+'</span></div>';}).join(''):'')
+    +(debtRows.length?'<div style="font-size:11px;font-weight:700;margin:10px 0 4px">⚠️ 부채별 이자</div>'+debtRows.map(function(x){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 2px;border-bottom:1px solid var(--bd)"><span>'+x.name+' (잔액 '+ff(x.bal)+' · 금리 '+x.rate+'%)</span><span style="font-weight:700;color:var(--rd)">'+ff(x.interest)+'</span></div>';}).join(''):'')
+    +(loanRows.length?'<div style="font-size:11px;font-weight:700;margin:10px 0 4px">🏦 대출상환 내역</div>'+loanRows.map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:5px 2px;border-bottom:1px solid var(--bd)"><span>'+(t.date||'').slice(5)+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';}).join(''):'')
     +'</div>'
     +'</div>'
     +'</div>';
@@ -3390,9 +3401,9 @@ function renderLeverageCard(ym,am,r){
 
   // 3) 이자부담
   if(monthlyInterest>0){
-    html+='<div style="display:flex;gap:20px;flex-wrap:wrap;background:rgba(239,68,68,.06);border-radius:var(--r);padding:12px;margin-bottom:12px">'
-      +'<div><div style="font-size:11px;color:var(--mu)">예상 월 이자비용</div><div style="font-size:15px;font-weight:800;color:var(--rd)">'+ff(monthlyInterest)+'</div></div>'
-      +(avgFixedInc>0?'<div><div style="font-size:11px;color:var(--mu)">평균 고정 월수입 대비</div><div style="font-size:15px;font-weight:800;color:'+(interestBurdenPct>15?'var(--rd)':'var(--tx)')+'">'+interestBurdenPct+'%</div></div>':'')
+    html+='<div class="'+(avgFixedInc>0?'g2':'')+' mb12">'
+      +'<div class="kpi"><div class="kl">예상 월 이자비용</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(monthlyInterest)+'</div><div class="kb" style="background:var(--rd)"></div></div>'
+      +(avgFixedInc>0?'<div class="kpi"><div class="kl">평균 고정 월수입 대비</div><div class="kv" style="font-size:16px;color:'+(interestBurdenPct>15?'var(--rd)':'var(--tx)')+'">'+interestBurdenPct+'%</div><div class="kb" style="background:'+(interestBurdenPct>15?'var(--rd)':'var(--mu2)')+'"></div></div>':'')
       +'</div>';
   }
 
@@ -4559,7 +4570,7 @@ function renderAssetComp(){
   if(!allAM.length)return'<div class="em">자산 데이터 없음</div>';
   var latestYM=allAM[allAM.length-1];
   var am=assets[latestYM]||{};
-  var r=calcNW(am);
+  var r=calcNW(am,latestYM);
 
   // 자산 항목 색상: AI(사용자가 추가/수정/삭제 가능한 자산항목) 기반으로 동적 생성
   var ASSET_PALETTE=['#2563eb','#3b82f6','#60a5fa','#7c3aed','#8b5cf6','#a78bfa','#c4b5fd','#059669','#10b981','#34d399','#d97706','#f59e0b','#fbbf24','#06b6d4','#22d3ee','#0e7490'];
