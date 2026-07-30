@@ -3030,11 +3030,13 @@ function renderRealPLCard(){
   }
   var realGain=investGain-totalInterestCost;
 
-  // ── 2) 보험 실질 손익 (종신형 저축성 보험: 납입액 vs 실제 수령액) ──
+  // ── 2) 보장성 보험료 대비 보험금 수령 비교 ──
+  // 종신(저축성) 보험은 적금 개념이라 여기서 제외하고, 실제 "보장성" 보험료(금융지출>보험료)만
+  // 보험금수입과 짝지어 비교한다 (사고/질병 대비 보장의 실질 손익).
   var allTxs=db.txs||[];
   var premiumPaid=0,insuranceReceived=0;
   allTxs.forEach(function(t){
-    if(t.sub&&t.sub.indexOf('종신')>=0&&(t.type==='지출'||t.type==='저축'))premiumPaid+=Number(t.amount)||0;
+    if(t.mid==='금융지출'&&t.sub==='보험료'&&t.type==='지출')premiumPaid+=Number(t.amount)||0;
     if(t.type==='수입'&&t.sub==='보험금수입')insuranceReceived+=Number(t.amount)||0;
   });
   var hasInsurance=premiumPaid>0||insuranceReceived>0;
@@ -3067,22 +3069,23 @@ function renderRealPLCard(){
   }
 
   if(hasInsurance){
-    var insColor=insuranceReceived-premiumPaid>=0?'var(--gn)':'var(--mu)';
-    var premiumRows=allTxs.filter(function(t){return t.sub&&t.sub.indexOf('종신')>=0&&(t.type==='지출'||t.type==='저축');});
+    var netCost=premiumPaid-insuranceReceived;
+    var insColor='var(--mu)'; // 보장성 보험은 손익 개념이 아니라서 항상 중립색
+    var premiumRows=allTxs.filter(function(t){return t.mid==='금융지출'&&t.sub==='보험료'&&t.type==='지출';});
     var receivedRows=allTxs.filter(function(t){return t.type==='수입'&&t.sub==='보험금수입';});
     html+='<div class="dtl-card" id="dtl-ins" onclick="toggleDtl(\'dtl-ins\')" style="border-radius:var(--r)">'
-      +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">🛡️ 종신보험 실질 손익 (전체 기간 누적)</div>'
+      +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">🛡️ 보장성 보험료 대비 보험금 수령 (전체 기간 누적)</div>'
       +'<div class="g3 mb8">'
-      +'<div class="kpi"><div class="kl">누적 납입액</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(premiumPaid)+'</div><div class="kb" style="background:var(--rd)"></div></div>'
+      +'<div class="kpi"><div class="kl">누적 보험료(보장성)</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(premiumPaid)+'</div><div class="kb" style="background:var(--rd)"></div></div>'
       +'<div class="kpi"><div class="kl">실제 수령액(보험금수입)</div><div class="kv" style="font-size:16px;color:var(--gn)">'+f(insuranceReceived)+'</div><div class="kb" style="background:var(--gn)"></div></div>'
-      +'<div class="kpi"><div class="kl">현재까지 순손익</div><div class="kv" style="font-size:16px;color:'+insColor+'">'+(insuranceReceived-premiumPaid>=0?'+':'')+f(insuranceReceived-premiumPaid)+'</div><div class="kb" style="background:'+insColor+'"></div></div>'
+      +'<div class="kpi"><div class="kl">순부담(보험료-수령액)</div><div class="kv" style="font-size:16px;color:'+insColor+'">'+f(netCost)+'</div><div class="kb" style="background:'+insColor+'"></div></div>'
       +'</div>'
-      +'<div style="font-size:11px;color:var(--mu)">💡 아직 해지·만기 전이라면 순손익이 마이너스로 보이는 게 정상이에요 — 저축성 보험은 원래 초반엔 사업비 때문에 납입액 대비 손실 구간을 거치다가, 유지 기간이 길어질수록 회복돼요. "몇 년째 얼마나 회복됐는지"를 보는 용도로 참고하세요.</div>'
+      +'<div style="font-size:11px;color:var(--mu)">💡 여긴 종신(저축성) 보험은 빼고, 실비·자동차·정기보험 같은 <b>보장성 보험료</b>만 봐요. 순부담이 (+)인 게 정상이에요 — 사고·질병이 없었단 뜻이니까요. 오히려 수령액이 크면 그만큼 어떤 일이 있었다는 신호예요.</div>'
       +'<div class="dtl-hint">눌러서 납입/수령 내역보기 ▾</div>'
       +'<div class="dtl-body">'
-      +'<div style="font-size:11px;font-weight:700;margin-bottom:4px">납입 내역</div>'
-      +(premiumRows.length?premiumRows.sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;}).map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.sub||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
-      +'<div style="font-size:11px;font-weight:700;margin:8px 0 4px">수령 내역</div>'
+      +'<div style="font-size:11px;font-weight:700;margin-bottom:4px">보험료 납입 내역</div>'
+      +(premiumRows.length?premiumRows.sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;}).map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
+      +'<div style="font-size:11px;font-weight:700;margin:8px 0 4px">보험금 수령 내역</div>'
       +(receivedRows.length?receivedRows.map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700;color:var(--gn)">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
       +'</div>'
       +'</div>';
