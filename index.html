@@ -83,6 +83,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .mon-card-nums{display:flex;flex-direction:column;gap:3px;text-align:right;min-width:80px}
 .mon-card-nums span{font-size:12px;font-weight:700}
 .mon-card-body{display:none;border-top:1px solid var(--bd)}
+.his-row-grid{display:grid;grid-template-columns:16px 34px 34px 34px 68px 78px 1fr 66px 92px 30px 30px;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid var(--bd);overflow-x:auto}
+@media(max-width:900px){.his-row-grid{grid-template-columns:16px 30px 30px 30px 55px 65px 1fr 55px 78px 26px 26px;font-size:11px}}
 .anom-detail{display:none;margin-top:6px}
 .anom-row.open .anom-detail{display:block}
 .dtl-card{cursor:pointer}
@@ -1938,39 +1940,45 @@ function renderHis(){
     dayTxs.forEach(function(t){
       var row=document.createElement('div');
       row.id='his-row-'+t.id;
-      row.style.cssText='display:flex;align-items:center;gap:0;padding:7px 6px;border-bottom:1px solid var(--bd)';
+      row.className='his-row-grid';
       row.style.cursor='pointer';
 
       // 체크박스
       var cb=document.createElement('input');
       cb.type='checkbox';cb.className='his-cb';cb.dataset.id=t.id;
-      cb.style.cssText='cursor:pointer;accent-color:var(--bl);width:14px;height:14px;flex-shrink:0;margin-right:8px';
+      cb.style.cssText='cursor:pointer;accent-color:var(--bl);width:14px;height:14px';
       cb.onchange=updateSelCount;
       row.appendChild(cb);
 
       // 타입 뱃지
       var badge=document.createElement('span');
       badge.className='bk '+(TC[t.type]||'bgy');
-      badge.style.cssText='font-size:10px;flex-shrink:0;width:28px;text-align:center;margin-right:4px;white-space:nowrap;display:inline-block';
+      badge.style.cssText='font-size:10px;text-align:center;white-space:nowrap;justify-self:start';
       badge.textContent=t.type;
       row.appendChild(badge);
 
-      // 고정 뱃지
-      if(isFixed(t)){
-        var fb=document.createElement('span');
-        fb.className='bk bcy';fb.style.fontSize='10px';fb.style.flexShrink='0';
-        fb.textContent='고정';row.appendChild(fb);
+      // 고정/변동 뱃지 (수입은 FIXED_INCOME_SUBS 기준, 나머지는 FX 등록 기준)
+      var isFix=t.type==='수입'?isFixedIncome(t):isFixed(t);
+      var fb=document.createElement('span');
+      fb.className='bk '+(isFix?'bcy':'bgy');fb.style.cssText='font-size:10px;justify-self:start';
+      fb.textContent=isFix?'고정':'변동';row.appendChild(fb);
+
+      // 할부 뱃지
+      var ib=document.createElement('span');
+      if(t.installmentId){
+        ib.className='bk bpu';ib.style.cssText='font-size:10px;justify-self:start';ib.textContent='할부';
       }
+      row.appendChild(ib);
 
       // 카테고리
       var cat=document.createElement('span');
-      cat.style.cssText='font-size:12px;color:var(--mu2);width:80px;flex-shrink:0;margin-right:2px';
+      cat.style.cssText='font-size:12px;color:var(--mu2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       cat.textContent=(CE[t.mid]||'')+' '+(t.mid||'');
       row.appendChild(cat);
 
       // 소분류 (아이콘 포함)
       var sub=document.createElement('span');
-      sub.style.cssText='font-size:11px;color:var(--mu2);width:80px;flex-shrink:0;margin-right:4px;display:flex;align-items:center;gap:3px';
+      sub.style.cssText='font-size:11px;color:var(--mu2);display:flex;align-items:center;gap:3px;overflow:hidden';
       var subIcon=SUB_ICON[t.sub]||'';
       sub.innerHTML=(subIcon?'<span style="font-size:12px">'+subIcon+'</span>':'')+
         '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+((t.sub)||'')+'</span>';
@@ -1978,38 +1986,36 @@ function renderHis(){
 
       // 내용(메모)
       var memo=document.createElement('span');
-      memo.style.cssText='font-size:12px;font-weight:700;color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-right:8px';
+      memo.style.cssText='font-size:12px;font-weight:700;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       memo.textContent=t.memo||'';
       row.appendChild(memo);
 
       // 결제수단
       var pay=document.createElement('span');
-      pay.style.cssText='font-size:11px;color:var(--mu);width:75px;text-align:right;flex-shrink:0;margin-right:8px';
+      pay.style.cssText='font-size:11px;color:var(--mu);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
       pay.textContent=t.payment||'';
       row.appendChild(pay);
 
       // 금액
       var amtSpan=document.createElement('span');
       var col=t.type==='수입'?'var(--gn)':t.type==='저축'?'var(--bl)':'var(--tx)';
-      amtSpan.style.cssText='font-size:13px;font-weight:900;color:'+col+';width:90px;text-align:right;flex-shrink:0;margin-right:6px';
+      amtSpan.style.cssText='font-size:13px;font-weight:900;color:'+col+';text-align:right;white-space:nowrap';
       amtSpan.textContent=(t.type==='수입'?'+':t.type==='저축'?'':'-')+ff(t.amount);
       row.appendChild(amtSpan);
 
       // 평가
+      var ev=document.createElement('span');
       if(t.eval){
-        var ev=document.createElement('span');
         ev.className='bk '+(EC[t.eval]||'bgy');
-        ev.style.cssText='font-size:10px;flex-shrink:0;width:28px;text-align:center;margin-right:4px';
+        ev.style.cssText='font-size:10px;text-align:center;justify-self:center';
         ev.textContent=t.eval;
-        row.appendChild(ev);
-      }else{
-        var evEmpty=document.createElement('span');evEmpty.style.cssText='width:28px;flex-shrink:0;margin-right:4px';row.appendChild(evEmpty);
       }
+      row.appendChild(ev);
 
       // 수정버튼
       var btn=document.createElement('button');
       btn.className='btn bg2 bsm';
-      btn.style.cssText='padding:3px 7px;font-size:11px;flex-shrink:0';
+      btn.style.cssText='padding:3px 7px;font-size:11px;justify-self:end';
       btn.textContent='✏️';
       (function(id){btn.onclick=function(e){e.stopPropagation();openEdit(id);};})(t.id);
       row.appendChild(btn);
