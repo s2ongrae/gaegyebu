@@ -4293,7 +4293,7 @@ function renderStock(){
   var latestYM=allAM[allAM.length-1];
   var latestAm=assets[latestYM]||{};
   var stockVal=Number(latestAm['주식계좌'])||0;
-  var debt=Number(latestAm['마통(신용대출)'])||0;
+  var debt=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+(Number(latestAm[a.n])||0);},0);
 
   // 월별 주식계좌 변화
   var stockHist=allAM.map(function(ym){
@@ -4341,7 +4341,7 @@ function renderStock(){
   html+=kpi('주식계좌 평가금액', ff(stockVal), 'var(--gn)', latestYM+' 기준');
   html+=kpi('전월대비', (momChange>=0?'+':'')+ff(momChange), momChange>=0?'var(--gn)':'var(--rd)', momPct+'%');
   html+=kpi('순자산 투입', ff(equityInStock), 'var(--pu)', stockVal>0?Math.round(equityInStock/stockVal*100)+'%':'0%');
-  html+=kpi('부채(마통) 투입', ff(debtInStock), 'var(--rd)', leverageRatio+'% 레버리지');
+  html+=kpi('부채(빌린돈) 투입', ff(debtInStock), 'var(--rd)', leverageRatio+'% 레버리지');
   html+=kpi('실현수익 총액', ff(totalRealized), 'var(--yw)', investMonths.length+'개월 누적');
   html+='</div>';
 
@@ -4370,8 +4370,17 @@ function renderStock(){
   html+='<span style="font-size:12px;font-weight:700;color:var(--pu)">'+ff(equityInStock)+'</span></div>';
   html+='<div style="display:flex;align-items:center;gap:6px">';
   html+='<div style="width:10px;height:10px;border-radius:2px;background:#c53030"></div>';
-  html+='<span style="font-size:12px;font-weight:700;flex:1">마통(빌린돈)</span>';
+  html+='<span style="font-size:12px;font-weight:700;flex:1">빌린 돈(부채)</span>';
   html+='<span style="font-size:12px;font-weight:700;color:var(--rd)">'+ff(debtInStock)+'</span></div>';
+  var debtBreakdown=AI.filter(function(a){return a.d&&(Number(latestAm[a.n])||0)>0;});
+  if(debtBreakdown.length){
+    html+='<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--bd)">';
+    debtBreakdown.forEach(function(a){
+      html+='<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mu);padding:2px 0">'
+        +'<span>'+a.emoji+' '+a.n+'</span><span style="font-weight:700;color:var(--rd)">'+ff(Number(latestAm[a.n])||0)+'</span></div>';
+    });
+    html+='</div>';
+  }
   if(leverageRatio>50){
     html+='<div class="al' +' '+'rd mt8" style="font-size:11px;padding:8px">⚠️ 빌린 돈 비중이 자본보다 높아요. 하락 시 리스크가 커요.</div>';
   }
@@ -4457,7 +4466,7 @@ function renderStock(){
     var c3=document.getElementById(cid3);
     if(c3&&typeof Chart!=='undefined'){
       new Chart(c3,{type:'doughnut',data:{
-        labels:['내 자본','마통(빌린돈)'],
+        labels:['내 자본','빌린 돈(부채)'],
         datasets:[{data:[equityInStock,debtInStock],
           backgroundColor:['#553c9a','#c53030'],borderWidth:2,borderColor:'#ffffff',hoverOffset:6}]
       },options:{responsive:false,cutout:'70%',plugins:{legend:{display:false}}}});
