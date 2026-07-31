@@ -265,8 +265,9 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
         </div>
         <div class="fg c2">
           <div><label>대분류(자동)</label><input type="text" id="ti-type" readonly style="color:var(--mu2)"></div>
-          <div id="ti-sub-wrap"><label>소분류</label><select id="ti-sub"></select></div>
+          <div id="ti-sub-wrap"><label>소분류</label><select id="ti-sub" onchange="onTiSubChange()"></select></div>
         </div>
+        <div id="ti-suggest-hint" style="display:none;font-size:11px;color:var(--pu);background:rgba(139,92,246,.08);border-radius:var(--rs);padding:6px 10px;margin-bottom:10px"></div>
         <div class="fg c2">
           <div><label>금액(원)</label><input type="number" id="ti-amt" placeholder="0" min="0"></div>
           <div><label>거래출처</label><select id="ti-pay"></select></div>
@@ -420,12 +421,12 @@ var ANNUAL={
 };
 
 var CATS={
-  '식비':{'p':'지출','s':['식비','외식','배달','식자재','커피']},
-  '생활':{'p':'지출','s':['생필품','생활서비스','생활용품','가구/가전','기타생활비']},
-  '꾸밈':{'p':'지출','s':['의류','잡화','화장품','미용실','기타꾸밈비']},
+  '식비':{'p':'지출','s':['외식','배달','식자재','커피']},
+  '생활':{'p':'지출','s':['생활서비스','생활용품','가구/가전','기타생활비']},
+  '꾸밈':{'p':'지출','s':['의류','화장품','미용실','기타꾸밈비']},
   '교통':{'p':'지출','s':['대중교통','택시','철도','기타교통비']},
   '자동차':{'p':'지출','s':['주유','주차/통행료','유지비 등','자동차 세금','자동차 보험','자동차 할부','자동차 벌금']},
-  '주거':{'p':'지출','s':['관리비','가스비','전기세','대출이자','월세']},
+  '주거':{'p':'지출','s':['관리비','가스비','전기요금','대출이자','월세']},
   '통신':{'p':'지출','s':['휴대폰','인터넷/TV','기타통신비']},
   '건강':{'p':'지출','s':['병원','약국','건강식품','운동','기타건강관리']},
   '금융지출':{'p':'지출','s':['보험료','기타금융지출','이자/대출']},
@@ -441,17 +442,17 @@ var CATS={
 };
 var SUB_ICON={
   // 식비
-  '식비':'🍚','외식':'🍽️','배달':'🛵','식자재':'🛒','커피':'☕',
+  '외식':'🍽️','배달':'🛵','식자재':'🛒','커피':'☕',
   // 생활
-  '생필품':'🧴','생활서비스':'🔧','생활용품':'📦','가구/가전':'🛋️','기타생활비':'🏠',
+  '생활서비스':'🔧','생활용품':'📦','가구/가전':'🛋️','기타생활비':'🏠',
   // 꾸밈
-  '의류':'👔','잡화':'👜','화장품':'💄','미용실':'✂️','기타꾸밈비':'🪞',
+  '의류':'👔','화장품':'💄','미용실':'✂️','기타꾸밈비':'🪞',
   // 교통
   '대중교통':'🚌','택시':'🚕','철도':'🚆','기타교통비':'🚗',
   // 자동차
   '주유':'⛽','주차/통행료':'🅿️','유지비 등':'🔩','자동차 세금':'📋','자동차 보험':'🛡️','자동차 할부':'💳','자동차 벌금':'🚨',
   // 주거
-  '관리비':'🏢','가스비':'🔥','전기세':'⚡','대출이자':'🏦','월세':'🏠',
+  '관리비':'🏢','가스비':'🔥','전기요금':'⚡','대출이자':'🏦','월세':'🏠',
   // 통신
   '휴대폰':'📱','인터넷/TV':'📡','기타통신비':'📞',
   // 건강
@@ -508,7 +509,7 @@ var FX=[
   {type:'지출',mid:'주거',sub:'대출이자',      memo:'LH전세대출',                amt:170500, pay:'롯데카드(신)', eval:'소비'},
   {type:'지출',mid:'주거',sub:'관리비',        memo:'관리비',                    amt:0,      pay:'현금',        eval:'소비'},
   {type:'지출',mid:'주거',sub:'가스비',        memo:'가스비',                    amt:0,      pay:'신한카드(신)', eval:'소비'},
-  {type:'지출',mid:'주거',sub:'전기세',        memo:'한전 - 전기세',             amt:0,      pay:'롯데카드(신)', eval:'소비'},
+  {type:'지출',mid:'주거',sub:'전기요금',        memo:'한전 - 전기요금',             amt:0,      pay:'롯데카드(신)', eval:'소비'},
   {type:'지출',mid:'주거',sub:'월세',          memo:'월세',                      amt:100000, pay:'현금',        eval:'소비'},
   // ── 자동차 ────────────────────────────────────────────────
   {type:'지출',mid:'자동차',sub:'자동차 할부', memo:'G80 할부',                  amt:511070, pay:'하나카드(신)', eval:'투자'},
@@ -1135,6 +1136,43 @@ function initApp(){
   loadGoals();
   loadIns();
   backfillIncomeSavingsGoals();
+  // 카테고리 개편 마이그레이션: 식비>식비→외식, 생활>생필품→생활용품, 꾸밈>잡화→기타꾸밈비, 주거>전기세→전기요금
+  (function(){
+    var CAT_RENAME=[
+      {mid:'식비',from:'식비',to:'외식'},
+      {mid:'생활',from:'생필품',to:'생활용품'},
+      {mid:'꾸밈',from:'잡화',to:'기타꾸밈비'},
+      {mid:'주거',from:'전기세',to:'전기요금'}
+    ];
+    var db=loadDB();var changed=false;
+    (db.txs||[]).forEach(function(t){
+      CAT_RENAME.forEach(function(r){
+        if(t.mid===r.mid&&t.sub===r.from){t.sub=r.to;changed=true;}
+      });
+    });
+    if(db.budgets){
+      Object.keys(db.budgets).forEach(function(ym){
+        var bym=db.budgets[ym];
+        CAT_RENAME.forEach(function(r){
+          if(bym[r.mid]&&bym[r.mid][r.from]!==undefined){
+            bym[r.mid][r.to]=(bym[r.mid][r.to]||0)+bym[r.mid][r.from];
+            delete bym[r.mid][r.from];
+            changed=true;
+          }
+        });
+      });
+    }
+    if(changed){localStorage.setItem('gaegyebu',JSON.stringify(db));scheduleSync();}
+    var fxChanged=false;
+    FX.forEach(function(f){CAT_RENAME.forEach(function(r){if(f.mid===r.mid&&f.sub===r.from){f.sub=r.to;fxChanged=true;}});});
+    if(fxChanged)saveFX();
+    var btChanged=false;
+    BT.forEach(function(b){CAT_RENAME.forEach(function(r){if(b.mid===r.mid&&b.sub===r.from){b.sub=r.to;btChanged=true;}});});
+    if(btChanged)saveBT();
+    var insChanged=false;
+    INSTALLMENTS.forEach(function(ins){CAT_RENAME.forEach(function(r){if(ins.mid===r.mid&&ins.sub===r.from){ins.sub=r.to;insChanged=true;}});});
+    if(insChanged)saveIns();
+  })();
   // 수입/저축 거래의 eval 정리 (기존 데이터 마이그레이션)
   (function(){
     var db=loadDB();var changed=false;
@@ -1176,6 +1214,57 @@ function onMid(){var m=document.getElementById('ti-mid').value;var c=CATS[m];doc
   if(ptg){
     ptg.style.display=p==='지출'?'':'none';
     if(p!=='지출'){document.getElementById('ti-ptype').value='일시불';onPayTypeChange();}
+  }
+  onTiSubChange();
+}
+// ── 소분류별 자동완성(결제수단/지출유형 학습) ──────────────────
+// 그동안 이 카테고리에 뭘로 결제하고 어떻게 평가했는지 학습해서, 소분류 고르면 자동으로 채워준다.
+function getSubSuggestion(mid,sub){
+  var db=loadDB();var txs=db.txs||[];
+  var payCount={},evalCount={},total=0;
+  txs.forEach(function(t){
+    if(t.mid===mid&&t.sub===sub){
+      total++;
+      if(t.payment)payCount[t.payment]=(payCount[t.payment]||0)+1;
+      if(t.eval)evalCount[t.eval]=(evalCount[t.eval]||0)+1;
+    }
+  });
+  function mode(obj){
+    var best=null,bestN=0;
+    Object.keys(obj).forEach(function(k){if(obj[k]>bestN){best=k;bestN=obj[k];}});
+    return{val:best,n:bestN};
+  }
+  var payMode=mode(payCount),evalMode=mode(evalCount);
+  return{payment:payMode.val,paymentN:payMode.n,eval:evalMode.val,evalN:evalMode.n,total:total};
+}
+function onTiSubChange(){
+  var mid=document.getElementById('ti-mid').value;
+  var sub=document.getElementById('ti-sub').value;
+  var hint=document.getElementById('ti-suggest-hint');
+  if(!mid||!sub||!hint){if(hint)hint.style.display='none';return;}
+  var s=getSubSuggestion(mid,sub);
+  if(s.total<2){hint.style.display='none';return;} // 데이터가 너무 적으면(1건 이하) 학습 신뢰도 낮으니 생략
+  var parts=[];
+  if(s.payment){
+    var paySel=document.getElementById('ti-pay');
+    if(paySel&&Array.prototype.some.call(paySel.options,function(o){return o.value===s.payment;})){
+      paySel.value=s.payment;
+      parts.push('거래출처 <b>'+s.payment+'</b>('+s.paymentN+'/'+s.total+'건)');
+    }
+  }
+  var evg=document.getElementById('ti-evg');
+  if(s.eval&&evg&&evg.style.visibility!=='hidden'){
+    var evSel=document.getElementById('ti-ev');
+    if(evSel&&Array.prototype.some.call(evSel.options,function(o){return o.value===s.eval;})){
+      evSel.value=s.eval;
+      parts.push('지출유형 <b>'+s.eval+'</b>('+s.evalN+'/'+s.total+'건)');
+    }
+  }
+  if(parts.length){
+    hint.innerHTML='💡 이 항목은 보통 '+parts.join(' · ')+' 로 입력하셨어요 — 자동으로 채워드렸어요.';
+    hint.style.display='block';
+  }else{
+    hint.style.display='none';
   }
 }
 function onEmMid(){var m=document.getElementById('em-mid').value;var c=CATS[m];var p=c?c.p:'';document.getElementById('em-type').value=p;var ss=document.getElementById('em-sub');ss.innerHTML='';if(c)c.s.forEach(function(s){var o=document.createElement('option');o.value=o.textContent=s;ss.appendChild(o);});var evg=document.getElementById('em-evg');if(evg)evg.style.display=(p==='지출'||p==='저축')?'':'none';if(p==='저축')document.getElementById('em-ev').value='저축';else if(p==='지출')document.getElementById('em-ev').value='소비';}
@@ -3716,10 +3805,10 @@ function deleteAssetItem(i){
 // 뱅크샐러드 카테고리 → 가계부 중분류/소분류 매핑
 var BS_CAT_MAP={
   // 식비
-  '식비':          {mid:'식비', sub:'식비'},
+  '식비':          {mid:'식비', sub:'외식'},
   '외식':          {mid:'식비', sub:'외식'},
   '카페/간식':     {mid:'식비', sub:'커피'},
-  '편의점/마트':   {mid:'생활', sub:'생필품'},
+  '편의점/마트':   {mid:'생활', sub:'생활용품'},
   '배달음식':      {mid:'식비', sub:'배달'},
   '식재료':        {mid:'식비', sub:'식자재'},
   // 교통
@@ -3739,7 +3828,7 @@ var BS_CAT_MAP={
   '주거/통신':     {mid:'주거', sub:'관리비'},
   '통신':          {mid:'통신', sub:'휴대폰'},
   '인터넷':        {mid:'통신', sub:'인터넷/TV'},
-  '전기/가스':     {mid:'주거', sub:'전기세'},
+  '전기/가스':     {mid:'주거', sub:'전기요금'},
   // 의료/건강
   '의료/건강':     {mid:'건강', sub:'병원'},
   '병원':          {mid:'건강', sub:'병원'},
