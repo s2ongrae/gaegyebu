@@ -42,7 +42,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bk{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px;font-weight:700}
 .bg{background:#c6f6d5;color:#276749}.br{background:#fed7d7;color:#c53030}.bb{background:#bee3f8;color:#2b6cb0}.bgy{background:var(--sf3);color:var(--mu2)}.byw{background:#fefcbf;color:#b7791f}.bpu{background:#e9d8fd;color:#553c9a}.bcy{background:#c4f1f9;color:#0987a0}
 .fg{display:grid;gap:8px;margin-bottom:10px}
-.fg.c2{grid-template-columns:1fr 1fr}.fg.c3{grid-template-columns:1fr 1fr 1fr}
+.fg.c2{grid-template-columns:1fr 1fr}.fg.c3{grid-template-columns:1fr 1fr 1fr}.fg.c4{grid-template-columns:repeat(4,1fr)}
 .fg label{display:block;font-size:11px;color:var(--mu);margin-bottom:3px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .fg input,.fg select{width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px 10px;border-radius:var(--rs);font-size:13px;outline:none;transition:border .15s;font-family:inherit}
 .fg input:focus,.fg select:focus{border-color:var(--bl)}.fg select option{background:var(--sf2)}
@@ -161,7 +161,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .sp{width:26px;height:26px;border:2px solid var(--bd);border-top-color:var(--bl);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media(max-width:900px){.inp-layout{grid-template-columns:1fr}.his-panel{position:static;max-height:none}}
-@media(max-width:700px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}.fg.c3{grid-template-columns:1fr 1fr}.bud-grid{grid-template-columns:1fr}.cal-day{min-height:64px}}
+@media(max-width:700px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}.fg.c3,.fg.c4{grid-template-columns:1fr 1fr}.bud-grid{grid-template-columns:1fr}.cal-day{min-height:64px}}
 </style>
 </head>
 <body>
@@ -273,9 +273,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
           <div id="ti-evg"><label>지출유형</label><select id="ti-ev"><option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option><option value="저축">저축</option></select></div>
           <div id="ti-ptg" style="display:none"><label>결제구분</label><select id="ti-ptype" onchange="onPayTypeChange()"><option value="일시불">일시불</option><option value="할부">할부</option></select></div>
         </div>
-        <div class="fg c3" id="ti-inst-wrap" style="display:none;background:var(--sf2);border-radius:var(--rs);padding:8px;margin-top:2px">
+        <div class="fg c4" id="ti-inst-wrap" style="display:none;background:var(--sf2);border-radius:var(--rs);padding:8px;margin-top:2px">
           <div><label>총 원금(원)</label><input type="number" id="ti-inst-principal" placeholder="예: 1200000" oninput="onInstFieldsChange()"></div>
           <div><label>총 할부개월</label><input type="number" id="ti-inst-months" placeholder="예: 12" oninput="onInstFieldsChange()"></div>
+          <div><label>연 이자율(%)</label><input type="number" step="0.01" id="ti-inst-rate" placeholder="무이자면 0" value="0" oninput="onInstFieldsChange()"></div>
           <div><label>현재 회차</label><input type="number" id="ti-inst-current" placeholder="예: 1" value="1" oninput="onInstFieldsChange()"></div>
         </div>
         <div class="fg c2">
@@ -946,9 +947,20 @@ function isFixed(tx){return tx.fixed||FX_KEYS.indexOf(tx.mid+'|'+tx.sub+'|'+tx.m
 // (AZ 급여/투자수입/돌보미수입은 FX에 등록되어 있어도 사실상 변동수입이라 여기서 제외)
 var FIXED_INCOME_SUBS=['레드윗 급여'];
 function isFixedIncome(tx){return FIXED_INCOME_SUBS.indexOf(tx.sub)>=0;}
+function getCumulativeSavings(sub,ym){
+  var db=loadDB();var txs=db.txs||[];var sum=0;
+  txs.forEach(function(t){
+    if(t.type==='저축'&&t.sub===sub&&t.date&&t.date.slice(0,7)<=ym)sum+=Number(t.amount)||0;
+  });
+  return sum;
+}
+function getAssetItemValue(a,am,ym){
+  if(a.autoSub&&ym)return getCumulativeSavings(a.autoSub,ym);
+  return Number(am[a.n])||0;
+}
 function calcNW(am,ym){
-  var ta=AI.filter(function(a){return!a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);
-  var td=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+(Number(am[a.n])||0);},0);
+  var ta=AI.filter(function(a){return!a.d;}).reduce(function(s,a){return s+getAssetItemValue(a,am,ym);},0);
+  var td=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+getAssetItemValue(a,am,ym);},0);
   var insDebt=0;
   if(ym&&typeof INSTALLMENTS!=='undefined'){
     INSTALLMENTS.forEach(function(item){
@@ -1310,11 +1322,15 @@ function onPayTypeChange(){
 function onInstFieldsChange(){
   var principal=Number(document.getElementById('ti-inst-principal').value)||0;
   var totalMonths=Number(document.getElementById('ti-inst-months').value)||0;
+  var rate=Number(document.getElementById('ti-inst-rate').value)||0;
   var current=Number(document.getElementById('ti-inst-current').value)||1;
   if(!principal||!totalMonths)return;
-  var perMonth=Math.floor(principal/totalMonths);
-  var lastMonth=principal-perMonth*(totalMonths-1);
-  var amt=current>=totalMonths?lastMonth:perMonth;
+  var monthly=calcInsMonthlyAmount(principal,totalMonths,rate);
+  var amt=monthly;
+  if(current>=totalMonths){
+    var prevRemain=getInsRemaining(principal,totalMonths,rate,totalMonths-1);
+    amt=rate>0?(prevRemain+Math.round(prevRemain*(rate/100/12))):prevRemain;
+  }
   document.getElementById('ti-amt').value=amt;
 }
 function saveTx(){
@@ -1329,15 +1345,15 @@ function saveTx(){
   if(ptype==='할부'&&!id){
     var principal=Number(document.getElementById('ti-inst-principal').value)||0;
     var totalMonths=Number(document.getElementById('ti-inst-months').value)||0;
+    var rate=Number(document.getElementById('ti-inst-rate').value)||0;
     var current=Number(document.getElementById('ti-inst-current').value)||1;
     if(!principal||!totalMonths){document.getElementById('ti-res').innerHTML='<div class="al wrn">⚠️ 할부 총 원금과 개월수를 입력해주세요.</div>';btn.disabled=false;return;}
     var billingDay=Number(date.split('-')[2]);
     var firstYm=addMonthsToYm(date.slice(0,7),-(current-1));
-    var perMonth=Math.floor(principal/totalMonths);
-    var lastMonth=principal-perMonth*(totalMonths-1);
-    tx.amount=current>=totalMonths?lastMonth:perMonth;
+    var monthlyAmt=calcInsMonthlyAmount(principal,totalMonths,rate);
+    tx.amount=current>=totalMonths?(function(){var pr=getInsRemaining(principal,totalMonths,rate,totalMonths-1);return rate>0?(pr+Math.round(pr*(rate/100/12))):pr;})():monthlyAmt;
     var insId='ins_'+Date.now();
-    addIns({id:insId,name:(tx.memo||sub||mid),mid:mid,sub:sub,payment:tx.payment,principal:principal,totalMonths:totalMonths,firstYm:firstYm,billingDay:billingDay});
+    addIns({id:insId,name:(tx.memo||sub||mid),mid:mid,sub:sub,payment:tx.payment,principal:principal,totalMonths:totalMonths,firstYm:firstYm,billingDay:billingDay,rate:rate});
     tx.installmentId=insId;
   }
 
@@ -1345,7 +1361,7 @@ function saveTx(){
   else{addTx(tx);document.getElementById('ti-res').innerHTML=ptype==='할부'?'<div class="al suc">✅ 저장 완료! 할부로 등록돼서 다음달부터 💳 할부 관리에서 자동으로 안내해드려요.</div>':'<div class="al suc">✅ 저장 완료!</div>';}
   document.getElementById('ti-amt').value='';document.getElementById('ti-memo').value='';btn.disabled=false;
   document.getElementById('ti-ptype').value='일시불';onPayTypeChange();
-  document.getElementById('ti-inst-principal').value='';document.getElementById('ti-inst-months').value='';document.getElementById('ti-inst-current').value='1';
+  document.getElementById('ti-inst-principal').value='';document.getElementById('ti-inst-months').value='';document.getElementById('ti-inst-rate').value='0';document.getElementById('ti-inst-current').value='1';
   // 월별 카드 삽입
   setTimeout(function(){document.getElementById('ti-res').innerHTML='';},2500);renderHis();renderInsList();
 }
@@ -1386,16 +1402,45 @@ function addMonthsToYm(ym,delta){
   var y=Math.floor(total/12),m=total%12+1;
   return y+'-'+String(m).padStart(2,'0');
 }
+function calcInsMonthlyAmount(principal,totalMonths,rate){
+  if(rate>0){
+    var r=rate/100/12;
+    return Math.round(principal*r/(1-Math.pow(1+r,-totalMonths)));
+  }
+  return Math.floor(principal/totalMonths);
+}
+function getInsRemaining(principal,totalMonths,rate,paidCount){
+  paidCount=Math.min(Math.max(paidCount,0),totalMonths);
+  if(rate>0){
+    var r=rate/100/12,N=totalMonths;
+    if(paidCount<=0)return principal;
+    if(paidCount>=N)return 0;
+    var val=principal*(Math.pow(1+r,N)-Math.pow(1+r,paidCount))/(Math.pow(1+r,N)-1);
+    return Math.round(val);
+  }
+  var perMonth=Math.floor(principal/totalMonths);
+  var paidSoFar=paidCount>=totalMonths?principal:paidCount*perMonth;
+  return Math.max(principal-paidSoFar,0);
+}
 function getInsStatus(item,ym){
   var num=monthsBetweenYm(item.firstYm,ym)+1;
-  var perMonth=Math.floor(item.principal/item.totalMonths);
-  var lastMonth=item.principal-perMonth*(item.totalMonths-1);
   var notStarted=num<1;
   var done=num>item.totalMonths;
-  var amount=(notStarted||done)?0:(num===item.totalMonths?lastMonth:perMonth);
-  var paidSoFar=Math.min(Math.max(num-1,0),item.totalMonths)*perMonth;
-  if(num>item.totalMonths)paidSoFar=item.principal;
-  return{num:num,amount:amount,done:done,notStarted:notStarted,perMonth:perMonth,paidSoFar:paidSoFar,remaining:Math.max(item.principal-paidSoFar,0)};
+  var rate=Number(item.rate)||0;
+  var paidCount=Math.min(Math.max(num-1,0),item.totalMonths);
+  var remaining=getInsRemaining(item.principal,item.totalMonths,rate,paidCount);
+  var paidSoFar=item.principal-remaining;
+  var monthly=calcInsMonthlyAmount(item.principal,item.totalMonths,rate);
+  var amount=0;
+  if(!notStarted&&!done){
+    if(num===item.totalMonths){
+      var prevRemain=getInsRemaining(item.principal,item.totalMonths,rate,item.totalMonths-1);
+      amount=rate>0?(prevRemain+Math.round(prevRemain*(rate/100/12))):prevRemain;
+    }else{
+      amount=monthly;
+    }
+  }
+  return{num:num,amount:amount,done:done,notStarted:notStarted,perMonth:monthly,paidSoFar:paidSoFar,remaining:remaining};
 }
 function renderInsList(){
   var wrap=document.getElementById('ins-list');if(!wrap)return;
@@ -1413,7 +1458,7 @@ function renderInsList(){
       +'<span style="font-weight:700;font-size:13px">'+(CE[item.mid]||'💳')+' '+item.name+'</span>'
       +'<span class="bk '+(st.done?'bg':'bpu')+'" style="font-size:10px">'+statusText+'</span>'
       +'</div>'
-      +'<div style="font-size:11px;color:var(--mu);margin-bottom:6px">'+item.mid+' &gt; '+item.sub+' · 원금 '+ff(item.principal)+' · 남은금액 '+ff(st.remaining)+' · 매달 '+(item.billingDay||1)+'일 결제</div>'
+      +'<div style="font-size:11px;color:var(--mu);margin-bottom:6px">'+item.mid+' &gt; '+item.sub+' · 원금 '+ff(item.principal)+(item.rate>0?' · 연 '+item.rate+'%':' · 무이자')+' · 남은금액 '+ff(st.remaining)+' · 매달 '+(item.billingDay||1)+'일 결제</div>'
       +'<div style="height:5px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:8px"><div style="width:'+pct+'%;height:100%;background:var(--pu);border-radius:3px"></div></div>';
     var actionRow=document.createElement('div');actionRow.className='fx g8';
     if(!st.done&&!st.notStarted){
@@ -1463,9 +1508,10 @@ function openAddIns(){
     +'<div><label>소분류</label><select id="ains-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
     +'</div>'
     +'<div><label>결제수단</label><select id="ains-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+PAYS.map(function(p){return'<option value="'+p+'">'+p+'</option>';}).join('')+'</select></div>'
-    +'<div class="fg c3 mt8">'
+    +'<div class="fg c4 mt8">'
     +'<div><label>총 원금(원)</label><input type="number" id="ains-principal" placeholder="예: 1200000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div><label>총 할부 개월</label><input type="number" id="ains-months" placeholder="예: 12" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>연 이자율(%)</label><input type="number" step="0.01" id="ains-rate" placeholder="무이자면 0" value="0" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div><label>현재 회차</label><input type="number" id="ains-current" placeholder="예: 1" value="1" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'</div>'
     +'<div class="mt8"><label>매달 결제일(1~28)</label><input type="number" id="ains-billday" placeholder="예: 15" min="1" max="28" value="1" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
@@ -1488,9 +1534,10 @@ function confirmAddIns(){
   var totalMonths=Number(document.getElementById('ains-months').value)||0;
   var current=Number(document.getElementById('ains-current').value)||1;
   var billingDay=Number(document.getElementById('ains-billday').value)||1;
+  var rate=Number(document.getElementById('ains-rate').value)||0;
   if(!principal||!totalMonths){showToast('⚠️ 총 원금과 할부 개월을 입력해주세요.');return;}
   var firstYm=addMonthsToYm(gYM(),-(current-1));
-  addIns({id:'ins_'+Date.now(),name:name,mid:mid,sub:sub,payment:payment,principal:principal,totalMonths:totalMonths,firstYm:firstYm,billingDay:billingDay});
+  addIns({id:'ins_'+Date.now(),name:name,mid:mid,sub:sub,payment:payment,principal:principal,totalMonths:totalMonths,firstYm:firstYm,billingDay:billingDay,rate:rate});
   document.getElementById('add-ins-md').remove();
   renderInsList();
   showToast('✅ 할부가 추가됐어요!');
@@ -1508,9 +1555,10 @@ function openEditIns(i){
     +'<div><label>소분류</label><select id="eins-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
     +'</div>'
     +'<div><label>결제수단</label><select id="eins-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+PAYS.map(function(p){return'<option value="'+p+'"'+(p===item.payment?' selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'
-    +'<div class="fg c3 mt8">'
+    +'<div class="fg c4 mt8">'
     +'<div><label>총 원금(원)</label><input type="number" id="eins-principal" value="'+item.principal+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div><label>총 할부 개월</label><input type="number" id="eins-months" value="'+item.totalMonths+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>연 이자율(%)</label><input type="number" step="0.01" id="eins-rate" value="'+(item.rate||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div><label>현재 회차</label><input type="number" id="eins-current" value="'+st.num+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'</div>'
     +'<div class="mt8"><label>매달 결제일(1~28)</label><input type="number" id="eins-billday" value="'+(item.billingDay||1)+'" min="1" max="28" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
@@ -1532,10 +1580,11 @@ function confirmEditIns(i){
   var totalMonths=Number(document.getElementById('eins-months').value)||0;
   var current=Number(document.getElementById('eins-current').value)||1;
   var billingDay=Number(document.getElementById('eins-billday').value)||1;
+  var rate=Number(document.getElementById('eins-rate').value)||0;
   if(!principal||!totalMonths){showToast('⚠️ 총 원금과 할부 개월을 입력해주세요.');return;}
   var firstYm=addMonthsToYm(gYM(),-(current-1));
   var old=INSTALLMENTS[i];
-  updateIns(i,{id:old.id,name:name,mid:mid,sub:sub,payment:payment,principal:principal,totalMonths:totalMonths,firstYm:firstYm,billingDay:billingDay});
+  updateIns(i,{id:old.id,name:name,mid:mid,sub:sub,payment:payment,principal:principal,totalMonths:totalMonths,firstYm:firstYm,billingDay:billingDay,rate:rate});
   document.getElementById('edit-ins-md').remove();
   renderInsList();
   showToast('✅ 할부가 수정됐어요!');
@@ -2944,7 +2993,7 @@ function renderAst(){
   Object.keys(groups).forEach(function(gname){
     var items=groups[gname];if(!items.length)return;
     var isDebt=gname==='부채';
-    var gtotal=items.reduce(function(s,o){return s+(Number(am[o.a.n])||0);},0);
+    var gtotal=items.reduce(function(s,o){return s+getAssetItemValue(o.a,am,ym);},0);
     var grp=document.createElement('div');grp.className='asset-group';
     var gtitle=document.createElement('div');gtitle.className='asset-group-title';
     gtitle.textContent=gname+' ';
@@ -2952,7 +3001,7 @@ function renderAst(){
     gtitle.appendChild(gamt);grp.appendChild(gtitle);
     items.forEach(function(o){
       var a=o.a,i=o.i;
-      var val=Number(am[a.n])||0;
+      var val=getAssetItemValue(a,am,ym);
       var item=document.createElement('div');item.className='asset-item';
       // 아이콘
       var icon=document.createElement('div');icon.className='asset-icon';
@@ -2964,12 +3013,19 @@ function renderAst(){
       var acat=document.createElement('div');acat.className='asset-cat';acat.textContent=a.cat+(isDebt&&a.rate?' · 금리 '+a.rate+'%':'');
       if(val){acat.textContent+=' · ';var vspan=document.createElement('span');vspan.style.color=isDebt?'var(--rd)':'var(--gn)';vspan.textContent=ff(val);acat.appendChild(vspan);}
       info.appendChild(acat);item.appendChild(info);
-      // 입력
-      var inp=document.createElement('input');inp.type='number';inp.value=val||'';inp.placeholder='0';inp.className='asset-input';
-      inp.style.borderColor=isDebt?'rgba(239,68,68,.3)':'var(--bd2)';
-      inp.onfocus=function(){this.style.borderColor='var(--bl)';};
-      (function(ym2,n2){inp.onblur=function(){onAst(this,ym2,n2);};})(ym,a.n);
-      item.appendChild(inp);
+      if(a.autoSub){
+        var abadge=document.createElement('span');abadge.className='bk bpu';abadge.style.cssText='font-size:10px;margin-right:6px;white-space:nowrap';abadge.title='"'+a.autoSub+'" 저축 거래 누적 합계가 자동으로 반영돼요';abadge.textContent='🔗 거래연동';
+        item.appendChild(abadge);
+        var valDisp=document.createElement('span');valDisp.style.cssText='font-weight:700;color:var(--gn);min-width:100px;text-align:right;font-size:13px';valDisp.textContent=ff(val);
+        item.appendChild(valDisp);
+      }else{
+        // 입력
+        var inp=document.createElement('input');inp.type='number';inp.value=val||'';inp.placeholder='0';inp.className='asset-input';
+        inp.style.borderColor=isDebt?'rgba(239,68,68,.3)':'var(--bd2)';
+        inp.onfocus=function(){this.style.borderColor='var(--bl)';};
+        (function(ym2,n2){inp.onblur=function(){onAst(this,ym2,n2);};})(ym,a.n);
+        item.appendChild(inp);
+      }
       // 수정/삭제 버튼
       var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';
       editBtn.style.cssText='padding:4px 7px;margin-left:4px';
@@ -2983,6 +3039,39 @@ function renderAst(){
     });
     container.appendChild(grp);
   });
+
+  // 할부: 별도 그룹으로 자동계산해서 표시 (수동 입력 불필요)
+  var activeIns=INSTALLMENTS.map(function(item,i){return{item:item,i:i,st:getInsStatus(item,ym)};}).filter(function(x){return!x.st.done&&!x.st.notStarted;});
+  if(activeIns.length){
+    var insTotal=activeIns.reduce(function(s,x){return s+x.st.remaining;},0);
+    var insGrp=document.createElement('div');insGrp.className='asset-group';
+    var insTitle=document.createElement('div');insTitle.className='asset-group-title';
+    insTitle.textContent='할부 ';
+    var insAmt=document.createElement('span');insAmt.style.cssText='color:var(--rd);font-weight:400';insAmt.textContent=ff(insTotal);
+    insTitle.appendChild(insAmt);insGrp.appendChild(insTitle);
+    activeIns.forEach(function(x){
+      var item=x.item,st=x.st;
+      var row=document.createElement('div');row.className='asset-item';
+      var icon=document.createElement('div');icon.className='asset-icon';icon.style.background='rgba(239,68,68,.12)';icon.textContent='💳';row.appendChild(icon);
+      var info=document.createElement('div');info.className='asset-info';
+      var nm=document.createElement('div');nm.className='asset-name';nm.style.color='var(--rd)';nm.textContent=item.name+' ('+st.num+'/'+item.totalMonths+'회차)';info.appendChild(nm);
+      var cat=document.createElement('div');cat.className='asset-cat';
+      cat.textContent='할부'+(item.rate>0?' · 연 '+item.rate+'%':' · 무이자')+' · ';
+      var vspan=document.createElement('span');vspan.style.color='var(--rd)';vspan.textContent=ff(st.remaining);cat.appendChild(vspan);
+      info.appendChild(cat);row.appendChild(info);
+      var badge=document.createElement('span');badge.className='bk bpu';badge.style.cssText='font-size:10px;margin-right:6px;white-space:nowrap';badge.textContent='🔗 자동계산';row.appendChild(badge);
+      var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:4px 7px;margin-left:4px';
+      (function(ii){editBtn.onclick=function(){openEditIns(ii);};})(x.i);
+      row.appendChild(editBtn);
+      var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 7px;margin-left:4px';
+      (function(ii){delBtn.onclick=function(){deleteIns(ii);renderAst();};})(x.i);
+      row.appendChild(delBtn);
+      insGrp.appendChild(row);
+    });
+    var hint=document.createElement('div');hint.style.cssText='font-size:10px;color:var(--mu);margin-top:4px';hint.textContent='할부는 남은 금액이 자동으로 총부채·순자산에 반영돼요. 추가/결제 기록은 입력·내역 탭에서 해주세요.';
+    insGrp.appendChild(hint);
+    container.appendChild(insGrp);
+  }
 }
 
 function onAst(el,ym,n){var a=Number(el.value)||0;el.style.borderColor='var(--bl)';saveAssetItem(ym,n,a);el.style.borderColor='var(--gn)';setTimeout(function(){el.style.borderColor='';renderAst();},500);}
@@ -3531,6 +3620,10 @@ function openAddAsset(){
     +'</select></div>'
     +'<div id="aast-rate-wrap" style="display:none"><label>현재 금리(%)</label><input type="number" step="0.01" id="aast-rate" placeholder="예: 6.5" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'</div>'
+    +'<div id="aast-auto-wrap" class="mt8"><label>저축 거래 자동연동 (선택)</label><select id="aast-auto" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<option value="">직접 입력(수동)</option>'
+    +CATS['저축'].s.map(function(s){return'<option value="'+s+'">'+s+' 거래 누적으로 자동계산</option>';}).join('')
+    +'</select><div style="font-size:11px;color:var(--mu);margin-top:4px">연동하면 매달 잔액을 직접 안 넣어도, 해당 저축 거래를 기록할 때마다 자동으로 쌓여요 (이자 없이 원금만 쌓이는 항목에 적합해요).</div></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmAddAsset()">💾 추가</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'add-asset-md\').remove()">취소</button>'
@@ -3542,6 +3635,8 @@ function onAastCat(){
   var cat=document.getElementById('aast-cat').value;
   var rw=document.getElementById('aast-rate-wrap');
   if(rw)rw.style.display=cat==='부채'?'':'none';
+  var aw=document.getElementById('aast-auto-wrap');
+  if(aw)aw.style.display=cat==='부채'?'none':'';
 }
 function confirmAddAsset(){
   var name=document.getElementById('aast-name').value.trim();
@@ -3551,7 +3646,8 @@ function confirmAddAsset(){
   var cat=document.getElementById('aast-cat').value;
   var isDebt=cat==='부채';
   var rate=isDebt?(Number(document.getElementById('aast-rate').value)||0):0;
-  addAssetItem({n:name,emoji:emoji,cat:cat,d:isDebt,rate:rate});
+  var autoSub=isDebt?'':(document.getElementById('aast-auto').value||'');
+  addAssetItem({n:name,emoji:emoji,cat:cat,d:isDebt,rate:rate,autoSub:autoSub});
   document.getElementById('add-asset-md').remove();
   renderAst();
   showToast('✅ 자산 항목 추가됐어요!');
@@ -3572,6 +3668,10 @@ function openEditAsset(i){
     +'</select></div>'
     +'<div id="east-rate-wrap" style="display:'+(a.d?'':'none')+'"><label>현재 금리(%)</label><input type="number" step="0.01" id="east-rate" value="'+(a.rate||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'</div>'
+    +'<div id="east-auto-wrap" class="mt8" style="display:'+(a.d?'none':'')+'"><label>저축 거래 자동연동 (선택)</label><select id="east-auto" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<option value="">직접 입력(수동)</option>'
+    +CATS['저축'].s.map(function(s){return'<option value="'+s+'"'+(a.autoSub===s?' selected':'')+'>'+s+' 거래 누적으로 자동계산</option>';}).join('')
+    +'</select><div style="font-size:11px;color:var(--mu);margin-top:4px">연동하면 매달 잔액을 직접 안 넣어도, 해당 저축 거래를 기록할 때마다 자동으로 쌓여요.</div></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmEditAsset('+i+')">💾 저장</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'edit-asset-md\').remove()">취소</button>'
@@ -3583,6 +3683,8 @@ function onEastCat(){
   var cat=document.getElementById('east-cat').value;
   var rw=document.getElementById('east-rate-wrap');
   if(rw)rw.style.display=cat==='부채'?'':'none';
+  var aw=document.getElementById('east-auto-wrap');
+  if(aw)aw.style.display=cat==='부채'?'none':'';
 }
 function confirmEditAsset(i){
   var name=document.getElementById('east-name').value.trim();
@@ -3591,7 +3693,8 @@ function confirmEditAsset(i){
   var cat=document.getElementById('east-cat').value;
   var isDebt=cat==='부채';
   var rate=isDebt?(Number(document.getElementById('east-rate').value)||0):0;
-  updateAssetItem(i,{n:name,emoji:emoji,cat:cat,d:isDebt,rate:rate});
+  var autoSub=isDebt?'':(document.getElementById('east-auto').value||'');
+  updateAssetItem(i,{n:name,emoji:emoji,cat:cat,d:isDebt,rate:rate,autoSub:autoSub});
   document.getElementById('edit-asset-md').remove();
   renderAst();
   showToast('✅ 자산 항목 수정됐어요!');
