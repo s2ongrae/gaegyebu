@@ -686,12 +686,41 @@ function estimateMonthsToGoal(goal){
   if(remain2<=0)return 0;
   return Math.ceil(remain2/avgChange);
 }
+function getTopExpenseCategoryThisMonth(){
+  var ym=gYM();var s=getMonthSummary(ym);
+  var best=null,bestAmt=0;
+  Object.keys(s.byMid).forEach(function(m){if(s.byMid[m]>bestAmt){bestAmt=s.byMid[m];best=m;}});
+  return best?{mid:best,amt:bestAmt}:null;
+}
+function estimateMonthsToGoalWithExtra(goal,extraPerMonth){
+  if(goal.type==='duration')return null;
+  var db=loadDB();var assetsAll=db.assets||{};
+  var months=Object.keys(assetsAll).sort();
+  if(months.length<3)return null;
+  var recent=months.slice(-3);
+  var vals=recent.map(function(ym){return goalMetricValue(goal,assetsAll[ym],ym);});
+  var avgChange=(vals[vals.length-1]-vals[0])/(vals.length-1);
+  if(goal.type==='debt'){
+    var newChange=avgChange-extraPerMonth;
+    if(newChange>=0)return null;
+    var remain=vals[vals.length-1];
+    if(remain<=0)return 0;
+    return Math.ceil(remain/(-newChange));
+  }
+  var newChange2=avgChange+extraPerMonth;
+  if(newChange2<=0)return null;
+  var remain2=goal.target-vals[vals.length-1];
+  if(remain2<=0)return 0;
+  return Math.ceil(remain2/newChange2);
+}
 function renderGoalsCard(){
   var html='<div class="card mb12"><div class="card-title">🎯 목표 현황<button onclick="openAddGoal()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 목표 추가</button></div>';
   if(!GOALS.length){
     html+='<div class="em">아직 등록된 목표가 없어요. "순자산 1억 모으기", "마통 다 갚기" 같은 목표를 추가해보세요.</div></div>';
     return html;
   }
+  var topCat=getTopExpenseCategoryThisMonth();
+  var reduceAmt=topCat?Math.round(topCat.amt*0.2/1000)*1000:0;
   html+='<div class="g3" style="align-items:stretch">';
   GOALS.forEach(function(g,i){
     var p=computeGoalProgress(g);
@@ -711,18 +740,28 @@ function renderGoalsCard(){
       targetLabel='목표 '+ff(p.target);
       etaLabel=(eta!==null)?'📅 이 속도라면 약 '+(eta===0?'이번달':eta+'개월 후')+' 도달 예상':null;
     }
-    html+='<div style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
+    // 절감 시뮬레이션 (기간형 목표, 이미 달성된 목표는 제외)
+    var simText=null;
+    if(!p.done&&g.type!=='duration'&&topCat&&reduceAmt>0&&eta!==null){
+      var newEta=estimateMonthsToGoalWithExtra(g,reduceAmt);
+      if(newEta!==null&&newEta<eta){
+        var monthsSaved=eta-newEta;
+        if(monthsSaved>0)simText='💡 이번달 "'+topCat.mid+'" 지출을 20%('+ff(reduceAmt)+') 줄이면, 목표가 약 '+monthsSaved+'개월 당겨져요';
+      }
+    }
+    html+='<div class="'+(simText?'dtl-card':'')+'" id="dtl-goal-'+i+'" '+(simText?'onclick="toggleDtl(\'dtl-goal-'+i+'\')"':'')+' style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
       +'<span style="font-size:13px;font-weight:700">'+(p.done?'✅ ':'')+g.label+'</span>'
       +'<span style="display:flex;gap:2px">'
-      +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:10px" onclick="openEditGoal('+i+')">⚙️</button>'
-      +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:10px" onclick="deleteGoal('+i+')">🗑️</button>'
+      +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:10px" onclick="event.stopPropagation();openEditGoal('+i+')">⚙️</button>'
+      +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:10px" onclick="event.stopPropagation();deleteGoal('+i+')">🗑️</button>'
       +'</span></div>'
       +'<div style="font-size:20px;font-weight:900;color:'+color+';margin-bottom:4px">'+p.pct+'%</div>'
       +'<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
       +'<div style="width:'+p.pct+'%;height:100%;background:'+color+';border-radius:3px"></div></div>'
       +'<div style="font-size:11px;color:var(--mu)">'+curLabel+' · '+targetLabel+'</div>'
       +(etaLabel?'<div style="font-size:11px;color:var(--bl);margin-top:4px">'+etaLabel+'</div>':'')
+      +(simText?('<div class="dtl-hint">눌러서 절감 시뮬레이션 보기 ▾</div><div class="dtl-body"><div style="font-size:11px;color:var(--pu);font-weight:700">'+simText+'</div></div>'):'')
       +'</div>';
   });
   html+='</div></div>';
@@ -2409,6 +2448,87 @@ function renderAnomalyDetailRows(ym2,mid,sub){
       +'</div>';
   }).join('')||'<div style="font-size:11px;color:var(--mu);padding:6px 8px">거래 내역이 없어요</div>';
 }
+// ── 다음달 예상 수지 (캐시플로우 예측) ──────────────────────────
+function renderForecastCard(curYM2){
+  var months=getAllMonths().filter(function(m){return m<=curYM2;});
+  if(months.length<2)return'';
+  var nextYm=addMonthsToYm(curYM2,1);
+  var recentMonths=months.slice(-3);
+  var n=recentMonths.length;
+  var fixedIncSum=0,varIncSum=0,fixedExpSum=0,varExpSum=0;
+  recentMonths.forEach(function(ym){
+    var s=getMonthSummary(ym);
+    fixedIncSum+=s.incomeFixed;varIncSum+=s.incomeVar;
+    getTxs(ym).forEach(function(t){
+      if(t.type==='지출'&&!t.installmentId){
+        if(isFixed(t))fixedExpSum+=Number(t.amount)||0;
+        else varExpSum+=Number(t.amount)||0;
+      }
+    });
+  });
+  var avgFixedInc=fixedIncSum/n,avgVarInc=varIncSum/n,avgFixedExp=fixedExpSum/n,avgVarExp=varExpSum/n;
+  var insDue=0,insRows=[];
+  INSTALLMENTS.forEach(function(item){
+    var st=getInsStatus(item,nextYm);
+    if(!st.done&&!st.notStarted){insDue+=st.amount;insRows.push({name:item.name,amt:st.amount});}
+  });
+  var expectedIncome=avgFixedInc+avgVarInc;
+  var expectedExpense=avgFixedExp+avgVarExp+insDue;
+  var expectedBalance=expectedIncome-expectedExpense;
+  var color=expectedBalance>=0?'var(--gn)':'var(--rd)';
+  var html='<div class="card mb12"><div class="card-title">📅 '+nextYm+' 예상 수지 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 평균 기준 전망</span></div>'
+    +'<div class="dtl-card" id="dtl-forecast" onclick="toggleDtl(\'dtl-forecast\')">'
+    +'<div class="g3 mb8">'
+    +'<div class="kpi"><div class="kl">예상 수입</div><div class="kv" style="font-size:16px;color:var(--gn)">'+f(Math.round(expectedIncome))+'</div><div class="kb" style="background:var(--gn)"></div></div>'
+    +'<div class="kpi"><div class="kl">예상 지출(할부 포함)</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(Math.round(expectedExpense))+'</div><div class="kb" style="background:var(--rd)"></div></div>'
+    +'<div class="kpi"><div class="kl">예상 순잉여</div><div class="kv" style="font-size:16px;color:'+color+'">'+(expectedBalance>=0?'+':'')+f(Math.round(expectedBalance))+'</div><div class="kb" style="background:'+color+'"></div></div>'
+    +'</div>'
+    +(expectedBalance<0?'<div style="font-size:11px;color:var(--rd);font-weight:700">⚠️ 이 페이스면 '+nextYm+'에 적자가 예상돼요. 변동지출을 좀 줄여볼 타이밍이에요.</div>':'<div style="font-size:11px;color:var(--mu)">이 페이스대로면 '+nextYm+'에 여유가 있을 것 같아요.</div>')
+    +'<div class="dtl-hint">눌러서 계산 내역보기 ▾</div>'
+    +'<div class="dtl-body">'
+    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 고정수입</span><span style="font-weight:700">'+ff(Math.round(avgFixedInc))+'</span></div>'
+    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 변동수입</span><span style="font-weight:700">'+ff(Math.round(avgVarInc))+'</span></div>'
+    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 고정지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgFixedExp))+'</span></div>'
+    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 변동지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgVarExp))+'</span></div>'
+    +(insRows.length?insRows.map(function(x){return'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>💳 '+x.name+'(할부)</span><span style="font-weight:700;color:var(--rd)">'+ff(x.amt)+'</span></div>';}).join(''):'')
+    +'<div style="font-size:10px;color:var(--mu);margin-top:6px">⚠️ 실제 통장 잔액이 아니라, 최근 3개월 흐름을 그대로 다음달에 적용했을 때의 "예상 잉여자금"이에요. 일시적 지출(경조사 등)은 반영 안 돼요.</div>'
+    +'</div>'
+    +'</div></div>';
+  return html;
+}
+
+// ── 구독료 총합 대시보드 ──────────────────────────────────────
+function renderSubscriptionCard(curYM2){
+  var allTxs=loadDB().txs||[];
+  var subTxs=allTxs.filter(function(t){return t.mid==='문화여가'&&t.sub==='구독료'&&t.type==='지출';});
+  if(!subTxs.length)return'';
+  var cutoff=addMonthsToYm(curYM2,-2);
+  var byName={};
+  subTxs.forEach(function(t){
+    var name=t.memo||'이름없는 구독';
+    if(!byName[name]||t.date>byName[name].date)byName[name]=t;
+  });
+  var active=Object.keys(byName).map(function(n){return byName[n];}).filter(function(t){return t.date&&t.date.slice(0,7)>=cutoff;});
+  if(!active.length)return'';
+  var total=active.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  active.sort(function(a,b){return b.amount-a.amount;});
+  var html='<div class="card mb12"><div class="card-title">🔁 구독료 총합 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 내 결제 기록 기준</span></div>'
+    +'<div class="dtl-card" id="dtl-subs" onclick="toggleDtl(\'dtl-subs\')">'
+    +'<div class="g2 mb8">'
+    +'<div class="kpi"><div class="kl">월 구독료 총액</div><div class="kv" style="font-size:18px;color:var(--pu)">'+f(total)+'</div><div class="kb" style="background:var(--pu)"></div></div>'
+    +'<div class="kpi"><div class="kl">구독 개수</div><div class="kv" style="font-size:18px">'+active.length+'개</div><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'</div>'
+    +'<div style="font-size:11px;color:var(--mu)">작아 보여도 다 더하면 꽤 큰 돈이에요 — 안 쓰는 구독 있는지 한번 점검해보세요.</div>'
+    +'<div class="dtl-hint">눌러서 구독별 내역보기 ▾</div>'
+    +'<div class="dtl-body">'
+    +active.map(function(t){
+      return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--bd)"><span>'+(t.memo||'이름없는 구독')+' <span style="color:var(--mu)">('+t.date+' 결제)</span></span><span style="font-weight:700;color:var(--pu)">'+ff(t.amount)+'</span></div>';
+    }).join('')
+    +'</div>'
+    +'</div></div>';
+  return html;
+}
+
 function renderAnomalyCard(curYM2){
   var res=detectSpendingAnomalies(curYM2);
   var dismissed=getDismissedAnomalies();
@@ -2527,6 +2647,8 @@ function renderDash(){
   document.getElementById('d-dash').innerHTML=
     renderAnomalyCard(curYM)
     +renderGoalsCard()
+    +renderForecastCard(curYM)
+    +renderSubscriptionCard(curYM)
     +'<div style="font-size:12px;color:var(--mu2);margin-bottom:8px">📅 '+curYM.replace('-','년 ')+'월 이전 누적 기준</div>'
     +'<div class="g5 mb12"><div class="kpi"><div class="kl">누적 수입</div><div class="kv tg">'+f(tot.income)+'</div><div class="ks">월평균 '+f(ai)+'</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">누적 지출</div><div class="kv trd">'+f(tot.expense)+'</div><div class="ks">월평균 '+f(ae)+'</div><div class="kb" style="background:var(--rd)"></div></div><div class="kpi"><div class="kl">누적 순저축</div><div class="kv tb">'+f(sv)+'</div><div class="ks">수입-지출</div><div class="kb" style="background:var(--bl)"></div></div><div class="kpi"><div class="kl">평균 저축률</div><div class="kv ty">'+sr+'%</div><div class="ks">'+sums.length+'개월</div><div class="kb" style="background:var(--yw)"></div></div><div class="kpi"><div class="kl">현재 순자산</div><div class="kv tpu">'+f(latestNW)+'</div><div class="ks">최신 자산 기준</div><div class="kb" style="background:var(--pu)"></div></div></div>'
     +(function(){try{return'<div class="card mb12">'+renderAssetComp()+'</div>';}catch(e){console.error('assetComp error',e);return'';}})()
