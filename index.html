@@ -83,6 +83,9 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .mon-card-nums{display:flex;flex-direction:column;gap:3px;text-align:right;min-width:80px}
 .mon-card-nums span{font-size:12px;font-weight:700}
 .mon-card-body{display:none;border-top:1px solid var(--bd)}
+.sec-divider{font-size:11px;font-weight:800;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding-left:10px;border-left:3px solid var(--bl);display:flex;align-items:center;gap:8px}
+.sec-divider:first-child{margin-top:0}
+.sec-divider .sec-sub{font-size:10px;font-weight:400;color:var(--mu);text-transform:none;letter-spacing:0}
 .his-row-grid{display:grid;grid-template-columns:16px 34px 34px 34px 68px 78px 1fr 66px 92px 30px 30px;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid var(--bd);overflow-x:auto}
 @media(max-width:900px){.his-row-grid{grid-template-columns:16px 30px 30px 30px 55px 65px 1fr 55px 78px 26px 26px;font-size:11px}}
 .anom-detail{display:none;margin-top:6px}
@@ -335,12 +338,16 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   </div>
 </div>
 <div class="pg" id="pg-ast">
-  <div id="d-liquidity" class="mb12"></div>
-  <div id="d-dsr" class="mb12"></div>
-  <div id="d-taxlimit" class="mb12"></div>
+  <div class="sec-divider">⚠️ 리스크 체크</div>
   <div id="d-leverage" class="mb12"></div>
+  <div id="d-dsr" class="mb12"></div>
+  <div class="sec-divider">📊 재무 건강 지표</div>
+  <div id="d-liquidity" class="mb12"></div>
+  <div id="d-taxlimit" class="mb12"></div>
+  <div class="sec-divider">💡 손익 &amp; 전략</div>
   <div id="d-realpl" class="mb12"></div>
   <div id="d-refi" class="mb12"></div>
+  <div class="sec-divider">🏦 자산 현황</div>
   <div id="d-ast-kpi" class="g3 mb12"></div>
   <div class="card">
     <div class="card-title">🏦 자산 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 포커스 이동 시 자동 저장</span><button onclick="openAddAsset()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
@@ -2646,17 +2653,22 @@ function renderDash(){
 
   document.getElementById('d-dash').innerHTML=
     renderAnomalyCard(curYM)
+    +'<div class="sec-divider">🎯 목표 &amp; 다음달 전망 <span class="sec-sub">지금 챙겨야 할 것</span></div>'
     +renderGoalsCard()
     +renderForecastCard(curYM)
-    +renderSubscriptionCard(curYM)
+    +'<div class="sec-divider">💰 이번달 스냅샷</div>'
     +'<div style="font-size:12px;color:var(--mu2);margin-bottom:8px">📅 '+curYM.replace('-','년 ')+'월 이전 누적 기준</div>'
     +'<div class="g5 mb12"><div class="kpi"><div class="kl">누적 수입</div><div class="kv tg">'+f(tot.income)+'</div><div class="ks">월평균 '+f(ai)+'</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">누적 지출</div><div class="kv trd">'+f(tot.expense)+'</div><div class="ks">월평균 '+f(ae)+'</div><div class="kb" style="background:var(--rd)"></div></div><div class="kpi"><div class="kl">누적 순저축</div><div class="kv tb">'+f(sv)+'</div><div class="ks">수입-지출</div><div class="kb" style="background:var(--bl)"></div></div><div class="kpi"><div class="kl">평균 저축률</div><div class="kv ty">'+sr+'%</div><div class="ks">'+sums.length+'개월</div><div class="kb" style="background:var(--yw)"></div></div><div class="kpi"><div class="kl">현재 순자산</div><div class="kv tpu">'+f(latestNW)+'</div><div class="ks">최신 자산 기준</div><div class="kb" style="background:var(--pu)"></div></div></div>'
+    +renderSubscriptionCard(curYM)
+    +'<div class="sec-divider">📊 자산 &amp; 수입 구조</div>'
     +(function(){try{return'<div class="card mb12">'+renderAssetComp()+'</div>';}catch(e){console.error('assetComp error',e);return'';}})()
     +'<div class="card mb12"><div class="card-title">💰 수입 구조: 고정수입(근로) vs 변동수입(사업/투자) 누적 흐름 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 고정수입 비중 '+incFixedPct+'%</span></div>'
     +'<div class="g5 mb12" style="margin-bottom:10px"><div class="kpi"><div class="kl">누적 고정수입(근로)</div><div class="kv" style="color:#3b82f6">'+f(totIncomeFixed)+'</div><div class="ks">고정거래 등록분</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">누적 변동수입(사업/투자)</div><div class="kv" style="color:#f59e0b">'+f(totIncomeVar)+'</div><div class="ks">비고정 수입</div><div class="kb" style="background:#f59e0b"></div></div><div class="kpi"><div class="kl">고정수입 비중</div><div class="kv tg">'+incFixedPct+'%</div><div class="ks">전체 수입 대비</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">평균 고정 월수입</div><div class="kv" style="color:#3b82f6">'+f(sums.length?Math.round(totIncomeFixed/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">평균 변동 월수입</div><div class="kv" style="color:#f59e0b">'+f(sums.length?Math.round(totIncomeVar/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#f59e0b"></div></div></div>'
     +'<div style="position:relative;height:220px"><canvas id="incFxC"></canvas></div></div>'
+    +'<div class="sec-divider">📈 추이 &amp; 히스토리</div>'
     +'<div class="card mb12"><div class="card-title">📈 월별 수입·지출 &amp; 순자산 추이</div><div style="position:relative;height:260px"><canvas id="dC"></canvas></div></div>'
     +'<div class="card"><div class="card-title">📅 월별 상세 현황</div><div id="mon-cards-container"></div></div>'
+    +'<div class="sec-divider">📋 연간 결산 <span class="sec-sub">자세히 들여다보기</span></div>'
     +(function(){try{return renderAnnual(months);}catch(e){console.error('annual:',e);return '';}})()
   // 월별 상세 카드 삽입
   var mc=document.getElementById('mon-cards-container');
