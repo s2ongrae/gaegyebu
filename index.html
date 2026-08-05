@@ -429,7 +429,7 @@ var CATS={
   '주거':{'p':'지출','s':['관리비','가스비','전기요금','대출이자','월세']},
   '통신':{'p':'지출','s':['휴대폰','인터넷/TV','기타통신비']},
   '건강':{'p':'지출','s':['병원','약국','건강식품','운동','기타건강관리']},
-  '금융지출':{'p':'지출','s':['보험료','기타금융지출','이자/대출']},
+  '금융지출':{'p':'지출','s':['보험료','투자손실','기타금융지출','이자/대출']},
   '문화여가':{'p':'지출','s':['영화관람','풋살','런닝','구독료','기타문화비']},
   '교육':{'p':'지출','s':['학원/강의','교육투자','기타교육비']},
   '유흥':{'p':'지출','s':['음주','대리비','데이트','기타유흥']},
@@ -458,7 +458,7 @@ var SUB_ICON={
   // 건강
   '병원':'🏥','약국':'💊','건강식품':'🥗','운동':'💪','기타건강관리':'🩺',
   // 금융
-  '보험료':'🛡️','기타금융지출':'💰','이자/대출':'📉','투자':'📈',
+  '보험료':'🛡️','투자손실':'📉','기타금융지출':'💰','이자/대출':'📉','투자':'📈',
   // 문화여가
   '영화관람':'🎬','풋살':'⚽','런닝':'🏃','구독료':'📺','기타문화비':'🎮',
   // 교육
@@ -3190,26 +3190,28 @@ function renderRealPLCard(){
   if(!wrap)return;
   var db=loadDB();var assetsAll=db.assets||{};
   var months=Object.keys(assetsAll).sort();
-  if(months.length<2){wrap.innerHTML='';return;}
+  var hasAssetHistory=months.length>=2;
 
   // ── 1) 레버리지 조정 투자손익 ──
   var investNames=AI.filter(function(a){return!a.d&&a.cat==='투자';}).map(function(a){return a.n;});
   var debtRated=AI.filter(function(a){return a.d&&a.rate>0;});
-  var investSeries=months.map(function(ym){
-    var am=assetsAll[ym];
-    return investNames.reduce(function(s,n){return s+(Number(am[n])||0);},0);
-  });
-  var firstIdx=investSeries.findIndex(function(v){return v>0;});
-  var hasInvest=firstIdx>=0;
-  var investGain=0,totalInterestCost=0;
-  if(hasInvest){
-    investGain=investSeries[investSeries.length-1]-investSeries[firstIdx];
-    for(var i=firstIdx;i<months.length;i++){
-      var am2=assetsAll[months[i]];
-      debtRated.forEach(function(d){
-        var bal=Number(am2[d.n])||0;
-        totalInterestCost+=bal*d.rate/100/12;
-      });
+  var firstIdx=-1,hasInvest=false,investGain=0,totalInterestCost=0;
+  if(hasAssetHistory){
+    var investSeries=months.map(function(ym){
+      var am=assetsAll[ym];
+      return investNames.reduce(function(s,n){return s+(Number(am[n])||0);},0);
+    });
+    firstIdx=investSeries.findIndex(function(v){return v>0;});
+    hasInvest=firstIdx>=0;
+    if(hasInvest){
+      investGain=investSeries[investSeries.length-1]-investSeries[firstIdx];
+      for(var i=firstIdx;i<months.length;i++){
+        var am2=assetsAll[months[i]];
+        debtRated.forEach(function(d){
+          var bal=Number(am2[d.n])||0;
+          totalInterestCost+=bal*d.rate/100/12;
+        });
+      }
     }
   }
   var realGain=investGain-totalInterestCost;
@@ -3225,7 +3227,20 @@ function renderRealPLCard(){
   });
   var hasInsurance=premiumPaid>0||insuranceReceived>0;
 
-  if(!hasInvest&&!hasInsurance){wrap.innerHTML='';return;}
+  // ── 3) 순 투자손익 (실현, 거래 기준: 수입>투자수입 - 지출>금융지출>투자손실) ──
+  var investIncomeRows=allTxs.filter(function(t){return t.type==='수입'&&t.sub==='투자수입';});
+  var investLossRows=allTxs.filter(function(t){return t.type==='지출'&&t.mid==='금융지출'&&t.sub==='투자손실';});
+  var totalInvestIncome=investIncomeRows.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  var totalInvestLoss=investLossRows.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  var hasNetInvest=totalInvestIncome>0||totalInvestLoss>0;
+  var netInvestPL=totalInvestIncome-totalInvestLoss;
+  // 이번달 순투자손익
+  var curYm2=gYM();
+  var curInvestIncome=investIncomeRows.filter(function(t){return t.date&&t.date.slice(0,7)===curYm2;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  var curInvestLoss=investLossRows.filter(function(t){return t.date&&t.date.slice(0,7)===curYm2;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  var curNetInvestPL=curInvestIncome-curInvestLoss;
+
+  if(!hasInvest&&!hasInsurance&&!hasNetInvest){wrap.innerHTML='';return;}
 
   var html='<div class="card"><div class="card-title">💡 실질 자산 손익 분석 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 표면 숫자가 아닌 진짜 손익</span></div>';
 
@@ -3271,6 +3286,29 @@ function renderRealPLCard(){
       +(premiumRows.length?premiumRows.sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;}).map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
       +'<div style="font-size:11px;font-weight:700;margin:8px 0 4px">보험금 수령 내역</div>'
       +(receivedRows.length?receivedRows.map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700;color:var(--gn)">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
+      +'</div>'
+      +'</div>';
+  }
+
+  if(hasNetInvest){
+    var netColor=netInvestPL>=0?'var(--gn)':'var(--rd)';
+    var curColor=curNetInvestPL>=0?'var(--gn)':'var(--rd)';
+    var allInvestRows=investIncomeRows.map(function(t){return{date:t.date,memo:t.memo,amount:t.amount,gain:true};})
+      .concat(investLossRows.map(function(t){return{date:t.date,memo:t.memo,amount:-t.amount,gain:false};}))
+      .sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;});
+    html+='<div class="dtl-card" id="dtl-netinvest" onclick="toggleDtl(\'dtl-netinvest\')" style="border-radius:var(--r);margin-bottom:12px">'
+      +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">💹 순 투자손익 (실현, 수입&gt;투자수입 − 지출&gt;금융지출&gt;투자손실)</div>'
+      +'<div class="g3 mb8">'
+      +'<div class="kpi"><div class="kl">'+curYm2+' 이번달 순손익</div><div class="kv" style="font-size:16px;color:'+curColor+'">'+(curNetInvestPL>=0?'+':'')+f(curNetInvestPL)+'</div><div class="kb" style="background:'+curColor+'"></div></div>'
+      +'<div class="kpi"><div class="kl">누적 투자수입 − 투자손실</div><div class="kv" style="font-size:16px">'+f(totalInvestIncome)+' − '+f(totalInvestLoss)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
+      +'<div class="kpi"><div class="kl">= 누적 순투자손익</div><div class="kv" style="font-size:16px;color:'+netColor+'">'+(netInvestPL>=0?'+':'')+f(netInvestPL)+'</div><div class="kb" style="background:'+netColor+'"></div></div>'
+      +'</div>'
+      +'<div style="font-size:11px;color:var(--mu)">💡 이번달 손실 났으면 지출 &gt; 금융지출 &gt; <b>투자손실</b>로 기록해두세요. "지출유형"은 투자로 선택하면, 소비/낭비랑 안 섞이고 여기서 수익과 상계돼서 진짜 순손익이 나와요.</div>'
+      +'<div class="dtl-hint">눌러서 개별 내역보기 ▾</div>'
+      +'<div class="dtl-body">'
+      +(allInvestRows.length?allInvestRows.map(function(t){
+        return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+(t.date||'')+' '+(t.memo||(t.gain?'투자수입':'투자손실'))+'</span><span style="font-weight:700;color:'+(t.amount>=0?'var(--gn)':'var(--rd)')+'">'+(t.amount>=0?'+':'')+ff(t.amount)+'</span></div>';
+      }).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
       +'</div>'
       +'</div>';
   }
