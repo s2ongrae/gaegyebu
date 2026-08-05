@@ -184,6 +184,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 @media(max-width:900px){.inp-layout{grid-template-columns:1fr}.his-panel{position:static;max-height:none}}
 @media(max-width:700px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}.fg.c3,.fg.c4{grid-template-columns:1fr 1fr}.bud-grid{grid-template-columns:1fr}.cal-day{min-height:64px}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 <div id="lock-screen" style="display:none;position:fixed;inset:0;background:var(--bg,#0f1420);z-index:9999;align-items:center;justify-content:center">
@@ -243,9 +244,9 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     <button class="btn bg2 bsm" onclick="syncNow()">🔄 동기화</button>
     <button class="btn bg2 bsm" onclick="exportJSON()">📤</button>
     <button class="btn bg2 bsm" onclick="document.getElementById('importFile').click()">📥</button>
-    <button class="btn bg2 bsm" onclick="document.getElementById('csvFile').click()" title="뱅크샐러드 CSV 가져오기">🏦 CSV</button>
+    <button class="btn bg2 bsm" onclick="document.getElementById('csvFile').click()" title="뱅크샐러드 엑셀/CSV 가져오기">🏦 뱅크샐러드</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
-    <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="importBankSalad(event)">
+    <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importBankSalad(event)">
   </div>
 </div>
 <div class="main">
@@ -507,6 +508,21 @@ var SUB_ICON={
 };
 
 var PAYS=['현금','하나카드(신)','신한카드(신)','롯데카드(신)','현대카드(신)','토스카드(체)','농협카드'];
+var PAYS_CUSTOM_KEY='gaegyebu_pays_custom';
+function loadCustomPays(){
+  try{
+    var extra=JSON.parse(localStorage.getItem(PAYS_CUSTOM_KEY)||'[]');
+    extra.forEach(function(p){if(PAYS.indexOf(p)<0)PAYS.push(p);});
+  }catch(e){}
+}
+function addCustomPay(name){
+  if(!name||PAYS.indexOf(name)>=0)return;
+  PAYS.push(name);
+  try{
+    var extra=JSON.parse(localStorage.getItem(PAYS_CUSTOM_KEY)||'[]');
+    if(extra.indexOf(name)<0){extra.push(name);localStorage.setItem(PAYS_CUSTOM_KEY,JSON.stringify(extra));}
+  }catch(e){}
+}
 var MC={'식비':'#06b6d4','생활':'#94a3b8','꾸밈':'#ec4899','교통':'#f97316','자동차':'#64748b','주거':'#84cc16','통신':'#22d3ee','건강':'#f43f5e','금융지출':'#a78bfa','문화여가':'#fbbf24','교육':'#34d399','유흥':'#ef4444','반려동물':'#fb923c','경조선물':'#e879f9','여행':'#38bdf8','업무지출':'#6366f1','수입':'#10b981','저축':'#3b82f6'};
 var CE={'식비':'🍱','생활':'🏠','꾸밈':'👔','교통':'🚌','자동차':'🚗','주거':'🏡','통신':'📱','건강':'💊','금융지출':'💳','문화여가':'🎬','교육':'📚','유흥':'🍻','반려동물':'🐱','경조선물':'🎁','여행':'✈️','업무지출':'💼','수입':'💰','저축':'🏦'};
 var FX=[
@@ -1269,6 +1285,7 @@ function initApp(){
   curYM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   calYM=curYM;
   document.getElementById('ti-date').value=now.toISOString().split('T')[0];
+  loadCustomPays();
   var ps=document.getElementById('ti-pay');var eps=document.getElementById('em-pay');
   PAYS.forEach(function(p){var o=document.createElement('option');o.value=o.textContent=p;ps.appendChild(o);var o2=document.createElement('option');o2.value=o2.textContent=p;eps.appendChild(o2);});
   ['ti-mid','em-mid'].forEach(function(elId){var ms=document.getElementById(elId);['지출','수입','저축'].forEach(function(g){var og=document.createElement('optgroup');og.label=g;Object.keys(CATS).forEach(function(m){if(CATS[m].p===g){var o=document.createElement('option');o.value=o.textContent=m;og.appendChild(o);}});ms.appendChild(og);});});
@@ -4011,151 +4028,162 @@ function deleteAssetItem(i){
 }
 // ── 뱅크샐러드 CSV 가져오기 ──────────────────────────────
 // 뱅크샐러드 카테고리 → 가계부 중분류/소분류 매핑
+// 뱅크샐러드 실제 엑셀 내보내기 형식: 대분류|소분류 조합 → 가계부 mid/sub
 var BS_CAT_MAP={
-  // 식비
-  '식비':          {mid:'식비', sub:'외식'},
-  '외식':          {mid:'식비', sub:'외식'},
-  '카페/간식':     {mid:'식비', sub:'커피'},
-  '편의점/마트':   {mid:'생활', sub:'생활용품'},
-  '배달음식':      {mid:'식비', sub:'배달'},
-  '식재료':        {mid:'식비', sub:'식자재'},
-  // 교통
-  '대중교통':      {mid:'교통', sub:'대중교통'},
-  '택시':          {mid:'교통', sub:'택시'},
-  '기차/버스':     {mid:'교통', sub:'철도'},
-  '주유':          {mid:'자동차', sub:'주유'},
-  '주차':          {mid:'자동차', sub:'주차/통행료'},
-  '자동차':        {mid:'자동차', sub:'유지비 등'},
-  // 쇼핑
-  '쇼핑':          {mid:'꾸밈', sub:'의류'},
-  '패션/미용':     {mid:'꾸밈', sub:'의류'},
-  '미용':          {mid:'꾸밈', sub:'미용실'},
-  '화장품':        {mid:'꾸밈', sub:'화장품'},
-  '의류':          {mid:'꾸밈', sub:'의류'},
-  // 주거
-  '주거/통신':     {mid:'주거', sub:'관리비'},
-  '통신':          {mid:'통신', sub:'휴대폰'},
-  '인터넷':        {mid:'통신', sub:'인터넷/TV'},
-  '전기/가스':     {mid:'주거', sub:'전기요금'},
-  // 의료/건강
-  '의료/건강':     {mid:'건강', sub:'병원'},
-  '병원':          {mid:'건강', sub:'병원'},
-  '약국':          {mid:'건강', sub:'약국'},
-  // 문화/여가
-  '문화/여가':     {mid:'문화여가', sub:'기타문화비'},
-  '영화/공연':     {mid:'문화여가', sub:'영화관람'},
-  '여행':          {mid:'여행', sub:'기타여행비'},
-  '숙박':          {mid:'여행', sub:'숙박비'},
-  // 금융
-  '금융':          {mid:'금융지출', sub:'기타금융지출'},
-  '보험':          {mid:'금융지출', sub:'보험료'},
-  '이자':          {mid:'금융지출', sub:'이자/대출'},
-  // 교육
-  '교육':          {mid:'교육', sub:'학원/강의'},
+  '금융|보험':'금융지출|보험료','금융|이자/대출':'금융지출|이자/대출','금융|업무 투자':'금융지출|기타금융지출',
+  '금융|저축':'금융지출|기타금융지출','금융|투자':'금융지출|기타금융지출','금융|카드':'금융지출|기타금융지출','금융|미분류':'금융지출|기타금융지출',
+  '식비|배달':'식비|배달','식비|밥값':'식비|외식','식비|식재료':'식비|식자재','식비|식료품':'식비|식자재','식비|미분류':'식비|외식',
+  '유흥|술':'유흥|음주','유흥|대리':'유흥|대리비','유흥|담배':'유흥|기타유흥','유흥|미분류':'유흥|기타유흥',
+  '교통|택시':'교통|택시','교통|철도':'교통|철도','교통|대중교통':'교통|대중교통','교통|시외버스':'교통|기타교통비',
+  '카페/간식|커피/음료':'식비|커피','카페/간식|미분류':'식비|커피','카페/간식|기타간식':'식비|커피',
+  '데이트|식비':'유흥|데이트','데이트|여행':'유흥|데이트','데이트|선물':'유흥|데이트','데이트|기타':'유흥|데이트','데이트|미분류':'유흥|데이트',
+  '온라인쇼핑|미분류':'생활|생활용품','온라인쇼핑|화장품 구매':'꾸밈|화장품','온라인쇼핑|의류 구매':'꾸밈|의류',
+  '온라인쇼핑|서비스구독':'문화여가|구독료','온라인쇼핑|기타 구매':'생활|기타생활비',
+  '경조/선물|선물':'경조선물|선물','경조/선물|엄마 보험/회비':'경조선물|엄마보험','경조/선물|축의금':'경조선물|경조사','경조/선물|부의금':'경조선물|경조사',
+  '자동차|통행료':'자동차|주차/통행료','자동차|정비/수리':'자동차|유지비 등','자동차|주유':'자동차|주유',
+  '자동차|차량보험':'자동차|자동차 보험','자동차|세차':'자동차|유지비 등','자동차|자동차세':'자동차|자동차 세금',
+  '자동차|주차':'자동차|주차/통행료','자동차|미분류':'자동차|유지비 등',
+  '생활|생필품':'생활|생활용품','생활|미분류':'생활|생활용품','생활|가구/가전':'생활|가구/가전','생활|생활서비스':'생활|생활서비스','생활|세탁':'생활|생활서비스',
+  '주거/통신|휴대폰':'통신|휴대폰','주거/통신|월세':'주거|월세','주거/통신|가스비':'주거|가스비','주거/통신|전기세':'주거|전기요금','주거/통신|관리비':'주거|관리비',
+  '건강/미용/관리|병원':'건강|병원','건강/미용/관리|미용':'꾸밈|미용실','건강/미용/관리|치과':'건강|병원','건강/미용/관리|약국':'건강|약국',
+  '건강/미용/관리|피부과':'건강|병원','건강/미용/관리|건강용품':'건강|건강식품','건강/미용/관리|미분류':'건강|기타건강관리',
+  '문화/여가|스포츠':'건강|운동','문화/여가|미분류':'문화여가|기타문화비','문화/여가|영화':'문화여가|영화관람','문화/여가|취미/체험':'문화여가|기타문화비',
+  '반려동물|펫용품':'반려동물|메리용품','반려동물|동물병원':'반려동물|펫보험/병원','반려동물|사료/간식':'반려동물|메리사료/간식',
+  '여행/숙박|여행':'여행|기타여행비','여행/숙박|숙박비':'여행|숙박비','여행/숙박|미분류':'여행|기타여행비','여행/숙박|항공권':'여행|항공권',
   // 수입
-  '급여':          {mid:'수입', sub:'레드윗 급여'},
-  '이자수익':      {mid:'수입', sub:'투자수입'},
-  '투자수익':      {mid:'수입', sub:'투자수입'},
-  '기타수입':      {mid:'수입', sub:'기타수입'},
-  // 기본값
-  '기타':          {mid:'생활', sub:'기타생활비'}
+  '투자수입|미분류':'수입|투자수입','중고거래|미분류':'수입|중고거래수입','기타수입|미분류':'수입|기타수입','보험금|미분류':'수입|보험금수입',
+  'AZ 급여|미분류':'수입|AZ 급여','레드윗 급여|미분류':'수입|레드윗 급여','앱테크|미분류':'수입|기타수입','돌보미 급여|미분류':'수입|돌보미수입','용돈|미분류':'수입|기타수입'
 };
+// 이체>저축 항목은 소분류가 다 "미분류"라서, 내용/메모/결제수단 텍스트에서 키워드로 어느 저축상품인지 추정한다
+function classifySavingsSub(text){
+  if(/IRP|퇴직연금/.test(text))return'IRP';
+  if(/청약/.test(text))return'주택청약';
+  if(/KDB/i.test(text))return'종신(KDB)';
+  if(/라이나/.test(text))return'종신(라이나)';
+  if(/ISA/i.test(text))return'ISA';
+  if(/연금저축|연저/.test(text))return'연금저축펀드';
+  if(/청년/.test(text))return'연금저축펀드';
+  return null;
+}
 
 function importBankSalad(e){
   var file=e.target.files[0];if(!file)return;
+  var isExcel=/\.xlsx?$/i.test(file.name);
   var reader=new FileReader();
   reader.onload=function(ev){
     try{
-      var text=ev.target.result;
-      // BOM 제거
-      if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
-      var lines=text.split('\n').filter(function(l){return l.trim();});
-      if(!lines.length){showToast('❌ 빈 파일이에요.');return;}
+      var rows; // 2차원 배열: rows[0]=헤더, rows[i]=[날짜,시간,타입,대분류,소분류,내용,금액,화폐,결제수단,메모]
+      if(isExcel){
+        var wb=XLSX.read(ev.target.result,{type:'array',cellDates:true});
+        // "가계부 내역" 시트를 우선 찾고, 없으면 첫 시트 사용
+        var sheetName=wb.SheetNames.find(function(n){return n.indexOf('가계부')>=0;})||wb.SheetNames[0];
+        rows=XLSX.utils.sheet_to_json(wb.Sheets[sheetName],{header:1,raw:false,dateNF:'yyyy-mm-dd'});
+      }else{
+        var text=ev.target.result;
+        if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
+        rows=text.split('\n').filter(function(l){return l.trim();}).map(function(l){
+          return l.split(',').map(function(c){return c.trim().replace(/"/g,'');});
+        });
+      }
+      if(!rows||rows.length<2){showToast('❌ 빈 파일이에요.');return;}
 
-      // 헤더 파싱
-      var header=lines[0].split(',').map(function(h){return h.trim().replace(/"/g,'');});
-      console.log('헤더:', header);
-
-      // 컬럼 인덱스 찾기 (뱅크샐러드 형식)
+      var header=rows[0].map(function(h){return(h||'').toString().trim();});
       function findCol(names){
         for(var i=0;i<names.length;i++){
-          var idx=header.findIndex(function(h){return h.includes(names[i]);});
+          var idx=header.findIndex(function(h){return h.indexOf(names[i])>=0;});
           if(idx>=0)return idx;
         }
         return -1;
       }
       var dateIdx=findCol(['날짜','일자','거래일']);
-      var typeIdx=findCol(['수입/지출','타입','구분']);
-      var catIdx=findCol(['카테고리','분류']);
+      var typeIdx=findCol(['타입','수입/지출','구분']);
+      var midIdx=findCol(['대분류','카테고리','분류']);
+      var subIdx=findCol(['소분류']);
+      var contentIdx=findCol(['내용','적요','가맹점']);
       var amtIdx=findCol(['금액','거래금액']);
-      var memoIdx=findCol(['내용','적요','가맹점']);
       var payIdx=findCol(['결제수단','계좌','카드']);
+      var memoIdx2=findCol(['메모']);
 
       if(dateIdx<0||amtIdx<0){
-        showToast('❌ CSV 형식을 인식못했어요. 헤더 확인 필요.');
+        showToast('❌ 형식을 인식 못했어요. 헤더를 확인해주세요.');
         console.log('헤더목록:', header);
         return;
       }
 
-      var imported=[];var skipped=0;
-      for(var i=1;i<lines.length;i++){
-        var cols=lines[i].split(',').map(function(c){return c.trim().replace(/"/g,'');});
-        if(cols.length<3)continue;
-        var dateRaw=cols[dateIdx]||'';
-        var typeRaw=typeIdx>=0?(cols[typeIdx]||''):'지출';
-        var catRaw=catIdx>=0?(cols[catIdx]||''):'기타';
-        var amtRaw=cols[amtIdx]||'0';
-        var memoRaw=memoIdx>=0?(cols[memoIdx]||''):'';
-        var payRaw=payIdx>=0?(cols[payIdx]||''):'';
+      var imported=[];var skipped=0;var skippedTransfer=0;var skippedUnknownSaving=0;
+      var newPays={};
+      for(var i=1;i<rows.length;i++){
+        var cols=rows[i];if(!cols||!cols.length)continue;
+        var dateRaw=(cols[dateIdx]||'').toString();
+        var typeRaw=typeIdx>=0?(cols[typeIdx]||'').toString():'지출';
+        var midRaw=midIdx>=0?(cols[midIdx]||'').toString().trim():'';
+        var subRaw=subIdx>=0?(cols[subIdx]||'').toString().trim():'';
+        var contentRaw=contentIdx>=0?(cols[contentIdx]||'').toString():'';
+        var amtRaw=(cols[amtIdx]||'0').toString();
+        var payRaw=payIdx>=0?(cols[payIdx]||'').toString():'';
+        var memoRaw2=memoIdx2>=0?(cols[memoIdx2]||'').toString():'';
 
-        // 날짜 파싱 (YYYY.MM.DD or YYYY-MM-DD or YYYY/MM/DD)
+        // 날짜 파싱
         var dateStr=dateRaw.replace(/[./]/g,'-').slice(0,10);
         if(dateStr.length!==10||dateStr[4]!=='-'||dateStr[7]!=='-'){skipped++;continue;}
 
-        // 금액 파싱
-        var amt=parseInt(amtRaw.replace(/[^0-9]/g,''))||0;
+        // 금액 파싱 (뱅크샐러드는 지출 음수/수입 양수로 나옴 → 절대값)
+        var amt=Math.abs(parseInt(amtRaw.replace(/[^0-9-]/g,''))||0);
         if(!amt){skipped++;continue;}
 
         // 타입 판단
         var txType='지출';
-        if(typeRaw.includes('수입')||typeRaw.includes('입금'))txType='수입';
-        else if(typeRaw.includes('저축')||typeRaw.includes('적금'))txType='저축';
+        if(typeRaw.indexOf('수입')>=0)txType='수입';
+        else if(typeRaw.indexOf('이체')>=0)txType='이체';
 
-        // 카테고리 매핑
-        var mapped=null;
-        var catKeys=Object.keys(BS_CAT_MAP);
-        for(var k=0;k<catKeys.length;k++){
-          if(catRaw.includes(catKeys[k])){mapped=BS_CAT_MAP[catKeys[k]];break;}
+        var mid,sub;
+        if(txType==='이체'){
+          // 저축성 이체만 살리고(내용/메모/결제수단에서 상품 추정), 나머지 내부계좌이체는 건너뜀
+          if(midRaw!=='저축'){skippedTransfer++;continue;}
+          var guessSub=classifySavingsSub(contentRaw+' '+memoRaw2+' '+payRaw);
+          if(!guessSub){skippedUnknownSaving++;continue;}
+          txType='저축';mid='저축';sub=guessSub;
+        }else{
+          var key=midRaw+'|'+subRaw;
+          var mapped=BS_CAT_MAP[key];
+          if(!mapped){
+            // 소분류 매핑 실패시 대분류만으로 재시도(같은 대분류의 "미분류" 매핑을 폴백으로 사용)
+            mapped=BS_CAT_MAP[midRaw+'|미분류'];
+          }
+          if(mapped){
+            var parts=mapped.split('|');mid=parts[0];sub=parts[1];
+          }else{
+            mid=txType==='수입'?'수입':'생활';sub=txType==='수입'?'기타수입':'기타생활비';
+          }
         }
-        if(!mapped)mapped={mid:txType==='수입'?'수입':'생활',sub:txType==='수입'?'기타수입':'기타생활비'};
 
-        // 수입이면 mid/sub 수입으로
-        if(txType==='수입'&&mapped.mid!=='수입'){
-          mapped={mid:'수입',sub:'기타수입'};
-        }
+        if(payRaw&&PAYS.indexOf(payRaw)<0)newPays[payRaw]=true;
 
         imported.push({
           id:mkId(),date:dateStr,type:txType,
-          mid:mapped.mid,sub:mapped.sub,
-          amount:amt,memo:memoRaw,payment:payRaw,
+          mid:mid,sub:sub,
+          amount:amt,memo:contentRaw||memoRaw2,payment:payRaw,
           eval:txType==='지출'?'소비':'',fixed:false
         });
       }
 
       if(!imported.length){showToast('❌ 가져올 데이터가 없어요.');return;}
 
-      // 확인 모달 표시
-      showBsPreview(imported, skipped);
+      // 새로 발견된 결제수단은 다음부터 거래입력 폼에서 바로 고를 수 있게 등록
+      Object.keys(newPays).forEach(function(p){addCustomPay(p);});
+
+      showBsPreview(imported, skipped, skippedTransfer, skippedUnknownSaving, Object.keys(newPays));
     }catch(err){
-      console.error('CSV 파싱 오류:', err);
-      showToast('❌ CSV 파싱 오류: '+err.message);
+      console.error('가져오기 파싱 오류:', err);
+      showToast('❌ 파싱 오류: '+err.message);
     }
   };
-  reader.readAsText(file,'UTF-8');
+  if(isExcel)reader.readAsArrayBuffer(file);
+  else reader.readAsText(file,'UTF-8');
   e.target.value='';
 }
 
-function showBsPreview(txs, skipped){
+function showBsPreview(txs, skipped, skippedTransfer, skippedUnknownSaving, newPays){
   var existing=document.getElementById('bs-preview-md');
   if(existing)existing.remove();
 
@@ -4167,12 +4195,24 @@ function showBsPreview(txs, skipped){
 
   // 헤더
   var mdh=document.createElement('div');mdh.className='mdh';
-  var mdh_h3=document.createElement('h3');mdh_h3.textContent='🏦 뱅크샐러드 CSV 미리보기';mdh.appendChild(mdh_h3);
+  var mdh_h3=document.createElement('h3');mdh_h3.textContent='🏦 뱅크샐러드 가져오기 미리보기';mdh.appendChild(mdh_h3);
   var mdh_x=document.createElement('button');mdh_x.className='mdc';mdh_x.textContent='✕';mdh_x.onclick=function(){document.getElementById('bs-preview-md').remove();};mdh.appendChild(mdh_x);
   inner.appendChild(mdh);
   var info=document.createElement('div');info.className='al inf mb8';
-  info.textContent=txs.length+'건 인식됨'+(skipped?' ('+skipped+'건 스킵)':'')+'· 카테고리 확인 후 가져오기하세요';
+  info.textContent=txs.length+'건 인식됨'+(skipped?' · 형식오류 '+skipped+'건 제외':'');
   inner.appendChild(info);
+  if(skippedTransfer||skippedUnknownSaving){
+    var info2=document.createElement('div');info2.className='al wrn mb8';
+    info2.style.fontSize='11px';
+    info2.textContent='ℹ️ '+(skippedTransfer?'내 계좌 간 이체 '+skippedTransfer+'건':'')+(skippedTransfer&&skippedUnknownSaving?', ':'')+(skippedUnknownSaving?'어느 저축상품인지 특정 못한 이체 '+skippedUnknownSaving+'건':'')+'은 수입/지출이 아니라서 가져오기에서 제외했어요. 필요하면 직접 입력해주세요.';
+    inner.appendChild(info2);
+  }
+  if(newPays&&newPays.length){
+    var info3=document.createElement('div');info3.className='al suc mb8';
+    info3.style.fontSize='11px';
+    info3.textContent='💳 새로운 결제수단 '+newPays.length+'개('+newPays.join(', ')+')를 거래입력 폼 선택지에 자동으로 추가했어요.';
+    inner.appendChild(info3);
+  }
 
   // 샘플 테이블 (최대 30건)
   var sample=txs.slice(0,30);
