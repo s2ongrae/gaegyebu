@@ -86,6 +86,22 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .sec-divider{font-size:11px;font-weight:800;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding-left:10px;border-left:3px solid var(--bl);display:flex;align-items:center;gap:8px}
 .sec-divider:first-child{margin-top:0}
 .sec-divider .sec-sub{font-size:10px;font-weight:400;color:var(--mu);text-transform:none;letter-spacing:0}
+.asset-comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px}
+.asset-comp-row{display:flex;gap:24px;align-items:flex-start;min-width:0}
+.asset-comp-donut{position:relative;width:200px;height:200px;flex-shrink:0}
+.asset-comp-donut canvas{width:100%!important;height:100%!important}
+.stock-fund-row{display:flex;align-items:center;gap:16px}
+.stock-fund-donut{position:relative;width:140px;height:140px;flex-shrink:0}
+.stock-fund-donut canvas{width:100%!important;height:100%!important}
+.stock-2col-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:700px){
+  .asset-comp-grid{grid-template-columns:1fr;gap:20px}
+  .asset-comp-row{flex-direction:column;align-items:center}
+  .asset-comp-donut{width:160px;height:160px}
+  .stock-fund-row{flex-direction:column;align-items:center}
+  .stock-2col-grid{grid-template-columns:1fr}
+  .goal-progress-grid{grid-template-columns:1fr!important}
+}
 .his-row-grid{display:grid;grid-template-columns:16px 34px 34px 34px 68px 78px 1fr 66px 92px 30px 30px;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid var(--bd);overflow-x:auto}
 @media(max-width:900px){.his-row-grid{grid-template-columns:16px 30px 30px 30px 55px 65px 1fr 55px 78px 26px 26px;font-size:11px}}
 .anom-detail{display:none;margin-top:6px}
@@ -190,8 +206,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 </nav>
 <div class="sbar">
   <div class="si"><div class="sync-dot" id="sync-dot"></div><span id="sync-status">연결 중...</span></div>
-  <select id="gY" onchange="onYMPart()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 6px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:8px"></select>
+  <button class="btn bg2 bsm" onclick="shiftYM(-1)" title="이전달" style="padding:3px 9px;margin-left:8px;font-weight:900">‹</button>
+  <select id="gY" onchange="onYMPart()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 6px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:4px"></select>
   <select id="gM" onchange="onYMPart()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:3px 6px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit;margin-left:4px"></select>
+  <button class="btn bg2 bsm" onclick="shiftYM(1)" title="다음달" style="padding:3px 9px;margin-left:4px;font-weight:900">›</button>
   <input type="hidden" id="gYM" value="">
   <script>
   (function(){
@@ -1070,6 +1088,24 @@ function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;font-family:inherit;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}
 function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();else if(p==='stk')renderStock();}
+function shiftYM(delta){
+  var ySel=document.getElementById('gY'),mSel=document.getElementById('gM');
+  if(!ySel||!mSel)return;
+  var y=Number(ySel.value),m=Number(mSel.value);
+  var total=y*12+(m-1)+delta;
+  var newY=Math.floor(total/12),newM=total%12+1;
+  // 연도 옵션에 없으면(범위 밖으로 이동) 새로 추가
+  if(!Array.prototype.some.call(ySel.options,function(o){return Number(o.value)===newY;})){
+    var opt=document.createElement('option');opt.value=newY;opt.textContent=newY+'년';
+    var years=Array.prototype.map.call(ySel.options,function(o){return Number(o.value);});
+    var insertBefore=null;
+    for(var i=0;i<ySel.options.length;i++){if(Number(ySel.options[i].value)<newY){insertBefore=ySel.options[i];break;}}
+    if(insertBefore)ySel.insertBefore(opt,insertBefore);else ySel.appendChild(opt);
+  }
+  ySel.value=newY;
+  mSel.value=newM;
+  onYMPart();
+}
 function onYMPart(){
   var y=document.getElementById('gY').value;
   var m=document.getElementById('gM').value;
@@ -1083,7 +1119,7 @@ function onYM(){
   calYM=curYM;
   if(curPage==='dash')renderDash();
   else if(curPage==='mon'){calYM=curYM;renderCal();}
-  else if(curPage==='inp'){renderInpDash();renderHis();}
+  else if(curPage==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();}
   else if(curPage==='bud')renderBud();
   else if(curPage==='ast')renderAst();
 }
@@ -4611,7 +4647,7 @@ function renderStock(){
   var cid2='stkRealized_'+Date.now();
   var cid3='stkLevPie_'+Date.now();
 
-  html+='<div style="display:grid;grid-template-columns:1.3fr 1fr;gap:12px;margin-bottom:12px">';
+  html+='<div class="stock-2col-grid">';
 
   // 주식 성장 곡선
   html+='<div class="card"><div class="card-title">📈 주식계좌 성장 곡선</div>';
@@ -4619,12 +4655,12 @@ function renderStock(){
 
   // 순자산/부채 투입 비율 도넛
   html+='<div class="card"><div class="card-title">⚖️ 자금 구성</div>';
-  html+='<div style="display:flex;align-items:center;gap:16px">';
-  html+='<div style="position:relative;width:140px;height:140px;flex-shrink:0">';
+  html+='<div class="stock-fund-row">';
+  html+='<div class="stock-fund-donut">';
   html+='<canvas id="'+cid3+'" width="140" height="140"></canvas>';
   html+='<div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none">';
   html+='<div style="font-size:10px;color:var(--mu)">레버리지</div><div style="font-size:16px;font-weight:900;color:'+(leverageRatio>50?'var(--rd)':'var(--gn)')+'">'+leverageRatio+'%</div></div></div>';
-  html+='<div style="flex:1">';
+  html+='<div style="flex:1;min-width:0;width:100%">';
   html+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">';
   html+='<div style="width:10px;height:10px;border-radius:2px;background:#553c9a"></div>';
   html+='<span style="font-size:12px;font-weight:700;flex:1">내 자본</span>';
@@ -4972,18 +5008,18 @@ function renderAssetComp(){
   wrap.appendChild(title);
 
   var grid=document.createElement('div');
-  grid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:32px';
+  grid.className='asset-comp-grid';
 
   // ── 왼쪽: 자산 구성 ─────────────────────────────────────
   var leftDiv=document.createElement('div');
   leftDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">자산 구성</div>';
 
   var leftRow=document.createElement('div');
-  leftRow.style.cssText='display:flex;gap:24px;align-items:flex-start';
+  leftRow.className='asset-comp-row';
 
   // 도넛
   var cw1=document.createElement('div');
-  cw1.style.cssText='position:relative;width:200px;height:200px;flex-shrink:0';
+  cw1.className='asset-comp-donut';
   var cv1=document.createElement('canvas');cv1.id=cid1;cv1.width=200;cv1.height=200;
   var cl1=document.createElement('div');
   cl1.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none';
@@ -5014,10 +5050,10 @@ function renderAssetComp(){
   rightDiv.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--mu2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px">순자산 VS 부채</div>';
 
   var rightRow=document.createElement('div');
-  rightRow.style.cssText='display:flex;gap:24px;align-items:flex-start';
+  rightRow.className='asset-comp-row';
 
   var cw2=document.createElement('div');
-  cw2.style.cssText='position:relative;width:200px;height:200px;flex-shrink:0';
+  cw2.className='asset-comp-donut';
   var cv2=document.createElement('canvas');cv2.id=cid2;cv2.width=200;cv2.height=200;
   var cl2=document.createElement('div');
   cl2.style.cssText='position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none';
@@ -5237,7 +5273,7 @@ function renderAnnual(months){
     +'</div></div>'
 
     // 수입 목표
-    +'<div class="g2">'
+    +'<div class="g2 goal-progress-grid">'
     +'<div>'
     +'<div style="font-size:12px;font-weight:700;color:var(--gn);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">'
     +'<span>💰 수입 목표 달성률</span>'
