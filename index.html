@@ -3487,6 +3487,7 @@ function renderRealPLCard(){
     }
   }
   var realGain=investGain-totalInterestCost;
+  var currentInvestVal=hasInvest?investSeries[investSeries.length-1]:0;
 
   // ── 2) 보장성 보험료 대비 보험금 수령 비교 ──
   // 종신(저축성) 보험은 적금 개념이라 여기서 제외하고, 실제 "보장성" 보험료(금융지출>보험료)만
@@ -3518,9 +3519,12 @@ function renderRealPLCard(){
 
   if(hasInvest){
     var principal2=getStockPrincipal();
-    var totalPerf=investGain+netInvestPL-totalInterestCost; // 표면증가(미실현) + 실현손익 - 이자비용 = 총 투자성과
+    var usePrincipal=principal2>0;
+    // 원금이 있으면: (현재평가액-원금)=진짜 미실현손익. 원금이 없으면: 표면증가(첫 추적월 대비 변화, 신규입금액 섞인 근사치)로 폴백.
+    var unrealizedPL=usePrincipal?(currentInvestVal-principal2):investGain;
+    var totalPerf=unrealizedPL+netInvestPL-totalInterestCost;
     var realColor=totalPerf>=0?'var(--gn)':'var(--rd)';
-    var perfPct=principal2>0?((totalPerf/principal2)*100).toFixed(1):null;
+    var perfPct=usePrincipal?((totalPerf/principal2)*100).toFixed(1):null;
     var interestByMonth=[];
     for(var i2=firstIdx;i2<months.length;i2++){
       var amX=assetsAll[months[i2]];var mCost=0;
@@ -3528,9 +3532,9 @@ function renderRealPLCard(){
       if(mCost>0)interestByMonth.push({ym:months[i2],cost:mCost});
     }
     html+='<div class="dtl-card" id="dtl-invest" onclick="toggleDtl(\'dtl-invest\')" style="border-radius:var(--r);margin-bottom:12px">'
-      +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">📈 레버리지 조정 주식투자 성과 ('+months[firstIdx]+' ~ '+months[months.length-1]+')</div>'
+      +'<div style="font-size:12px;font-weight:700;margin-bottom:8px">📈 레버리지 조정 주식투자 성과 ('+(usePrincipal?'원금 대비':months[firstIdx]+' ~ '+months[months.length-1])+')</div>'
       +'<div class="g4 mb8">'
-      +'<div class="kpi"><div class="kl">주식자산 표면 증가(미실현)</div><div class="kv" style="font-size:15px">'+f(investGain)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
+      +'<div class="kpi"><div class="kl">'+(usePrincipal?'현재평가액 − 원금(미실현)':'주식자산 표면 증가(미실현)')+'</div><div class="kv" style="font-size:15px;color:'+(unrealizedPL>=0?'var(--tx)':'var(--rd)')+'">'+(usePrincipal&&unrealizedPL>=0?'+':'')+f(unrealizedPL)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
       +'<div class="kpi"><div class="kl">+ 실현손익(투자수입-투자손실)</div><div class="kv" style="font-size:15px;color:'+(netInvestPL>=0?'var(--gn)':'var(--rd)')+'">'+(netInvestPL>=0?'+':'')+f(netInvestPL)+'</div><div class="kb" style="background:'+(netInvestPL>=0?'var(--gn)':'var(--rd)')+'"></div></div>'
       +'<div class="kpi"><div class="kl">− 레버리지 이자비용(추정)</div><div class="kv" style="font-size:15px;color:var(--rd)">'+f(Math.round(totalInterestCost))+'</div><div class="kb" style="background:var(--rd)"></div></div>'
       +'<div class="kpi"><div class="kl">= 총 투자성과</div><div class="kv" style="font-size:15px;color:'+realColor+'">'+(totalPerf>=0?'+':'')+f(Math.round(totalPerf))+(perfPct?' ('+(totalPerf>=0?'+':'')+perfPct+'%)':'')+'</div><div class="kb" style="background:'+realColor+'"></div></div>'
@@ -3540,8 +3544,8 @@ function renderRealPLCard(){
       +'<input type="number" value="'+(principal2||'')+'" placeholder="예: 50000000" onblur="onStockPrincipalChange(this)" style="flex:1;min-width:0;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:13px;font-weight:700;font-family:inherit">'
       +'<span style="font-size:10px;color:var(--mu)">(주식탭과 같은 값이에요)</span>'
       +'</div>'
-      +(principal2>0?'':'<div style="font-size:11px;color:var(--pu);margin-bottom:6px">💡 위에 원금을 입력하면 수익률(%)까지 같이 보여드려요. (참고: 위 성과는 '+months[firstIdx]+'월 이후 누적 변화라서, 원금은 "지금 기준 총 투입액"과 비교하는 근사치예요)</div>')
-      +'<div style="font-size:11px;color:var(--mu)">⚠️ 이자비용은 부채 항목에 설정해둔 <b>현재 금리</b>를 과거 잔액에도 그대로 적용한 추정치예요 (실제 계약 금리가 매달 바뀌었다면 오차가 있을 수 있어요). 표면 증가분에는 신규 매수 입금액도 섞여있어서, 100% 순수 시세차익은 아니에요.</div>'
+      +(usePrincipal?'<div style="font-size:11px;color:var(--mu)">현재평가액 '+ff(currentInvestVal)+' − 원금 '+ff(principal2)+' = '+(unrealizedPL>=0?'+':'')+ff(unrealizedPL)+'을 기준으로 계산했어요 (원금을 입력해두면 이 방식이 훨씬 정확해요 — 표면증가 방식은 추적 시작월 잔액과 비교하는 거라, 그 사이 새로 입금한 돈까지 수익으로 잡히는 오차가 있어요).</div>':'<div style="font-size:11px;color:var(--pu);margin-bottom:6px">💡 위에 원금을 입력하면 "현재평가액-원금" 기준으로 훨씬 정확하게 계산돼요. 지금은 원금이 없어서 표면증가(추적 시작월 대비 변화) 방식으로 근사치만 보여드려요 — 이 경우 신규 입금액이 수익처럼 섞여 보일 수 있어요.</div>')
+      +'<div style="font-size:11px;color:var(--mu)">⚠️ 이자비용은 부채 항목에 설정해둔 <b>현재 금리</b>를 과거 잔액에도 그대로 적용한 추정치예요 (실제 계약 금리가 매달 바뀌었다면 오차가 있을 수 있어요).</div>'
       +'<div class="dtl-hint">눌러서 월별 이자비용 내역보기 ▾</div>'
       +'<div class="dtl-body">'
       +(interestByMonth.length?interestByMonth.map(function(x){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+x.ym+'</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(x.cost))+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">이자 발생 내역 없음</div>')
