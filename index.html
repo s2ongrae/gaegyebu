@@ -508,20 +508,38 @@ var SUB_ICON={
 };
 
 var PAYS=['현금','하나카드(신)','신한카드(신)','롯데카드(신)','현대카드(신)','토스카드(체)','농협카드'];
-var PAYS_CUSTOM_KEY='gaegyebu_pays_custom';
-function loadCustomPays(){
-  try{
-    var extra=JSON.parse(localStorage.getItem(PAYS_CUSTOM_KEY)||'[]');
-    extra.forEach(function(p){if(PAYS.indexOf(p)<0)PAYS.push(p);});
-  }catch(e){}
+// 뱅크샐러드 등에서 가져온 결제수단 문자열을, 새로 만들지 않고 기존 PAYS 7개 중 하나로 매핑한다.
+function normalizePayment(raw){
+  if(!raw)return'현금';
+  var s=raw.toString();
+  if(/토스뱅크|토스\s*간편결제|토스카드/.test(s))return'토스카드(체)';
+  if(/Mr\.?\s*Life/i.test(s))return'신한카드(신)';
+  if(/신한/.test(s))return'신한카드(신)';
+  if(/MG\+|하나카드|트래블로그/.test(s))return'하나카드(신)';
+  if(/LOCA|로카/i.test(s))return'롯데카드(신)';
+  if(/롯데/.test(s))return'롯데카드(신)';
+  if(/현대카드|현대카드ZERO/.test(s))return'현대카드(신)';
+  if(/농협|NH/.test(s))return'농협카드';
+  // 통장/예금/예탁금/계좌 = 은행계좌 직결이니 현금으로, 머니/포인트도 실질적으로 현금과 동일하게 취급
+  if(/통장|예금|예탁금|계좌|펀드|ISA|청약/.test(s))return'현금';
+  if(/머니|포인트/.test(s))return'현금';
+  if(/간편결제/.test(s))return'현금';
+  return'현금';
 }
-function addCustomPay(name){
-  if(!name||PAYS.indexOf(name)>=0)return;
-  PAYS.push(name);
-  try{
-    var extra=JSON.parse(localStorage.getItem(PAYS_CUSTOM_KEY)||'[]');
-    if(extra.indexOf(name)<0){extra.push(name);localStorage.setItem(PAYS_CUSTOM_KEY,JSON.stringify(extra));}
-  }catch(e){}
+var PAYS_CUSTOM_KEY='gaegyebu_pays_custom';
+// 예전 버전에서 실수로 결제수단을 새로 만들어버린 걸 정리하는 1회성 마이그레이션
+function migratePaysCleanup(){
+  var extra=[];
+  try{extra=JSON.parse(localStorage.getItem(PAYS_CUSTOM_KEY)||'[]');}catch(e){}
+  if(!extra.length)return;
+  var db=loadDB();var changed=false;
+  (db.txs||[]).forEach(function(t){
+    if(t.payment&&extra.indexOf(t.payment)>=0){t.payment=normalizePayment(t.payment);changed=true;}
+  });
+  if(changed){localStorage.setItem('gaegyebu',JSON.stringify(db));scheduleSync();}
+  var idx=PAYS.length;
+  extra.forEach(function(p){var i=PAYS.indexOf(p);if(i>=0)PAYS.splice(i,1);});
+  localStorage.removeItem(PAYS_CUSTOM_KEY);
 }
 var MC={'식비':'#06b6d4','생활':'#94a3b8','꾸밈':'#ec4899','교통':'#f97316','자동차':'#64748b','주거':'#84cc16','통신':'#22d3ee','건강':'#f43f5e','금융지출':'#a78bfa','문화여가':'#fbbf24','교육':'#34d399','유흥':'#ef4444','반려동물':'#fb923c','경조선물':'#e879f9','여행':'#38bdf8','업무지출':'#6366f1','수입':'#10b981','저축':'#3b82f6'};
 var CE={'식비':'🍱','생활':'🏠','꾸밈':'👔','교통':'🚌','자동차':'🚗','주거':'🏡','통신':'📱','건강':'💊','금융지출':'💳','문화여가':'🎬','교육':'📚','유흥':'🍻','반려동물':'🐱','경조선물':'🎁','여행':'✈️','업무지출':'💼','수입':'💰','저축':'🏦'};
@@ -1285,7 +1303,7 @@ function initApp(){
   curYM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   calYM=curYM;
   document.getElementById('ti-date').value=now.toISOString().split('T')[0];
-  loadCustomPays();
+  migratePaysCleanup();
   var ps=document.getElementById('ti-pay');var eps=document.getElementById('em-pay');
   PAYS.forEach(function(p){var o=document.createElement('option');o.value=o.textContent=p;ps.appendChild(o);var o2=document.createElement('option');o2.value=o2.textContent=p;eps.appendChild(o2);});
   ['ti-mid','em-mid'].forEach(function(elId){var ms=document.getElementById(elId);['지출','수입','저축'].forEach(function(g){var og=document.createElement('optgroup');og.label=g;Object.keys(CATS).forEach(function(m){if(CATS[m].p===g){var o=document.createElement('option');o.value=o.textContent=m;og.appendChild(o);}});ms.appendChild(og);});});
@@ -4111,7 +4129,6 @@ function importBankSalad(e){
       }
 
       var imported=[];var skipped=0;var skippedTransfer=0;var skippedUnknownSaving=0;
-      var newPays={};
       for(var i=1;i<rows.length;i++){
         var cols=rows[i];if(!cols||!cols.length)continue;
         var dateRaw=(cols[dateIdx]||'').toString();
@@ -4157,22 +4174,19 @@ function importBankSalad(e){
           }
         }
 
-        if(payRaw&&PAYS.indexOf(payRaw)<0)newPays[payRaw]=true;
+        var payNorm=normalizePayment(payRaw);
 
         imported.push({
           id:mkId(),date:dateStr,type:txType,
           mid:mid,sub:sub,
-          amount:amt,memo:contentRaw||memoRaw2,payment:payRaw,
+          amount:amt,memo:contentRaw||memoRaw2,payment:payNorm,
           eval:txType==='지출'?'소비':'',fixed:false
         });
       }
 
       if(!imported.length){showToast('❌ 가져올 데이터가 없어요.');return;}
 
-      // 새로 발견된 결제수단은 다음부터 거래입력 폼에서 바로 고를 수 있게 등록
-      Object.keys(newPays).forEach(function(p){addCustomPay(p);});
-
-      showBsPreview(imported, skipped, skippedTransfer, skippedUnknownSaving, Object.keys(newPays));
+      showBsPreview(imported, skipped, skippedTransfer, skippedUnknownSaving, []);
     }catch(err){
       console.error('가져오기 파싱 오류:', err);
       showToast('❌ 파싱 오류: '+err.message);
