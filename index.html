@@ -268,6 +268,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div id="mon-extra"></div>
 </div>
 <div class="pg" id="pg-inp">
+  <div id="import-undo-wrap" class="mb12"></div>
+  <div class="mb12" style="display:flex;justify-content:flex-end">
+    <button class="btn bg2 bsm" onclick="openDupeCheck()" title="같은 날짜/금액/카테고리로 여러 번 들어간 거래 찾기">🔍 중복 거래 정리</button>
+  </div>
   <div id="inp-dash" class="mb12"></div>
   <div class="inp-layout">
     <div>
@@ -1121,7 +1125,7 @@ function gYM(){return document.getElementById('gYM').value;}
 function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;font-family:inherit;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}
-function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();else if(p==='stk')renderStock();}
+function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();buildImportUndoBtn();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();else if(p==='stk')renderStock();}
 function shiftYM(delta){
   var ySel=document.getElementById('gY'),mSel=document.getElementById('gM');
   if(!ySel||!mSel)return;
@@ -4256,22 +4260,130 @@ function showBsPreview(txs, skipped, skippedTransfer, skippedUnknownSaving, newP
   window._bsTxs=txs;
 }
 
+// ── 중복 거래 찾기/정리 ──────────────────────────────────────────
+// 같은 날짜·타입·대분류·소분류·금액인데 메모/결제수단만 다른 경우까지 잡아낸다
+// (수기입력과 뱅크샐러드 가져오기가 메모 표기만 달라서 중복체크를 피해간 케이스를 잡기 위함)
+function findDuplicateGroups(){
+  var db=loadDB();var txs=db.txs||[];
+  var groups={};
+  txs.forEach(function(t){
+    var key=[t.date,t.type,t.mid,t.sub,t.amount].join('|');
+    if(!groups[key])groups[key]=[];
+    groups[key].push(t);
+  });
+  return Object.keys(groups).map(function(k){return groups[k];})
+    .filter(function(g){return g.length>=2;})
+    .sort(function(a,b){return(b.length*b[0].amount)-(a.length*a[0].amount);});
+}
+function openDupeCheck(){
+  var groups=findDuplicateGroups();
+  var existing=document.getElementById('dupe-md');if(existing)existing.remove();
+  var md=document.createElement('div');md.className='mdbg on';md.id='dupe-md';
+  if(!groups.length){
+    md.innerHTML='<div class="md"><div class="mdh"><h3>🔍 중복 거래 정리</h3><button class="mdc" onclick="document.getElementById(\'dupe-md\').remove()">✕</button></div><div class="em">중복으로 보이는 거래가 없어요 👍</div></div>';
+    document.body.appendChild(md);return;
+  }
+  var totalExtra=groups.reduce(function(s,g){return s+(g.length-1);},0);
+  var totalExtraAmt=groups.reduce(function(s,g){return s+(g.length-1)*g[0].amount;},0);
+  var html='<div class="md" style="width:720px;max-width:96vw;max-height:85vh;overflow-y:auto">'
+    +'<div class="mdh"><h3>🔍 중복 거래 정리</h3><button class="mdc" onclick="document.getElementById(\'dupe-md\').remove()">✕</button></div>'
+    +'<div class="al wrn mb8" style="font-size:12px">같은 날짜·금액·카테고리로 2번 이상 잡힌 그룹 '+groups.length+'개, 초과분 '+totalExtra+'건(약 '+ff(totalExtraAmt)+') 발견했어요. 메모/결제수단이 달라도 같은 거래로 보고 잡았어요 — 진짜 중복인지 아래에서 확인하고 정리하세요.</div>'
+    +'<div class="fx g8 mb8"><button class="btn br" onclick="cleanupAllDupes()">🧹 전체 일괄 정리 (그룹당 가장 오래된 1건만 남기기)</button></div>'
+    +'<div id="dupe-list">';
+  groups.forEach(function(g,gi){
+    var t0=g[0];
+    html+='<div id="dupe-grp-'+gi+'" style="background:var(--sf2);border-radius:8px;padding:10px;margin-bottom:8px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+      +'<span style="font-size:12px;font-weight:700">'+t0.date+' · '+(CE[t0.mid]||'')+' '+t0.mid+' &gt; '+t0.sub+' · '+ff(t0.amount)+'</span>'
+      +'<span style="display:flex;gap:6px;align-items:center">'
+      +'<span class="bk br" style="font-size:10px">'+g.length+'건 중복</span>'
+      +'<button class="btn bg2 bsm" style="padding:3px 8px;font-size:10px" onclick="cleanupOneDupe('+gi+')">1건만 남기기</button>'
+      +'</span></div>'
+      +'<div style="font-size:11px;color:var(--mu);margin-top:4px">'+g.map(function(t){return'"'+(t.memo||'(메모없음)')+'"'+(t.payment?' · '+t.payment:'');}).join('&nbsp;&nbsp;/&nbsp;&nbsp;')+'</div>'
+      +'</div>';
+  });
+  html+='</div></div>';
+  md.innerHTML=html;
+  document.body.appendChild(md);
+  window._dupeGroups=groups;
+}
+function cleanupOneDupe(gi){
+  var groups=window._dupeGroups||[];
+  var g=groups[gi];if(!g||g.length<2)return;
+  var db=loadDB();
+  var removeIds=g.slice(1).map(function(t){return t.id;});
+  db.txs=db.txs.filter(function(t){return removeIds.indexOf(t.id)<0;});
+  saveDB(db);
+  var row=document.getElementById('dupe-grp-'+gi);
+  if(row)row.remove();
+  showToast('🧹 '+removeIds.length+'건 정리했어요.');
+  if(curPage==='inp'){renderInpDash();renderHis();}
+  else if(curPage==='dash')renderDash();
+}
+function cleanupAllDupes(){
+  var groups=window._dupeGroups||[];
+  if(!groups.length)return;
+  var totalExtra=groups.reduce(function(s,g){return s+(g.length-1);},0);
+  if(!confirm('총 '+totalExtra+'건을 삭제해서 정리할게요 (각 그룹 가장 오래된 1건만 남김). 계속할까요?'))return;
+  var db=loadDB();
+  var removeIds=[];
+  groups.forEach(function(g){g.slice(1).forEach(function(t){removeIds.push(t.id);});});
+  var removeSet={};removeIds.forEach(function(id){removeSet[id]=true;});
+  db.txs=db.txs.filter(function(t){return!removeSet[t.id];});
+  saveDB(db);
+  var mdEl=document.getElementById('dupe-md');if(mdEl)mdEl.remove();
+  showToast('🧹 '+removeIds.length+'건 일괄 정리 완료!');
+  if(curPage==='inp'){renderInpDash();renderHis();}
+  else if(curPage==='dash')renderDash();
+}
+
 function confirmBsImport(){
   var txs=window._bsTxs||[];
   if(!txs.length)return;
   var db=loadDB();
   if(!db.txs)db.txs=[];
-  // 중복 체크 (같은 날짜+금액+메모)
+  // 중복 체크 (날짜+금액+대분류+소분류+메모 - 메모까지 다 같아야 중복으로 봄)
   var existKeys={};
-  db.txs.forEach(function(t){existKeys[t.date+'|'+t.amount+'|'+t.memo]=true;});
+  db.txs.forEach(function(t){existKeys[t.date+'|'+t.amount+'|'+t.mid+'|'+t.sub+'|'+t.memo]=true;});
+  var batchId='imp_'+Date.now();
   var added=0;
   txs.forEach(function(t){
-    var key=t.date+'|'+t.amount+'|'+t.memo;
-    if(!existKeys[key]){db.txs.push(t);added++;}
+    var key=t.date+'|'+t.amount+'|'+t.mid+'|'+t.sub+'|'+t.memo;
+    if(!existKeys[key]){t.importBatch=batchId;db.txs.push(t);added++;}
   });
   saveDB(db);
+  if(added>0){
+    localStorage.setItem('gaegyebu_last_import_batch',JSON.stringify({id:batchId,count:added,at:new Date().toISOString()}));
+  }
   document.getElementById('bs-preview-md').remove();
-  showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)');
+  showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)'+(added>0?' · 실수했으면 "가져오기 취소" 버튼으로 되돌릴 수 있어요':''));
+  if(curPage==='inp'){renderInpDash();renderHis();buildImportUndoBtn();}
+  else if(curPage==='dash')renderDash();
+}
+function buildImportUndoBtn(){
+  var wrap=document.getElementById('import-undo-wrap');
+  if(!wrap)return;
+  var last=null;
+  try{last=JSON.parse(localStorage.getItem('gaegyebu_last_import_batch')||'null');}catch(e){}
+  if(!last){wrap.innerHTML='';return;}
+  wrap.innerHTML='<div class="al wrn" style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px">'
+    +'<span>📥 방금 가져온 '+last.count+'건 ('+new Date(last.at).toLocaleString()+')</span>'
+    +'<button class="btn br bsm" onclick="undoLastImport()" style="padding:4px 10px;font-size:11px">↩️ 이 가져오기 취소</button>'
+    +'</div>';
+}
+function undoLastImport(){
+  var last=null;
+  try{last=JSON.parse(localStorage.getItem('gaegyebu_last_import_batch')||'null');}catch(e){}
+  if(!last){showToast('취소할 가져오기 기록이 없어요.');return;}
+  if(!confirm(last.count+'건을 삭제해서 가져오기 전 상태로 되돌릴까요?'))return;
+  var db=loadDB();
+  var before=db.txs.length;
+  db.txs=db.txs.filter(function(t){return t.importBatch!==last.id;});
+  var removed=before-db.txs.length;
+  saveDB(db);
+  localStorage.removeItem('gaegyebu_last_import_batch');
+  showToast('↩️ '+removed+'건 삭제해서 되돌렸어요.');
+  buildImportUndoBtn();
   if(curPage==='inp'){renderInpDash();renderHis();}
   else if(curPage==='dash')renderDash();
 }
