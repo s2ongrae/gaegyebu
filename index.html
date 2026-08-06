@@ -1062,8 +1062,22 @@ function getCumulativeSavings(sub,ym){
   return sum;
 }
 function getAssetItemValue(a,am,ym){
-  if(a.autoSub&&ym)return getCumulativeSavings(a.autoSub,ym);
+  if(a.autoSub&&ym)return getCumulativeSavings(a.autoSub,ym)+(Number(a.autoOffset)||0);
   return Number(am[a.n])||0;
+}
+function calibrateAutoAsset(i){
+  var a=AI[i];if(!a||!a.autoSub)return;
+  var ym=gYM();
+  var raw=getCumulativeSavings(a.autoSub,ym);
+  var cur=raw+(Number(a.autoOffset)||0);
+  var input=prompt('"'+a.n+'"의 지금 실제 잔액(은행/증권사 앱에서 확인한 값)을 입력해주세요.\n(거래 기록만 더한 값은 '+ff(raw)+'원, 이자/수익 반영 전이라 실제랑 다를 수 있어요)', cur||'');
+  if(input===null)return;
+  var trueVal=Number(String(input).replace(/[^0-9.-]/g,''));
+  if(isNaN(trueVal)){showToast('⚠️ 숫자를 입력해주세요.');return;}
+  AI[i].autoOffset=trueVal-raw;
+  saveAI();
+  renderAst();
+  showToast('✅ 보정 완료! 이제부터 이 차이만큼 자동으로 더해서 보여드려요.');
 }
 function calcNW(am,ym){
   var ta=AI.filter(function(a){return!a.d;}).reduce(function(s,a){return s+getAssetItemValue(a,am,ym);},0);
@@ -3362,10 +3376,13 @@ function renderAst(){
       if(val){acat.textContent+=' · ';var vspan=document.createElement('span');vspan.style.color=isDebt?'var(--rd)':'var(--gn)';vspan.textContent=ff(val);acat.appendChild(vspan);}
       info.appendChild(acat);item.appendChild(info);
       if(a.autoSub){
-        var abadge=document.createElement('span');abadge.className='bk bpu';abadge.style.cssText='font-size:10px;margin-right:6px;white-space:nowrap';abadge.title='"'+a.autoSub+'" 저축 거래 누적 합계가 자동으로 반영돼요';abadge.textContent='🔗 거래연동';
+        var abadge=document.createElement('span');abadge.className='bk bpu';abadge.style.cssText='font-size:10px;margin-right:6px;white-space:nowrap';abadge.title='"'+a.autoSub+'" 저축 거래 누적 합계 + 보정값이 자동으로 반영돼요';abadge.textContent='🔗 거래연동';
         item.appendChild(abadge);
         var valDisp=document.createElement('span');valDisp.style.cssText='font-weight:700;color:var(--gn);min-width:100px;text-align:right;font-size:13px';valDisp.textContent=ff(val);
         item.appendChild(valDisp);
+        var calBtn=document.createElement('button');calBtn.className='btn bg2 bsm';calBtn.textContent='🎯';calBtn.title='거래 기록만으론 이자/수익이 안 잡혀서 실제 잔액이랑 다를 수 있어요. 눌러서 실제 잔액으로 맞춰보세요.';calBtn.style.cssText='padding:4px 7px;margin-left:4px';
+        (function(ii){calBtn.onclick=function(){calibrateAutoAsset(ii);};})(i);
+        item.appendChild(calBtn);
       }else{
         // 입력
         var inp=document.createElement('input');inp.type='number';inp.value=val||'';inp.placeholder='0';inp.className='asset-input';
