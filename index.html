@@ -1861,9 +1861,11 @@ function buildFixed(){
     var k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
     var k2=fi.mid+'|'+fi.sub;
     var sameCount=FX.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;}).length;
-    // memo 완전일치 우선, 없으면 mid|sub만으로 fallback (단일 항목인 경우)
-    var tx=doneMap[k]||(sameCount===1?doneMap[k2]:null)||null;
-    var prev=prevMap[k]||(sameCount===1?prevMap[k2]:null)||null;
+    // memo 완전일치 우선. mid|sub만으로의 폴백은 "이 고정거래 자체에 메모가 없고(=특정 항목을 지칭하지 않음)"
+    // 같은 mid|sub로 등록된 고정거래가 이것 하나뿐일 때만 허용한다.
+    // (메모가 있는 고정거래인데 다른 메모의 거래를 "완료"로 잘못 인식하는 걸 방지)
+    var tx=doneMap[k]||((!fi.memo&&sameCount===1)?doneMap[k2]:null)||null;
+    var prev=prevMap[k]||((!fi.memo&&sameCount===1)?prevMap[k2]:null)||null;
     var done=!!tx;
     var obj={fi:fi,i:i,done:done,tx:tx,prev:prev};
     if(fi.type==='수입')grpI.push(obj);
@@ -3533,7 +3535,12 @@ function renderRealPLCard(){
       +'<div class="kpi"><div class="kl">− 레버리지 이자비용(추정)</div><div class="kv" style="font-size:15px;color:var(--rd)">'+f(Math.round(totalInterestCost))+'</div><div class="kb" style="background:var(--rd)"></div></div>'
       +'<div class="kpi"><div class="kl">= 총 투자성과</div><div class="kv" style="font-size:15px;color:'+realColor+'">'+(totalPerf>=0?'+':'')+f(Math.round(totalPerf))+(perfPct?' ('+(totalPerf>=0?'+':'')+perfPct+'%)':'')+'</div><div class="kb" style="background:'+realColor+'"></div></div>'
       +'</div>'
-      +(principal2>0?'':'<div style="font-size:11px;color:var(--pu);margin-bottom:6px">💡 주식탭에서 "원금"을 입력해두면 여기서 수익률(%)까지 같이 보여드려요.</div>')
+      +'<div class="mb8" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;background:var(--sf2);border-radius:var(--rs);padding:8px 10px">'
+      +'<span style="font-size:11px;color:var(--mu2);white-space:nowrap">📌 내가 넣은 원금(총 투입액)</span>'
+      +'<input type="number" value="'+(principal2||'')+'" placeholder="예: 50000000" onblur="onStockPrincipalChange(this)" style="flex:1;min-width:0;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:13px;font-weight:700;font-family:inherit">'
+      +'<span style="font-size:10px;color:var(--mu)">(주식탭과 같은 값이에요)</span>'
+      +'</div>'
+      +(principal2>0?'':'<div style="font-size:11px;color:var(--pu);margin-bottom:6px">💡 위에 원금을 입력하면 수익률(%)까지 같이 보여드려요. (참고: 위 성과는 '+months[firstIdx]+'월 이후 누적 변화라서, 원금은 "지금 기준 총 투입액"과 비교하는 근사치예요)</div>')
       +'<div style="font-size:11px;color:var(--mu)">⚠️ 이자비용은 부채 항목에 설정해둔 <b>현재 금리</b>를 과거 잔액에도 그대로 적용한 추정치예요 (실제 계약 금리가 매달 바뀌었다면 오차가 있을 수 있어요). 표면 증가분에는 신규 매수 입금액도 섞여있어서, 100% 순수 시세차익은 아니에요.</div>'
       +'<div class="dtl-hint">눌러서 월별 이자비용 내역보기 ▾</div>'
       +'<div class="dtl-body">'
@@ -4888,7 +4895,11 @@ function renderMonExtra(){
 var STOCK_PRINCIPAL_KEY='gaegyebu_stock_principal';
 function getStockPrincipal(){var v=Number(localStorage.getItem(STOCK_PRINCIPAL_KEY));return isNaN(v)?0:v;}
 function setStockPrincipal(v){localStorage.setItem(STOCK_PRINCIPAL_KEY,String(v||0));}
-function onStockPrincipalChange(el){setStockPrincipal(Number(el.value)||0);renderStock();}
+function onStockPrincipalChange(el){
+  setStockPrincipal(Number(el.value)||0);
+  if(curPage==='stk')renderStock();
+  else if(curPage==='ast')renderRealPLCard();
+}
 function renderStock(){
   var el=document.getElementById('d-stk');
   if(!el)return;
