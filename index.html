@@ -245,8 +245,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     <button class="btn bg2 bsm" onclick="exportJSON()">📤</button>
     <button class="btn bg2 bsm" onclick="document.getElementById('importFile').click()">📥</button>
     <button class="btn bg2 bsm" onclick="document.getElementById('csvFile').click()" title="뱅크샐러드 엑셀/CSV 가져오기">🏦 뱅크샐러드</button>
+    <button class="btn bg2 bsm" onclick="document.getElementById('homeXlsxFile').click()" title="월별 시트로 된 개인 가계부 엑셀 가져오기">📗 예전 가계부</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
     <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importBankSalad(event)">
+    <input type="file" id="homeXlsxFile" accept=".xlsx,.xls" style="display:none" onchange="importHomeXlsx(event)">
   </div>
 </div>
 <div class="main">
@@ -522,12 +524,12 @@ function normalizePayment(raw){
   if(/MG\+|하나카드|트래블로그/.test(s))return'하나카드(신)';
   if(/LOCA|로카/i.test(s))return'롯데카드(신)';
   if(/롯데/.test(s))return'롯데카드(신)';
-  if(/현대카드|현대카드ZERO/.test(s))return'현대카드(신)';
+  if(/현대/.test(s))return'현대카드(신)';
   if(/농협|NH/.test(s))return'농협카드';
   // 통장/예금/예탁금/계좌 = 은행계좌 직결이니 현금으로, 머니/포인트도 실질적으로 현금과 동일하게 취급
   if(/통장|예금|예탁금|계좌|펀드|ISA|청약/.test(s))return'현금';
   if(/머니|포인트/.test(s))return'현금';
-  if(/간편결제/.test(s))return'현금';
+  if(/간편결제|네이버페이|카카오페이/.test(s))return'현금';
   return'현금';
 }
 var PAYS_CUSTOM_KEY='gaegyebu_pays_custom';
@@ -4133,6 +4135,76 @@ function classifySavingsSub(text){
   if(/연금저축|연저/.test(text))return'연금저축펀드';
   if(/청년/.test(text))return'연금저축펀드';
   return null;
+}
+
+// ── 개인 가계부 엑셀(월별 시트, "변동내역"+"고정내역" 2블록 구조) 가져오기 ──
+// 시트명이 YYYY-MM 형식인 시트들을 찾아서, 각 시트의 두 데이터 블록(날짜/대분류/중분류/소분류/금액/내용/거래출처/지출평가)을 읽는다.
+var HOME_XLSX_CAT_MAP={
+  '식비|식비':'식비|외식','식비|기타':'식비|외식','식비|기타식비':'식비|외식',
+  '생활|생필품':'생활|생활용품',
+  '유흥|담배':'유흥|기타유흥',
+  '자동차|벌금':'자동차|자동차 벌금','자동차|자동차보험':'자동차|자동차 보험','자동차|자동차세':'자동차|자동차 세금',
+  '저축|청년도약계좌':'저축|연금저축펀드','저축|청년저축펀드':'저축|연금저축펀드','저축|투자':'저축|연금저축펀드',
+  '주거|전기세':'주거|전기요금',
+  '수입|중고거래 수입':'수입|중고거래수입',
+  '여행|여행':'여행|기타여행비','여행|여행저축':'여행|기타여행비',
+  '금융지출|투자':'금융지출|투자손실',
+  '기타|기타업무처리':'생활|기타생활비','기타|연간비':'생활|기타생활비'
+};
+function importHomeXlsx(e){
+  var file=e.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      var wb=XLSX.read(ev.target.result,{type:'array',cellDates:true});
+      var monthSheets=wb.SheetNames.filter(function(n){return/^\d{4}-\d{2}$/.test(n.trim());});
+      if(!monthSheets.length){showToast('❌ "YYYY-MM" 형식의 월별 시트를 못 찾았어요.');return;}
+
+      var imported=[];var skipped=0;
+      monthSheets.forEach(function(sheetName){
+        var ws=wb.Sheets[sheetName];
+        var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+        // 헤더 행(보통 3번째 행, 0-based idx 2)에서 "날짜(일)"이 있는 컬럼들을 블록 시작점으로 찾는다
+        var headerRow=rows[2]||[];
+        var blockStarts=[];
+        headerRow.forEach(function(h,ci){if((h||'').toString().indexOf('날짜')>=0)blockStarts.push(ci);});
+        blockStarts.forEach(function(ci){
+          for(var r=3;r<rows.length;r++){
+            var row=rows[r];if(!row)continue;
+            var day=row[ci],typ=row[ci+1],mid=row[ci+2],sub=row[ci+3],amt=row[ci+4],memo=row[ci+5],pay=row[ci+6],ev=row[ci+7];
+            if(day===undefined&&typ===undefined&&amt===undefined)continue;
+            if(typeof day!=='number'||!typ||!mid||!sub||typeof amt!=='number'){continue;}
+            if((typ!=='지출'&&typ!=='수입'&&typ!=='저축')){skipped++;continue;}
+            var dateStr=sheetName+'-'+String(day).padStart(2,'0');
+            var key=mid+'|'+sub;
+            var mapped=HOME_XLSX_CAT_MAP[key];
+            var fMid=mid,fSub=sub;
+            if(mapped){var parts=mapped.split('|');fMid=parts[0];fSub=parts[1];}
+            else if(!(CATS[mid]&&CATS[mid].s.indexOf(sub)>=0)){
+              // CATS에 없는 조합인데 매핑표에도 없으면 안전하게 대분류의 "기타" 계열로
+              fMid=typ==='수입'?'수입':(typ==='저축'?'저축':'생활');
+              fSub=typ==='수입'?'기타수입':(typ==='저축'?'연금저축펀드':'기타생활비');
+            }
+            var payNorm=pay?normalizePayment(pay):'';
+            var evalNorm=(typ==='지출'&&(ev==='소비'||ev==='낭비'||ev==='투자'))?ev:'';
+            imported.push({
+              id:mkId(),date:dateStr,type:typ,mid:fMid,sub:fSub,
+              amount:Math.abs(Math.round(Number(amt))),memo:(memo||'').toString(),payment:payNorm,
+              eval:evalNorm,fixed:false
+            });
+          }
+        });
+      });
+
+      if(!imported.length){showToast('❌ 가져올 데이터가 없어요.');return;}
+      showBsPreview(imported,skipped,0,0,[]);
+    }catch(err){
+      console.error('개인 가계부 파싱 오류:',err);
+      showToast('❌ 파싱 오류: '+err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value='';
 }
 
 function importBankSalad(e){
