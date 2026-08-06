@@ -252,7 +252,25 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   </div>
 </div>
 <div class="main">
-<div class="pg on" id="pg-dash"><div id="d-dash"><div class="ld"><div class="sp"></div>불러오는 중...</div></div></div>
+<div class="pg on" id="pg-dash">
+  <div class="card mb12" style="padding:10px 14px">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:12px;font-weight:700;color:var(--mu2)">📅 집계 기간</span>
+      <select id="dashRangePreset" onchange="onDashRangePresetChange()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit">
+        <option value="year">올해</option>
+        <option value="all">전체 기간(처음부터)</option>
+        <option value="custom">직접 선택</option>
+      </select>
+      <span id="dashRangeCustomWrap" style="display:none;align-items:center;gap:4px">
+        <span style="font-size:11px;color:var(--mu)">시작월</span>
+        <select id="dashRangeStartSel" onchange="onDashRangeCustomChange()" style="background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit"></select>
+        <span style="font-size:11px;color:var(--mu)">~ 현재(위에서 고른 달)</span>
+      </span>
+      <span id="dashRangeLabel" style="font-size:11px;color:var(--mu);margin-left:auto"></span>
+    </div>
+  </div>
+  <div id="d-dash"><div class="ld"><div class="sp"></div>불러오는 중...</div></div>
+</div>
 <div class="pg" id="pg-mon">
   <div class="card">
     <div class="cal-header">
@@ -2690,11 +2708,50 @@ function renderAnomalyCard(curYM2){
   return html;
 }
 
+// ── 전체탭 집계 기간 선택 ──────────────────────────────────────────
+var DASH_RANGE_KEY='gaegyebu_dash_range';
+function getDashRange(){try{return JSON.parse(localStorage.getItem(DASH_RANGE_KEY)||'{}');}catch(e){return{};}}
+function setDashRange(obj){localStorage.setItem(DASH_RANGE_KEY,JSON.stringify(obj));}
+function getDashRangeStart(){
+  var r=getDashRange();var mode=r.mode||'year';
+  if(mode==='all')return null; // 전체 기간: 제한 없음
+  if(mode==='custom'&&r.start)return r.start;
+  return curYM.slice(0,4)+'-01'; // 기본값: 올해 1월
+}
+function onDashRangePresetChange(){
+  var mode=document.getElementById('dashRangePreset').value;
+  var r=getDashRange();r.mode=mode;setDashRange(r);
+  document.getElementById('dashRangeCustomWrap').style.display=mode==='custom'?'inline-flex':'none';
+  renderDash();
+}
+function onDashRangeCustomChange(){
+  var v=document.getElementById('dashRangeStartSel').value;
+  var r=getDashRange();r.mode='custom';r.start=v;setDashRange(r);
+  renderDash();
+}
+function initDashRangeUI(){
+  var presetSel=document.getElementById('dashRangePreset');
+  var startSel=document.getElementById('dashRangeStartSel');
+  if(!presetSel||!startSel)return;
+  var r=getDashRange();var mode=r.mode||'year';
+  presetSel.value=mode;
+  document.getElementById('dashRangeCustomWrap').style.display=mode==='custom'?'inline-flex':'none';
+  if(!startSel.options.length){
+    var allM=getAllMonths().filter(function(m){return m<=curYM;}).sort();
+    if(!allM.length){var d=new Date();allM=[d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')];}
+    allM.forEach(function(m){var o=document.createElement('option');o.value=m;o.textContent=m;startSel.appendChild(o);});
+  }
+  startSel.value=r.start||curYM.slice(0,4)+'-01';
+}
 function renderDash(){
+  initDashRangeUI();
   var db=loadDB();var assets=db.assets||{};var allAM=Object.keys(assets).sort();
   var nwData=allAM.filter(function(m){return m<=curYM;}).map(function(ym){var r=calcNW(assets[ym]||{},ym);return{ym:ym,nw:r.nw};}).filter(function(d){return d.nw!==0;});
   var latestNW=nwData.length?nwData[nwData.length-1].nw:0;
-  var months=getAllMonths().filter(function(m){return m<=curYM;});
+  var rangeStart=getDashRangeStart();
+  var months=getAllMonths().filter(function(m){return m<=curYM&&(!rangeStart||m>=rangeStart);});
+  var rangeLabelEl=document.getElementById('dashRangeLabel');
+  if(rangeLabelEl)rangeLabelEl.textContent=months.length?(months[0]+' ~ '+months[months.length-1]+' · '+months.length+'개월'):'데이터 없음';
   // 항상 즉시 렌더링 (데이터 없으면 안내 메시지, 단 목표 카드는 데이터 유무와 무관하게 항상 표시)
   if(!months.length&&!nwData.length){
     var emptyDiv=document.createElement('div');emptyDiv.className='card';
@@ -5566,9 +5623,10 @@ function renderAnnual(months){
   var budPct=ANNUAL_BUDGET_TOTAL>0?Math.round(totalExp/ANNUAL_BUDGET_TOTAL*100):0;
   var budColor=budPct>100?'var(--rd)':budPct>80?'var(--yw)':'var(--gn)';
 
+  var rangeTitle=months.length?(months[0].slice(0,4)===months[months.length-1].slice(0,4)?months[0].slice(0,4)+'년':months[0]+' ~ '+months[months.length-1]):'';
   return ''
     // 연간 예산 현황
-    +'<div class="card"><div class="card-title">📊 2026년 연간 결산</div>'
+    +'<div class="card"><div class="card-title">📊 '+rangeTitle+' 결산</div>'
     // 총 예산 vs 실적
     +'<div style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
