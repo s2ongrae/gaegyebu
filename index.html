@@ -522,7 +522,7 @@ var SUB_ICON={
   '종신(KDB)':'🛡️','종신(라이나)':'🛡️','대출상환':'🏦'
 };
 
-var PAYS=['현금','하나카드(신)','신한카드(신)','롯데카드(신)','현대카드(신)','토스카드(체)','농협카드'];
+var PAYS=['현금','하나카드(신)','신한카드(신)','롯데카드(신)','토스카드(체)','농협카드'];
 // 뱅크샐러드 등에서 가져온 결제수단 문자열을, 새로 만들지 않고 기존 PAYS 7개 중 하나로 매핑한다.
 function normalizePayment(raw){
   if(!raw)return'현금';
@@ -1603,6 +1603,17 @@ function saveTx(){
   setTimeout(function(){document.getElementById('ti-res').innerHTML='';},2500);renderHis();renderInsList();
 }
 function resetTx(){document.getElementById('edit-id').value='';document.getElementById('inp-title').textContent='✏️ 거래 입력';document.getElementById('ti-btn').textContent='💾 저장';document.getElementById('ti-mid').value='';document.getElementById('ti-type').value='';document.getElementById('ti-sub').innerHTML='';document.getElementById('ti-amt').value='';document.getElementById('ti-memo').value='';document.getElementById('ti-evg').style.visibility='hidden';var ptg=document.getElementById('ti-ptg');if(ptg)ptg.style.display='none';document.getElementById('ti-ptype').value='일시불';onPayTypeChange();}
+// select 옵션에 없는 값(더 이상 안 쓰는 결제수단 등)이 저장되어 있어도,
+// 그 값을 잃어버리지 않게 임시로 옵션을 추가해서 안전하게 보존한다.
+function ensureSelectHasValue(selId,val){
+  if(!val)return;
+  var sel=document.getElementById(selId);if(!sel)return;
+  var exists=Array.prototype.some.call(sel.options,function(o){return o.value===val;});
+  if(!exists){
+    var o=document.createElement('option');o.value=val;o.textContent=val+' (더 이상 안 씀)';
+    sel.appendChild(o);
+  }
+}
 function openEdit(id){
   var db=loadDB();var tx=(db.txs||[]).find(function(t){return t.id===id;});if(!tx)return;
   editId=id;
@@ -1612,6 +1623,7 @@ function openEdit(id){
   document.getElementById('em-type').value=tx.type||'';
   document.getElementById('em-amt').value=tx.amount||'';
   document.getElementById('em-memo').value=tx.memo||'';
+  ensureSelectHasValue('em-pay',tx.payment);
   document.getElementById('em-pay').value=tx.payment||'';
   document.getElementById('em-ev').value=tx.eval||'소비';
   document.getElementById('edit-md').classList.add('on');
@@ -1791,7 +1803,7 @@ function openEditIns(i){
     +'<div><label>대분류</label><select id="eins-mid" onchange="fillBudgetSubOptions(\'eins-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+insMidOptions(item.mid)+'</select></div>'
     +'<div><label>소분류</label><select id="eins-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
     +'</div>'
-    +'<div><label>결제수단</label><select id="eins-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+PAYS.map(function(p){return'<option value="'+p+'"'+(p===item.payment?' selected':'')+'>'+p+'</option>';}).join('')+'</select></div>'
+    +'<div><label>결제수단</label><select id="eins-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+PAYS.map(function(p){return'<option value="'+p+'"'+(p===item.payment?' selected':'')+'>'+p+'</option>';}).join('')+(item.payment&&PAYS.indexOf(item.payment)<0?'<option value="'+item.payment+'" selected>'+item.payment+' (더 이상 안 씀)</option>':'')+'</select></div>'
     +'<div class="fg c4 mt8">'
     +'<div><label>총 원금(원)</label><input type="number" id="eins-principal" value="'+item.principal+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div><label>총 할부 개월</label><input type="number" id="eins-months" value="'+item.totalMonths+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
@@ -4630,6 +4642,10 @@ function openEditFx(i){
       var opt=document.createElement('option');opt.value=o;opt.textContent=o;
       if(o===val)opt.selected=true;sel.appendChild(opt);
     });
+    if(val&&options.indexOf(val)<0){
+      var opt2=document.createElement('option');opt2.value=val;opt2.textContent=val+' (더 이상 안 씀)';opt2.selected=true;
+      sel.appendChild(opt2);
+    }
     wrap.appendChild(sel);return wrap;
   }
 
