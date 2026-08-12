@@ -3609,7 +3609,7 @@ function renderRealPLCard(){
   var html='<div class="card"><div class="card-title">💡 실질 자산 손익 분석 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 표면 숫자가 아닌 진짜 손익</span></div>';
 
   if(hasInvest){
-    var principal2=getStockPrincipal();
+    var principal2=getStockPrincipal(months[months.length-1]);
     var usePrincipal=principal2>0;
     // 원금이 있으면: (현재평가액-원금)=진짜 미실현손익. 원금이 없으면: 표면증가(첫 추적월 대비 변화, 신규입금액 섞인 근사치)로 폴백.
     var unrealizedPL=usePrincipal?(currentInvestVal-principal2):investGain;
@@ -3632,7 +3632,7 @@ function renderRealPLCard(){
       +'</div>'
       +'<div class="mb8" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:8px;background:var(--sf2);border-radius:var(--rs);padding:8px 10px">'
       +'<span style="font-size:11px;color:var(--mu2);white-space:nowrap">📌 내가 넣은 원금(총 투입액)</span>'
-      +'<input type="number" value="'+(principal2||'')+'" placeholder="예: 50000000" onblur="onStockPrincipalChange(this)" style="flex:1;min-width:0;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:13px;font-weight:700;font-family:inherit">'
+      +'<input type="number" value="'+(principal2||'')+'" placeholder="예: 50000000" onblur="onStockPrincipalChange(this,\''+months[months.length-1]+'\')" style="flex:1;min-width:0;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:13px;font-weight:700;font-family:inherit">'
       +'<span style="font-size:10px;color:var(--mu)">(주식탭과 같은 값이에요)</span>'
       +'</div>'
       +(usePrincipal?'<div style="font-size:11px;color:var(--mu)">현재평가액 '+ff(currentInvestVal)+' − 원금 '+ff(principal2)+' = '+(unrealizedPL>=0?'+':'')+ff(unrealizedPL)+'을 기준으로 계산했어요 (원금을 입력해두면 이 방식이 훨씬 정확해요 — 표면증가 방식은 추적 시작월 잔액과 비교하는 거라, 그 사이 새로 입금한 돈까지 수익으로 잡히는 오차가 있어요).</div>':'<div style="font-size:11px;color:var(--pu);margin-bottom:6px">💡 위에 원금을 입력하면 "현재평가액-원금" 기준으로 훨씬 정확하게 계산돼요. 지금은 원금이 없어서 표면증가(추적 시작월 대비 변화) 방식으로 근사치만 보여드려요 — 이 경우 신규 입금액이 수익처럼 섞여 보일 수 있어요.</div>')
@@ -5077,11 +5077,32 @@ function renderMonExtra(){
 }
 
 
-var STOCK_PRINCIPAL_KEY='gaegyebu_stock_principal';
-function getStockPrincipal(){var v=Number(localStorage.getItem(STOCK_PRINCIPAL_KEY));return isNaN(v)?0:v;}
-function setStockPrincipal(v){localStorage.setItem(STOCK_PRINCIPAL_KEY,String(v||0));}
-function onStockPrincipalChange(el){
-  setStockPrincipal(Number(el.value)||0);
+var STOCK_PRINCIPAL_KEY='gaegyebu_stock_principal'; // 구버전(단일값) - 마이그레이션 용도로만 참조
+var STOCK_PRINCIPAL_HIST_KEY='gaegyebu_stock_principal_hist';
+function loadStockPrincipalHist(){try{return JSON.parse(localStorage.getItem(STOCK_PRINCIPAL_HIST_KEY)||'{}');}catch(e){return{};}}
+function saveStockPrincipalHist(h){localStorage.setItem(STOCK_PRINCIPAL_HIST_KEY,JSON.stringify(h));}
+// 해당 월에 직접 입력한 값이 있으면 그 값, 없으면 "그 이전 달 중 가장 최근에 입력된 값"을 그대로 이어서 보여준다(안 건드리면 원금은 그대로라는 뜻).
+// 그보다 이전에 입력된 값이 하나도 없으면(즉 아직 원금을 넣기 전 시점) 0(=값 없음)을 반환한다.
+function getStockPrincipal(ym){
+  var h=loadStockPrincipalHist();
+  if(!Object.keys(h).length){
+    // 구버전 단일값 마이그레이션: 있으면 "현재월" 값으로 1회성 이전
+    var old=Number(localStorage.getItem(STOCK_PRINCIPAL_KEY));
+    if(!isNaN(old)&&old>0){h[gYM()]=old;saveStockPrincipalHist(h);localStorage.removeItem(STOCK_PRINCIPAL_KEY);}
+  }
+  if(!ym)ym=gYM();
+  var months=Object.keys(h).sort().filter(function(m){return m<=ym;});
+  if(!months.length)return 0;
+  return Number(h[months[months.length-1]])||0;
+}
+function setStockPrincipal(v,ym){
+  var h=loadStockPrincipalHist();
+  if(!ym)ym=gYM();
+  h[ym]=Number(v)||0;
+  saveStockPrincipalHist(h);
+}
+function onStockPrincipalChange(el,ym){
+  setStockPrincipal(Number(el.value)||0,ym||gYM());
   if(curPage==='stk')renderStock();
   else if(curPage==='ast')renderRealPLCard();
 }
@@ -5149,13 +5170,13 @@ function renderStock(){
   html+='</div>';
 
   // 원금 대비 손익률
-  var principal=getStockPrincipal();
+  var principal=getStockPrincipal(latestYM);
   var stockPL=stockVal-principal;
   var stockPLPct=principal>0?((stockPL/principal)*100).toFixed(1):null;
   var plColor=stockPL>=0?'var(--gn)':'var(--rd)';
-  html+='<div class="card mb12"><div class="card-title">💰 원금 대비 손익 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 실제로 넣은 돈 기준 손익률</span></div>'
+  html+='<div class="card mb12"><div class="card-title">💰 원금 대비 손익 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· '+latestYM+' 기준 · 실제로 넣은 돈 기준 손익률</span></div>'
     +'<div class="g3">'
-    +'<div class="kpi"><div class="kl">내가 넣은 원금(직접입력)</div><input type="number" value="'+(principal||'')+'" placeholder="예: 50000000" onblur="onStockPrincipalChange(this)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:6px 8px;border-radius:var(--rs);font-size:14px;font-weight:700;font-family:inherit;margin-top:2px"><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'<div class="kpi"><div class="kl">내가 넣은 원금(직접입력)</div><input type="number" value="'+(principal||'')+'" placeholder="예: 50000000" onblur="onStockPrincipalChange(this,\''+latestYM+'\')" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:6px 8px;border-radius:var(--rs);font-size:14px;font-weight:700;font-family:inherit;margin-top:2px"><div class="kb" style="background:var(--mu2)"></div></div>'
     +'<div class="kpi"><div class="kl">현재 평가금액</div><div class="kv" style="font-size:16px">'+f(stockVal)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
     +'<div class="kpi"><div class="kl">손익 / 수익률</div><div class="kv" style="font-size:16px;color:'+(principal>0?plColor:'var(--mu)')+'">'+(principal>0?((stockPL>=0?'+':'')+f(stockPL)+' ('+(stockPL>=0?'+':'')+stockPLPct+'%)'):'원금을 입력해주세요')+'</div><div class="kb" style="background:'+(principal>0?plColor:'var(--mu2)')+'"></div></div>'
     +'</div></div>';
