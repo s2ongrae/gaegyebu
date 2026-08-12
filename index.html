@@ -1213,6 +1213,7 @@ function onYM(){
   else if(curPage==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();}
   else if(curPage==='bud')renderBud();
   else if(curPage==='ast')renderAst();
+  else if(curPage==='stk')renderStock();
 }
 // ── 앱 잠금(비밀번호) ──────────────────────────────────────────
 // 주의: 이건 브라우저/기기를 남이 잠깐 들여다볼 때 막는 용도의 화면잠금이지,
@@ -1303,6 +1304,19 @@ window.onload=function(){
 function initApp(){
   // 구버전 FX 키 전부 삭제
   ['gaegyebu_fx','gaegyebu_fx_ver','gaegyebu_fx_removed','gaegyebu_fx_added','gaegyebu_fx_edited'].forEach(function(k){localStorage.removeItem(k);});
+  // 주식 원금 히스토리 초기화(1회성): 마이그레이션 버그로 엉뚱한 달에 값이 박혔던 것을 사용자 요청으로 전부 정리.
+  // 오늘 날짜 기준월 값만(있다면) 남기고 나머지는 다 지운다 — 과거 어느 시점 원금이었는지는 사용자도 모른다고 하셨음.
+  if(!localStorage.getItem('gaegyebu_stock_principal_reset_v1')){
+    localStorage.removeItem('gaegyebu_stock_principal');
+    var todayYm=(function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');})();
+    try{
+      var h=JSON.parse(localStorage.getItem('gaegyebu_stock_principal_hist')||'{}');
+      var keep={};
+      if(h[todayYm])keep[todayYm]=h[todayYm];
+      localStorage.setItem('gaegyebu_stock_principal_hist',JSON.stringify(keep));
+    }catch(e){localStorage.setItem('gaegyebu_stock_principal_hist','{}');}
+    localStorage.setItem('gaegyebu_stock_principal_reset_v1','1');
+  }
   loadFX();
   loadAI();
   loadBT();
@@ -5083,12 +5097,13 @@ function loadStockPrincipalHist(){try{return JSON.parse(localStorage.getItem(STO
 function saveStockPrincipalHist(h){localStorage.setItem(STOCK_PRINCIPAL_HIST_KEY,JSON.stringify(h));}
 // 해당 월에 직접 입력한 값이 있으면 그 값, 없으면 "그 이전 달 중 가장 최근에 입력된 값"을 그대로 이어서 보여준다(안 건드리면 원금은 그대로라는 뜻).
 // 그보다 이전에 입력된 값이 하나도 없으면(즉 아직 원금을 넣기 전 시점) 0(=값 없음)을 반환한다.
+function getRealTodayYM(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function getStockPrincipal(ym){
   var h=loadStockPrincipalHist();
   if(!Object.keys(h).length){
-    // 구버전 단일값 마이그레이션: 있으면 "현재월" 값으로 1회성 이전
+    // 구버전 단일값 마이그레이션: 있으면 "실제 오늘 날짜" 기준월로 1회성 이전 (보고 있던 달 아님!)
     var old=Number(localStorage.getItem(STOCK_PRINCIPAL_KEY));
-    if(!isNaN(old)&&old>0){h[gYM()]=old;saveStockPrincipalHist(h);localStorage.removeItem(STOCK_PRINCIPAL_KEY);}
+    if(!isNaN(old)&&old>0){h[getRealTodayYM()]=old;saveStockPrincipalHist(h);localStorage.removeItem(STOCK_PRINCIPAL_KEY);}
   }
   if(!ym)ym=gYM();
   var months=Object.keys(h).sort().filter(function(m){return m<=ym;});
