@@ -384,7 +384,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div class="sec-divider">🏦 자산 현황</div>
   <div id="d-ast-kpi" class="g3 mb12"></div>
   <div class="card">
-    <div class="card-title">🏦 자산 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 포커스 이동 시 자동 저장</span><button onclick="openAddAsset()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
+    <div class="card-title">🏦 자산 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 포커스 이동 시 자동 저장</span><button onclick="openOrphanFix()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="이름이 바뀌어서 지금 목록엔 없는 예전 자산 이름을 찾아서 연결해요">🔍 옛날 이름 찾기</button><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
     <div id="d-ast"></div>
   </div>
 </div>
@@ -4038,10 +4038,14 @@ function renderLeverageCard(ym,am,r){
     levC=new Chart(document.getElementById('levC'),{
       type:'line',
       data:{labels:hist.map(function(h){var p=h.ym.split('-');return p[0].slice(2)+'/'+p[1];}),
-        datasets:[{label:'레버리지 비율(%)',data:hist.map(function(h){return h.ratio;}),borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.1)',fill:true,borderWidth:2,pointRadius:3,tension:0.3}]},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        datasets:[{label:'레버리지 비율(%)',data:hist.map(function(h){return Math.min(h.ratio,200);}),borderColor:'#dc2626',backgroundColor:'rgba(220,38,38,.1)',fill:true,borderWidth:2,pointRadius:3,tension:0.3}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){
+          var real=hist[ctx.dataIndex].ratio;
+          return '레버리지 '+real+'%'+(real>200?' (자산보다 부채가 훨씬 많아 위험 구간이에요)':'');
+        }}}},
         scales:{x:{ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},
-        y:{ticks:{color:'#4a6fa5',callback:function(v){return v+'%';}},grid:{color:'rgba(0,0,0,.08)'}}}}
+        y:{min:0,max:200,ticks:{color:'#4a6fa5',callback:function(v){return v+(v>=200?'%+':'%');}},grid:{color:'rgba(0,0,0,.08)'}}}}
     });
   }
 }
@@ -4204,10 +4208,92 @@ function confirmEditAsset(i){
   var isDebt=cat==='부채';
   var rate=isDebt?(Number(document.getElementById('east-rate').value)||0):0;
   var autoSub=isDebt?'':(document.getElementById('east-auto').value||'');
+  var oldName=AI[i]?AI[i].n:null;
+  var migratedMonths=0;
+  if(oldName&&oldName!==name){
+    // 이름이 바뀌면, 과거 월별 자산 스냅샷에 남아있던 옛 이름의 값도 새 이름으로 같이 옮겨준다.
+    // (안 그러면 "아반떼"였던 시절 값이 "자동차(G80)"라는 새 이름과 연결이 끊겨서 과거 달에는 안 보이게 됨)
+    var db=loadDB();var assets=db.assets||{};var changed=false;
+    Object.keys(assets).forEach(function(ym){
+      var am=assets[ym];if(!am)return;
+      if(Object.prototype.hasOwnProperty.call(am,oldName)){
+        if(!Object.prototype.hasOwnProperty.call(am,name)){
+          am[name]=am[oldName];
+          migratedMonths++;
+        }
+        delete am[oldName];
+        changed=true;
+      }
+    });
+    if(changed){saveDB(db);}
+  }
   updateAssetItem(i,{n:name,emoji:emoji,cat:cat,d:isDebt,rate:rate,autoSub:autoSub});
   document.getElementById('edit-asset-md').remove();
   renderAst();
-  showToast('✅ 자산 항목 수정됐어요!');
+  showToast('✅ 자산 항목 수정됐어요!'+(migratedMonths>0?(' 과거 '+migratedMonths+'개월치 데이터도 새 이름으로 옮겼어요.'):''));
+}
+// ── 옛날 이름 찾기: 이름이 바뀌어서 지금 자산 목록엔 없지만, 과거 자산 스냅샷에 남아있는 값 찾기 ──
+function findOrphanedAssetKeys(){
+  var db=loadDB();var assets=db.assets||{};
+  var currentNames=AI.map(function(a){return a.n;});
+  var orphans={};
+  Object.keys(assets).sort().forEach(function(ym){
+    var am=assets[ym];if(!am)return;
+    Object.keys(am).forEach(function(k){
+      if(currentNames.indexOf(k)<0&&(Number(am[k])||0)!==0){
+        if(!orphans[k])orphans[k]={months:[],total:0};
+        orphans[k].months.push(ym);
+        orphans[k].total+=Number(am[k])||0;
+      }
+    });
+  });
+  return orphans;
+}
+function openOrphanFix(){
+  var orphans=findOrphanedAssetKeys();
+  var keys=Object.keys(orphans);
+  var existing=document.getElementById('orphan-md');if(existing)existing.remove();
+  var md=document.createElement('div');md.className='mdbg on';md.id='orphan-md';
+  if(!keys.length){
+    md.innerHTML='<div class="md"><div class="mdh"><h3>🔍 옛날 이름 찾기</h3><button class="mdc" onclick="document.getElementById(\'orphan-md\').remove()">✕</button></div><div class="em">지금 자산 항목 이름과 안 맞는 과거 기록이 없어요 👍</div></div>';
+    document.body.appendChild(md);return;
+  }
+  var html='<div class="md" style="width:520px;max-width:96vw;max-height:80vh;overflow-y:auto">'
+    +'<div class="mdh"><h3>🔍 지금 목록엔 없는 과거 자산 기록</h3><button class="mdc" onclick="document.getElementById(\'orphan-md\').remove()">✕</button></div>'
+    +'<div class="al wrn mb8" style="font-size:12px">아래 이름들이 과거 자산 기록엔 있는데, 지금 자산 목록엔 없어요. "아반떼→G80"처럼 이름이 바뀐 거라면 지금 항목에 연결해주세요. 그러면 그 달들 값도 다시 이어져서 보여요.</div>';
+  keys.forEach(function(k,ki){
+    var o=orphans[k];
+    html+='<div style="background:var(--sf2);border-radius:8px;padding:10px;margin-bottom:8px">'
+      +'<div style="font-size:12px;font-weight:700;margin-bottom:6px">"'+k+'" <span style="font-weight:400;color:var(--mu)">· '+o.months.length+'개월 ('+o.months[0]+' ~ '+o.months[o.months.length-1]+')</span></div>'
+      +'<div style="display:flex;gap:6px;align-items:center">'
+      +'<select id="orphan-target-'+ki+'" style="flex:1;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:6px;border-radius:var(--rs);font-family:inherit">'
+      +'<option value="">- 지금 자산 항목 선택 -</option>'
+      +AI.map(function(a){return'<option value="'+a.n.replace(/"/g,'&quot;')+'">'+a.n+'</option>';}).join('')
+      +'</select>'
+      +'<button class="btn bp bsm" onclick="mergeOrphanKey(\''+k.replace(/'/g,"\\'").replace(/"/g,'&quot;')+'\','+ki+')" style="white-space:nowrap">연결하기</button>'
+      +'</div></div>';
+  });
+  html+='</div>';
+  md.innerHTML=html;
+  document.body.appendChild(md);
+}
+function mergeOrphanKey(oldKey,ki){
+  var sel=document.getElementById('orphan-target-'+ki);
+  var target=sel?sel.value:'';
+  if(!target){showToast('⚠️ 연결할 항목을 선택해주세요.');return;}
+  var db=loadDB();var assets=db.assets||{};var count=0;
+  Object.keys(assets).forEach(function(ym){
+    var am=assets[ym];if(!am)return;
+    if(Object.prototype.hasOwnProperty.call(am,oldKey)){
+      if(!Object.prototype.hasOwnProperty.call(am,target)||!am[target])am[target]=am[oldKey];
+      delete am[oldKey];
+      count++;
+    }
+  });
+  saveDB(db);
+  showToast('✅ "'+oldKey+'" → "'+target+'"로 '+count+'개월치 데이터를 옮겼어요.');
+  var mdEl=document.getElementById('orphan-md');if(mdEl)mdEl.remove();
+  renderAst();
 }
 function deleteAssetItem(i){
   var a=AI[i];if(!a)return;
