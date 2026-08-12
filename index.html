@@ -3566,7 +3566,8 @@ function renderRealPLCard(){
   var wrap=document.getElementById('d-realpl');
   if(!wrap)return;
   var db=loadDB();var assetsAll=db.assets||{};
-  var months=Object.keys(assetsAll).sort();
+  var curYm2=gYM();
+  var months=Object.keys(assetsAll).sort().filter(function(m){return m<=curYm2;});
   var hasAssetHistory=months.length>=2;
 
   // ── 1) 레버리지 조정 투자손익 ──
@@ -3613,7 +3614,6 @@ function renderRealPLCard(){
   var hasNetInvest=totalInvestIncome>0||totalInvestLoss>0;
   var netInvestPL=totalInvestIncome-totalInvestLoss;
   // 이번달 순투자손익
-  var curYm2=gYM();
   var curInvestIncome=investIncomeRows.filter(function(t){return t.date&&t.date.slice(0,7)===curYm2;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   var curInvestLoss=investLossRows.filter(function(t){return t.date&&t.date.slice(0,7)===curYm2;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   var curNetInvestPL=curInvestIncome-curInvestLoss;
