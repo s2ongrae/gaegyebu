@@ -809,6 +809,21 @@ function renderGoalsCard(){
       curLabel='남은 잔액 '+ff(p.cur);
       targetLabel='시작 '+ff(p.start);
       etaLabel=(eta!==null)?'📅 이 속도라면 약 '+(eta===0?'이번달':eta+'개월 후')+' 도달 예상':null;
+    }else if(g.type==='maturity'){
+      curLabel='현재 '+ff(p.cur);
+      targetLabel='만기 시 예상 '+ff(p.target);
+      if(g.maturityDate){
+        var md=new Date(g.maturityDate+'T00:00:00');var now2=new Date();
+        var diffDays=Math.ceil((md-now2)/(1000*60*60*24));
+        if(diffDays>0){
+          var yrs=Math.floor(diffDays/365),mons=Math.floor((diffDays%365)/30);
+          etaLabel='📅 만기일 '+g.maturityDate+' · '+(yrs>0?yrs+'년 ':'')+mons+'개월 남음(D-'+diffDays+')';
+        }else{
+          etaLabel='📅 만기일('+g.maturityDate+')이 지났어요 — 실제 수령했는지 확인해보세요';
+        }
+      }else{
+        etaLabel=(eta!==null)?'📅 이 속도라면 약 '+(eta===0?'이번달':eta+'개월 후')+' 도달 예상':null;
+      }
     }else{
       curLabel='현재 '+ff(p.cur);
       targetLabel='목표 '+ff(p.target);
@@ -851,12 +866,15 @@ function onGoalTypeChange(prefix){
   var targetWrap=document.getElementById(prefix+'-target-wrap');
   var startWrap=document.getElementById(prefix+'-startdate-wrap');
   var yearsWrap=document.getElementById(prefix+'-years-wrap');
+  var maturityWrap=document.getElementById(prefix+'-maturity-wrap');
   if(linkWrap)linkWrap.style.display=(type==='networth'||type==='duration')?'none':'';
   if(targetWrap)targetWrap.style.display=(type==='debt'||type==='duration')?'none':'';
   if(startWrap)startWrap.style.display=type==='duration'?'':'none';
   if(yearsWrap)yearsWrap.style.display=type==='duration'?'':'none';
+  if(maturityWrap)maturityWrap.style.display=type==='maturity'?'':'none';
+  if(targetWrap)targetWrap.querySelector('label').textContent=type==='maturity'?'만기 시 예상 수령액(원)':'목표 금액(원)';
   var linkSel=document.getElementById(prefix+'-link');
-  if(linkSel)linkSel.innerHTML=goalLinkOptions(type);
+  if(linkSel)linkSel.innerHTML=goalLinkOptions(type==='maturity'?'asset':type);
 }
 function openAddGoal(){
   var existing=document.getElementById('add-goal-md');if(existing)existing.remove();
@@ -868,10 +886,12 @@ function openAddGoal(){
     +'<option value="networth">순자산 목표 (예: 순자산 1억 모으기)</option>'
     +'<option value="debt">부채 상환 목표 (예: 마통 다 갚기)</option>'
     +'<option value="asset">자산 모으기 목표 (예: 비상금 3천만원 모으기)</option>'
+    +'<option value="maturity">만기 보험/적금 목표 (예: 라이나종신 만기 시 수령액)</option>'
     +'<option value="duration">기간형 목표 (예: 종신보험 10년납 완료)</option>'
     +'</select></div>'
     +'<div class="mt8" id="agoal-link-wrap" style="display:none"><label>연결할 항목</label><select id="agoal-link" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+goalLinkOptions('debt')+'</select></div>'
     +'<div class="mt8" id="agoal-target-wrap"><label>목표 금액(원)</label><input type="number" id="agoal-target" placeholder="예: 100000000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="mt8" id="agoal-maturity-wrap" style="display:none"><label>만기일(예상)</label><input type="date" id="agoal-maturity" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="mt8" id="agoal-startdate-wrap" style="display:none"><label>시작일(가입일)</label><input type="date" id="agoal-startdate" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="mt8" id="agoal-years-wrap" style="display:none"><label>목표 기간(년)</label><input type="number" id="agoal-years" placeholder="예: 10" step="0.5" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="fx g8 mt8">'
@@ -899,6 +919,9 @@ function confirmAddGoal(){
   var target=type!=='debt'?(Number(document.getElementById('agoal-target').value)||0):0;
   if(type!=='debt'&&target<=0){showToast('⚠️ 목표 금액을 입력해주세요.');return;}
   var goal={label:label,type:type,linkedName:linkedName,target:target};
+  if(type==='maturity'){
+    goal.maturityDate=document.getElementById('agoal-maturity').value||'';
+  }
   if(type==='debt'){
     var snap=getLatestAssetSnapshot();
     goal.startBalance=snap?(Number(snap.am[linkedName])||0):0;
@@ -919,10 +942,12 @@ function openEditGoal(i){
     +'<option value="networth"'+(g.type==='networth'?' selected':'')+'>순자산 목표</option>'
     +'<option value="debt"'+(g.type==='debt'?' selected':'')+'>부채 상환 목표</option>'
     +'<option value="asset"'+(g.type==='asset'?' selected':'')+'>자산 모으기 목표</option>'
+    +'<option value="maturity"'+(g.type==='maturity'?' selected':'')+'>만기 보험/적금 목표</option>'
     +'<option value="duration"'+(g.type==='duration'?' selected':'')+'>기간형 목표</option>'
     +'</select></div>'
-    +'<div class="mt8" id="egoal-link-wrap" style="display:'+((g.type==='networth'||g.type==='duration')?'none':'')+'"><label>연결할 항목</label><select id="egoal-link" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+goalLinkOptions((g.type==='networth'||g.type==='duration')?'debt':g.type,g.linkedName)+'</select></div>'
-    +'<div class="mt8" id="egoal-target-wrap" style="display:'+((g.type==='debt'||g.type==='duration')?'none':'')+'"><label>목표 금액(원)</label><input type="number" id="egoal-target" value="'+(g.target||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="mt8" id="egoal-link-wrap" style="display:'+((g.type==='networth'||g.type==='duration')?'none':'')+'"><label>연결할 항목</label><select id="egoal-link" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+goalLinkOptions(g.type==='maturity'?'asset':((g.type==='networth'||g.type==='duration')?'debt':g.type),g.linkedName)+'</select></div>'
+    +'<div class="mt8" id="egoal-target-wrap" style="display:'+((g.type==='debt'||g.type==='duration')?'none':'')+'"><label>'+(g.type==='maturity'?'만기 시 예상 수령액(원)':'목표 금액(원)')+'</label><input type="number" id="egoal-target" value="'+(g.target||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="mt8" id="egoal-maturity-wrap" style="display:'+(g.type==='maturity'?'':'none')+'"><label>만기일(예상)</label><input type="date" id="egoal-maturity" value="'+(g.maturityDate||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="mt8" id="egoal-startdate-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>시작일(가입일)</label><input type="date" id="egoal-startdate" value="'+(g.startDate||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="mt8" id="egoal-years-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>목표 기간(년)</label><input type="number" id="egoal-years" value="'+(g.targetYears||'')+'" step="0.5" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="fx g8 mt8">'
@@ -950,6 +975,9 @@ function confirmEditGoal(i){
   var linkedName=type!=='networth'?document.getElementById('egoal-link').value:null;
   var target=type!=='debt'?(Number(document.getElementById('egoal-target').value)||0):0;
   var goal={label:label,type:type,linkedName:linkedName,target:target};
+  if(type==='maturity'){
+    goal.maturityDate=document.getElementById('egoal-maturity').value||'';
+  }
   if(type==='debt'){
     goal.startBalance=(old&&old.type==='debt'&&old.linkedName===linkedName&&old.startBalance>0)?old.startBalance:(function(){var snap=getLatestAssetSnapshot();return snap?(Number(snap.am[linkedName])||0):0;})();
   }
