@@ -5139,13 +5139,18 @@ function renderStock(){
     return {ym:ym, val:Number(assets[ym]['주식계좌'])||0};
   }).filter(function(x){return x.val>0;});
 
-  // 월별 투자수입(실현수익) - 거래내역에서
+  // 월별 투자수입(실현수익) - 투자수입은 더하고, 투자손실은 빼서 순손익으로 계산
   var txs=db.txs||[];
   var investByMonth={};
   txs.filter(function(t){return t.type==='수입'&&t.sub==='투자수입';}).forEach(function(t){
     var ym=(t.date||'').slice(0,7);
     if(!ym||ym>curYM)return;
     investByMonth[ym]=(investByMonth[ym]||0)+(Number(t.amount)||0);
+  });
+  txs.filter(function(t){return t.type==='지출'&&t.mid==='금융지출'&&t.sub==='투자손실';}).forEach(function(t){
+    var ym=(t.date||'').slice(0,7);
+    if(!ym||ym>curYM)return;
+    investByMonth[ym]=(investByMonth[ym]||0)-(Number(t.amount)||0);
   });
   var investMonths=Object.keys(investByMonth).sort();
   var totalRealized=Object.values(investByMonth).reduce(function(s,v){return s+v;},0);
@@ -5246,7 +5251,7 @@ function renderStock(){
   // 월별 상세 테이블
   html+='<div class="card"><div class="card-title">📋 월별 주식계좌 변화 내역</div>';
   html+='<div class="ovx"><table class="tbl"><thead><tr>';
-  html+='<th>월</th><th class="tr">평가금액</th><th class="tr">전월대비</th><th class="tr">원금</th><th class="tr">원금대비 손익</th><th class="tr">실현수익</th>';
+  html+='<th>월</th><th class="tr">원금</th><th class="tr">평가금액</th><th class="tr">전월대비</th><th class="tr">원금대비 손익</th><th class="tr">실현수익</th>';
   html+='</tr></thead><tbody>';
   stockHist.slice().reverse().forEach(function(x,idx){
     var realIdx=stockHist.length-1-idx;
@@ -5254,17 +5259,19 @@ function renderStock(){
     var chg=x.val-prev;
     var chgColor=chg>=0?'var(--gn)':'var(--rd)';
     var realized=investByMonth[x.ym]||0;
+    var hasRealized=Object.prototype.hasOwnProperty.call(investByMonth,x.ym);
+    var realizedColor=realized>=0?'var(--gn)':'var(--rd)';
     var pr=getStockPrincipal(x.ym);
     var prPL=pr>0?x.val-pr:null;
     var prPct=pr>0?((prPL/pr)*100).toFixed(1):null;
     var prColor=prPL!==null&&prPL>=0?'var(--gn)':'var(--rd)';
     html+='<tr>'
       +'<td style="font-size:12px">'+x.ym.replace('-','년 ')+'월</td>'
+      +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+(pr>0?ff(pr):'-')+'</td>'
       +'<td class="tr fw" style="font-size:12px">'+ff(x.val)+'</td>'
       +'<td class="tr" style="font-size:12px;color:'+chgColor+'">'+(chg>=0?'+':'')+ff(chg)+'</td>'
-      +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+(pr>0?ff(pr):'-')+'</td>'
       +'<td class="tr" style="font-size:12px;color:'+(pr>0?prColor:'var(--mu)')+'">'+(pr>0?((prPL>=0?'+':'')+ff(prPL)+' ('+(prPL>=0?'+':'')+prPct+'%)'):'-')+'</td>'
-      +'<td class="tr" style="font-size:12px;color:var(--yw)">'+(realized?ff(realized):'-')+'</td>'
+      +'<td class="tr" style="font-size:12px;color:'+(hasRealized?realizedColor:'var(--mu)')+'">'+(hasRealized?((realized>=0?'+':'')+ff(realized)):'-')+'</td>'
       +'</tr>';
   });
   html+='</tbody></table></div></div>';
