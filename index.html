@@ -5246,7 +5246,7 @@ function renderStock(){
   // 월별 상세 테이블
   html+='<div class="card"><div class="card-title">📋 월별 주식계좌 변화 내역</div>';
   html+='<div class="ovx"><table class="tbl"><thead><tr>';
-  html+='<th>월</th><th class="tr">평가금액</th><th class="tr">전월대비</th><th class="tr">실현수익</th>';
+  html+='<th>월</th><th class="tr">평가금액</th><th class="tr">전월대비</th><th class="tr">원금</th><th class="tr">원금대비 손익</th><th class="tr">실현수익</th>';
   html+='</tr></thead><tbody>';
   stockHist.slice().reverse().forEach(function(x,idx){
     var realIdx=stockHist.length-1-idx;
@@ -5254,10 +5254,16 @@ function renderStock(){
     var chg=x.val-prev;
     var chgColor=chg>=0?'var(--gn)':'var(--rd)';
     var realized=investByMonth[x.ym]||0;
+    var pr=getStockPrincipal(x.ym);
+    var prPL=pr>0?x.val-pr:null;
+    var prPct=pr>0?((prPL/pr)*100).toFixed(1):null;
+    var prColor=prPL!==null&&prPL>=0?'var(--gn)':'var(--rd)';
     html+='<tr>'
       +'<td style="font-size:12px">'+x.ym.replace('-','년 ')+'월</td>'
       +'<td class="tr fw" style="font-size:12px">'+ff(x.val)+'</td>'
       +'<td class="tr" style="font-size:12px;color:'+chgColor+'">'+(chg>=0?'+':'')+ff(chg)+'</td>'
+      +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+(pr>0?ff(pr):'-')+'</td>'
+      +'<td class="tr" style="font-size:12px;color:'+(pr>0?prColor:'var(--mu)')+'">'+(pr>0?((prPL>=0?'+':'')+ff(prPL)+' ('+(prPL>=0?'+':'')+prPct+'%)'):'-')+'</td>'
       +'<td class="tr" style="font-size:12px;color:var(--yw)">'+(realized?ff(realized):'-')+'</td>'
       +'</tr>';
   });
