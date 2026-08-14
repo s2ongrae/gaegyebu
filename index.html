@@ -5306,15 +5306,26 @@ function renderStock(){
   setTimeout(function(){
     var c1=document.getElementById(cid1);
     if(c1&&typeof Chart!=='undefined'){
-      var principalSeries=stockHist.map(function(x){var p=getStockPrincipal(x.ym);return p>0?p:null;});
-      var hasPrincipalData=principalSeries.some(function(v){return v!==null;});
+      var myMoneySeries=stockHist.map(function(x){
+        var p=getStockPrincipal(x.ym);
+        if(!p)return null;
+        var amX=assets[x.ym]||{};
+        var debtAtYm=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+(Number(amX[a.n])||0);},0);
+        return Math.max(p-debtAtYm,0);
+      });
+      var principalTotalSeries=stockHist.map(function(x){return getStockPrincipal(x.ym)||null;});
+      var hasPrincipalData=principalTotalSeries.some(function(v){return v!==null;});
       new Chart(c1,{type:'line',data:{
         labels:stockHist.map(function(x){return x.ym.slice(5)+'월';}),
-        datasets:[
+        datasets:(hasPrincipalData?[
+          {label:'원금 - 내 돈',data:myMoneySeries,
+          borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.25)',fill:'origin',tension:.3,pointRadius:0,spanGaps:true,order:3},
+          {label:'원금 - 빌린 돈(레버리지)',data:principalTotalSeries,
+          borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.2)',fill:'-1',tension:.3,pointRadius:0,spanGaps:true,order:2}
+        ]:[]).concat([
           {label:'평가금액',data:stockHist.map(function(x){return x.val;}),
-          borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.1)',fill:true,tension:.3,pointRadius:3}
-        ].concat(hasPrincipalData?[{label:'원금(내가 넣은 돈)',data:principalSeries,
-          borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0)',fill:false,borderDash:[6,4],tension:0,pointRadius:3,spanGaps:true}]:[])
+          borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0)',fill:false,borderWidth:2.5,tension:.3,pointRadius:3,order:1}
+        ])
       },options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:hasPrincipalData,position:'top',labels:{boxWidth:10,font:{size:11}}}},
         scales:{y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},
