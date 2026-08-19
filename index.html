@@ -1128,8 +1128,9 @@ function calcNW(am,ym){
   td+=insDebt;
   return{ta:ta,td:td,nw:ta-td,insDebt:insDebt};
 }
+function isInvestLossTx(t){return t.mid==='금융지출'&&t.sub==='투자손실';}
 function getMonthSummary(ym){
-  var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
+  var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0,investLoss=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
   txs.forEach(function(t){
     var a=Number(t.amount)||0;
     if(t.type==='수입'){
@@ -1137,9 +1138,17 @@ function getMonthSummary(ym){
       if(isFixedIncome(t))incomeFixed+=a;else incomeVar+=a;
     }
     else if(t.type==='저축'){if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;}
-    else{expense+=a;byMid[t.mid]=(byMid[t.mid]||0)+a;if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;}
+    else{
+      // 투자손실(금융지출>투자손실)은 "실제 소비/생활비 실적"이 아니라 투자 손익이므로,
+      // 예산 실적/카테고리 순위/이상치 감지 등 "지출 실적" 집계에서는 제외한다.
+      // (지출성격 breakdown의 "투자" 항목엔 그대로 남겨서 자금 흐름 파악은 가능하게 함)
+      var isInvestLoss=isInvestLossTx(t);
+      if(isInvestLoss)investLoss+=a;
+      else{expense+=a;byMid[t.mid]=(byMid[t.mid]||0)+a;}
+      if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;
+    }
   });
-  return{income:income,expense:expense,incomeFixed:incomeFixed,incomeVar:incomeVar,savingsRate:income>0?((income-expense)/income*100).toFixed(1):'0',byMid:byMid,evalMap:evalMap};
+  return{income:income,expense:expense,incomeFixed:incomeFixed,incomeVar:incomeVar,investLoss:investLoss,savingsRate:income>0?((income-expense)/income*100).toFixed(1):'0',byMid:byMid,evalMap:evalMap};
 }
 function getServerURL(){return localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;}
 function setSyncStatus(s,msg){var dot=document.getElementById('sync-dot');var txt=document.getElementById('sync-status');dot.className='sync-dot '+(s==='ok'?'ok':s==='err'?'err':s==='syn'?'syn':'');txt.textContent=msg;}
@@ -2922,7 +2931,7 @@ function renderMonDetail(ym){
   txs.sort(function(a,b){return b.date>a.date?1:-1;});
   if(!txs.length)return '<div class="em" style="padding:16px">거래 데이터가 없어요</div>';
   var incTxs=txs.filter(function(t){return t.type==='수입';});
-  var expTxs=txs.filter(function(t){return t.type==='지출';});
+  var expTxs=txs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);});
   var savTxs=txs.filter(function(t){return t.type==='저축';});
   var incTotal=incTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   var expTotal=expTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
@@ -3213,7 +3222,7 @@ function renderBud(){
       });
       var totalBudget=sectionEb.byMid[m]||0;
       var actual=0;
-      getTxs(ym).forEach(function(t){if(t.mid===m&&t.type===sec.type)actual+=Number(t.amount)||0;});
+      getTxs(ym).forEach(function(t){if(t.mid===m&&t.type===sec.type&&!isInvestLossTx(t))actual+=Number(t.amount)||0;});
       var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
       var over=isExpense&&totalBudget>0&&pct2>100;
       var achieved=!isExpense&&totalBudget>0&&pct2>=100;
@@ -4980,7 +4989,7 @@ function renderMonExtra(){
 
   // 지출 항목별(카테고리)
   var expByMid={};
-  txs.filter(function(t){return t.type==='지출';}).forEach(function(t){
+  txs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}).forEach(function(t){
     expByMid[t.mid]=(expByMid[t.mid]||0)+(Number(t.amount)||0);
   });
   var expTotal=Object.values(expByMid).reduce(function(s,v){return s+v;},0);
@@ -5030,7 +5039,7 @@ function renderMonExtra(){
 
   var html='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:12px">';
   html+=donutCard('💰 수입 현황', incTotal, incRanked, cidInc, function(i){return incColors[i%incColors.length];}, '이달 수입 내역이 없어요');
-  html+=donutCard('💸 지출 현황', expTotal, expRanked, cidExp, function(i){return expColors[i%expColors.length];}, '이달 지출 내역이 없어요', txs.filter(function(t){return t.type==='지출';}));
+  html+=donutCard('💸 지출 현황', expTotal, expRanked, cidExp, function(i){return expColors[i%expColors.length];}, '이달 지출 내역이 없어요', txs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}));
   html+=donutCard('🏦 저축 현황', savTotal, savRanked, cidSav, function(i){return savColors[i%savColors.length];}, '이달 저축 내역이 없어요');
   html+='</div>';
 
@@ -5756,9 +5765,9 @@ function renderAnnual(months){
   var totalSav=Object.values(savMap).reduce(function(s,v){return s+v;},0);
   var totalSavGoal=ANNUAL_SAVING_GOALS.reduce(function(s,g){return s+g.goal;},0);
 
-  // 지출별 현황
+  // 지출별 현황 (투자손실은 실제 생활비 실적이 아니므로 제외)
   var expMap={};
-  allTxs.filter(function(t){return t.type==='지출';}).forEach(function(t){
+  allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}).forEach(function(t){
     expMap[t.mid]=(expMap[t.mid]||0)+(Number(t.amount)||0);
   });
   var totalExp=Object.values(expMap).reduce(function(s,v){return s+v;},0);
@@ -5766,14 +5775,14 @@ function renderAnnual(months){
     .filter(function(x){return x.amt>0;})
     .sort(function(a,b){return b.amt-a.amt;});
 
-  // 소비/낭비/투자/저축
+  // 소비/낭비/투자/저축 (투자손실은 여기 "투자" 항목엔 그대로 남겨서 자금흐름 파악용으로 유지)
   var evalMap={소비:0,낭비:0,투자:0,저축:0};
   allTxs.filter(function(t){return t.type==='지출'||t.type==='저축';}).forEach(function(t){
     if(evalMap[t.eval]!==undefined)evalMap[t.eval]+=(Number(t.amount)||0);
   });
-  // 고정/변동
+  // 고정/변동 (투자손실 제외)
   var fixExp=0,varExp=0;
-  allTxs.filter(function(t){return t.type==='지출';}).forEach(function(t){
+  allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}).forEach(function(t){
     if(isFixed(t))fixExp+=(Number(t.amount)||0);
     else varExp+=(Number(t.amount)||0);
   });
@@ -5860,7 +5869,7 @@ function renderAnnual(months){
       var pct2=totalExp>0?Math.round(x.v/totalExp*100):0;
       var rowId='fixvar-sub-'+xi;
       var subMap={};
-      allTxs.filter(function(t){return t.type==='지출'&&isFixed(t)===(x.k==='고정');}).forEach(function(t){subMap[t.mid]=(subMap[t.mid]||0)+(Number(t.amount)||0);});
+      allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t)&&isFixed(t)===(x.k==='고정');}).forEach(function(t){subMap[t.mid]=(subMap[t.mid]||0)+(Number(t.amount)||0);});
       var subRanked=Object.keys(subMap).map(function(m){return{sub:m,amt:subMap[m]};}).sort(function(a,b){return b.amt-a.amt;});
       return '<div style="cursor:pointer" onclick="toggleCatSub(\''+rowId+'\')">'
         +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
@@ -5938,7 +5947,7 @@ function renderAnnual(months){
           +'</div>'):'<span style="font-size:10px;color:var(--mu)">예산 미설정</span>')
         +'</td>'
         +'</tr>'
-        +'<tr><td colspan="7" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(getSubBreakdown(allTxs.filter(function(t){return t.type==='지출';}),x.name),16)+'</div></td></tr>';
+        +'<tr><td colspan="7" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),x.name),16)+'</div></td></tr>';
     }).join('')
     +'</tbody></table>'
     +'</div>'
