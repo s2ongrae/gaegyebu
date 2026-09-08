@@ -242,6 +242,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     <button class="btn bpu2 bsm" onclick="openSetup()">⚙️</button>
     <button class="btn bg2 bsm" onclick="openPinSetup()" title="비밀번호 설정">🔒</button>
     <button class="btn bg2 bsm" onclick="syncNow()">🔄 동기화</button>
+    <button class="btn bg2 bsm" onclick="openVersionLog()" title="가져오기·중복정리 등 큰 작업 전 자동 저장된 체크포인트로 되돌리기">🕐 이전 기록</button>
     <button class="btn bg2 bsm" onclick="exportJSON()">📤</button>
     <button class="btn bg2 bsm" onclick="document.getElementById('importFile').click()">📥</button>
     <button class="btn bg2 bsm" onclick="document.getElementById('csvFile').click()" title="뱅크샐러드 엑셀/CSV 가져오기">🏦 뱅크샐러드</button>
@@ -281,7 +282,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div id="mon-extra"></div>
 </div>
 <div class="pg" id="pg-inp">
-  <div id="import-undo-wrap" class="mb12"></div>
   <div class="mb12" style="display:flex;justify-content:flex-end">
     <button class="btn bg2 bsm" onclick="openDupeCheck()" title="같은 날짜/금액/카테고리로 여러 번 들어간 거래 찾기">🔍 중복 거래 정리</button>
   </div>
@@ -1189,7 +1189,7 @@ function gYM(){return document.getElementById('gYM').value;}
 function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
 function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;font-family:inherit;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}
-function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();buildImportUndoBtn();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();else if(p==='stk')renderStock();}
+function go(p){document.querySelectorAll('.pg').forEach(function(e){e.classList.remove('on');});document.querySelectorAll('.nb').forEach(function(e){e.classList.remove('on');});document.getElementById('pg-'+p).classList.add('on');document.getElementById('nb-'+p).classList.add('on');curPage=p;if(p==='dash')renderDash();else if(p==='mon')renderCal();else if(p==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();setTimeout(initTxAc,50);}else if(p==='bud')renderBud();else if(p==='ast')renderAst();else if(p==='stk')renderStock();}
 function shiftYM(delta){
   var ySel=document.getElementById('gY'),mSel=document.getElementById('gM');
   if(!ySel||!mSel)return;
@@ -1414,6 +1414,7 @@ function initApp(){
   loadBT();
   loadGoals();
   loadIns();
+  maybeSaveDailyCheckpoint();
   backfillIncomeSavingsGoals();
   // 카테고리 개편 마이그레이션: 식비>식비→외식, 생활>생필품→생활용품, 꾸밈>잡화→기타꾸밈비, 주거>전기세→전기요금
   (function(){
@@ -2840,7 +2841,7 @@ function openAnnualExpenseManager(){
     +(list.length?list.map(function(x){
       return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)">'
         +'<span style="font-size:12px">'+x.month+'월 · '+x.name+'</span>'
-        +'<span style="display:flex;align-items:center;gap:8px"><b style="font-size:12px">'+ff(x.amount)+'</b><button class="btn bg2 bsm" style="padding:3px 7px" onclick="removeAnnualExpense(\''+x.id+'\');openAnnualExpenseManager();">🗑️</button></span>'
+        +'<span style="display:flex;align-items:center;gap:8px"><b style="font-size:12px">'+ff(x.amount)+'</b><button class="btn bg2 bsm" style="padding:3px 7px" onclick="removeAnnualExpense(\''+x.id+'\');openAnnualExpenseManager();if(curPage===\'dash\')renderDash();else if(curPage===\'bud\')renderBud();">🗑️</button></span>'
         +'</div>';
     }).join(''):'<div class="em">아직 등록된 예정지출이 없어요.</div>')
     +'</div>'
@@ -2857,6 +2858,7 @@ function confirmAddAnnualExpense(){
   showToast('✅ 등록했어요!');
   openAnnualExpenseManager();
   if(curPage==='dash')renderDash();
+  else if(curPage==='bud')renderBud();
 }
 // ── 이번달 총평: 예산초과/이상치/카드실적/다음달전망을 한 화면 이야기로 묶어서, 매달 한 번 훑어보는 리츄얼 ──
 var REVIEW_DONE_KEY='gaegyebu_review_done';
@@ -2948,7 +2950,7 @@ function renderForecastCard(curYM2){
   var expectedExpense=avgFixedExp+avgVarExp+insDue+aeDue;
   var expectedBalance=expectedIncome-expectedExpense;
   var color=expectedBalance>=0?'var(--gn)':'var(--rd)';
-  var html='<div class="card mb12"><div class="card-title">📅 '+nextYm+' 예상 수지 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 평균 기준 전망</span><button onclick="event.stopPropagation();openAnnualExpenseManager()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">📅 예정지출 관리</button></div>'
+  var html='<div class="card mb12"><div class="card-title">📅 '+nextYm+' 예상 수지 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 평균 기준 전망 · 예정지출은 예산탭에서 등록</span></div>'
     +'<div class="dtl-card" id="dtl-forecast" onclick="toggleDtl(\'dtl-forecast\')">'
     +'<div class="g3 mb8">'
     +'<div class="kpi"><div class="kl">예상 수입</div><div class="kv" style="font-size:16px;color:var(--gn)">'+f(Math.round(expectedIncome))+'</div><div class="kb" style="background:var(--gn)"></div></div>'
@@ -3413,6 +3415,13 @@ function renderBud(){
   var warnEl=document.getElementById('d-bud-warn');
   container.innerHTML='';
   if(warnEl)warnEl.innerHTML='';
+
+  // 비정기 예정지출(재산세/자동차보험 등) 관리 카드
+  var aeUpcoming=getUpcomingAnnualExpenses(ym,3);
+  var aeCard=document.createElement('div');aeCard.className='card mb12';
+  aeCard.innerHTML='<div class="card-title">📅 비정기 예정지출 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 등록하면 전체탭 "다음달 예상 수지"에 자동 반영돼요</span><button onclick="openAnnualExpenseManager()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">📅 관리</button></div>'
+    +(aeUpcoming.length?aeUpcoming.map(function(x){return'<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--bd)"><span>'+x.ym+' · '+x.name+'</span><b>'+ff(x.amount)+'</b></div>';}).join(''):'<div class="em" style="padding:6px 0">앞으로 3개월 내 등록된 예정지출이 없어요.</div>');
+  container.appendChild(aeCard);
 
   // 유효하지 않은 항목(카테고리 개편으로 mid/sub가 사라짐) 분리
   var validItems=[],invalidItems=[];
@@ -4933,9 +4942,83 @@ function openDupeCheck(){
   document.body.appendChild(md);
   window._dupeGroups=groups;
 }
+// ── 버전 로그(체크포인트): 위험한 작업(가져오기/중복정리) 전에 스냅샷을 남겨두고,
+// 나중에 로그에서 골라서 그 시점으로 되돌릴 수 있게 한다.
+// (구글드라이브 자체 버전기록은 서버쪽에 있어서 클라이언트에서 바로 못 가져오니, 앱 안에 로컬로 따로 남긴다)
+var VERSION_LOG_KEY='gaegyebu_version_log';
+var VERSION_LOG_MAX=12;
+function loadVersionLog(){try{return JSON.parse(localStorage.getItem(VERSION_LOG_KEY)||'[]');}catch(e){return[];}}
+function saveCheckpoint(label){
+  try{
+    var log=loadVersionLog();
+    var snapshot={ts:new Date().toISOString(),label:label,data:JSON.stringify(loadDB())};
+    log.push(snapshot);
+    while(log.length>VERSION_LOG_MAX)log.shift();
+    localStorage.setItem(VERSION_LOG_KEY,JSON.stringify(log));
+  }catch(e){
+    // 용량 초과 등으로 실패해도 앱 동작 자체는 막지 않는다
+    console.error('체크포인트 저장 실패:',e);
+    try{
+      var log2=loadVersionLog();
+      log2.shift();
+      localStorage.setItem(VERSION_LOG_KEY,JSON.stringify(log2));
+    }catch(e2){}
+  }
+}
+function maybeSaveDailyCheckpoint(){
+  var today=new Date().toISOString().slice(0,10);
+  var lastDay=localStorage.getItem('gaegyebu_last_checkpoint_day');
+  if(lastDay===today)return;
+  localStorage.setItem('gaegyebu_last_checkpoint_day',today);
+  saveCheckpoint('일반 자동 체크포인트');
+}
+function openVersionLog(){
+  var log=loadVersionLog().slice().reverse();
+  var existing=document.getElementById('versionlog-md');if(existing)existing.remove();
+  var md=document.createElement('div');md.className='mdbg on';md.id='versionlog-md';
+  var html='<div class="md" style="width:520px;max-width:96vw;max-height:85vh;overflow-y:auto">'
+    +'<div class="mdh"><h3>🕐 이전 기록으로 돌리기</h3><button class="mdc" onclick="document.getElementById(\'versionlog-md\').remove()">✕</button></div>'
+    +'<div class="al inf mb8" style="font-size:12px">가져오기·중복정리 같은 큰 작업 직전, 그리고 하루에 한 번 자동으로 체크포인트를 남겨둬요. 최근 '+VERSION_LOG_MAX+'개까지 보관돼요. 되돌리면 지금 상태는 사라지니, 되돌리기 전에도 체크포인트가 하나 자동으로 남아요.</div>';
+  if(!log.length){
+    html+='<div class="em">아직 저장된 체크포인트가 없어요.</div>';
+  }else{
+    log.forEach(function(snap,revIdx){
+      var i=log.length-1-revIdx; // 실제 배열 인덱스(오래된순 기준)
+      var d=new Date(snap.ts);
+      var parsed=null;try{parsed=JSON.parse(snap.data);}catch(e){}
+      var txCount=parsed&&parsed.txs?parsed.txs.length:'?';
+      html+='<div style="background:var(--sf2);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+        +'<div><div style="font-size:12px;font-weight:700">'+snap.label+'</div>'
+        +'<div style="font-size:11px;color:var(--mu)">'+d.toLocaleString()+' · 거래 '+txCount+'건</div></div>'
+        +'<button class="btn bp bsm" onclick="restoreCheckpoint('+i+')">복원</button>'
+        +'</div>';
+    });
+  }
+  html+='</div>';
+  md.innerHTML=html;
+  document.body.appendChild(md);
+}
+function restoreCheckpoint(i){
+  var log=loadVersionLog();
+  var snap=log[i];if(!snap)return;
+  if(!confirm('"'+snap.label+'" ('+new Date(snap.ts).toLocaleString()+') 시점으로 되돌릴까요?\n지금 상태는 되돌리기 전에 체크포인트로 자동 저장돼요.'))return;
+  saveCheckpoint('되돌리기 직전 상태(자동 저장)');
+  try{
+    var data=JSON.parse(snap.data);
+    localStorage.setItem(DB_KEY,JSON.stringify(data));
+    scheduleSync();
+    showToast('↩️ 이전 상태로 되돌렸어요.');
+    var md=document.getElementById('versionlog-md');if(md)md.remove();
+    go(curPage);
+  }catch(e){
+    showToast('❌ 복원 중 오류가 발생했어요.');
+  }
+}
+
 function cleanupOneDupe(gi){
   var groups=window._dupeGroups||[];
   var g=groups[gi];if(!g||g.length<2)return;
+  saveCheckpoint('중복정리 직전(1건)');
   var db=loadDB();
   var removeIds=g.slice(1).map(function(t){return t.id;});
   db.txs=db.txs.filter(function(t){return removeIds.indexOf(t.id)<0;});
@@ -4951,6 +5034,7 @@ function cleanupAllDupes(){
   if(!groups.length)return;
   var totalExtra=groups.reduce(function(s,g){return s+(g.length-1);},0);
   if(!confirm('총 '+totalExtra+'건을 삭제해서 정리할게요 (각 그룹 가장 오래된 1건만 남김). 계속할까요?'))return;
+  saveCheckpoint('중복 일괄정리 직전');
   var db=loadDB();
   var removeIds=[];
   groups.forEach(function(g){g.slice(1).forEach(function(t){removeIds.push(t.id);});});
@@ -4966,50 +5050,20 @@ function cleanupAllDupes(){
 function confirmBsImport(){
   var txs=window._bsTxs||[];
   if(!txs.length)return;
+  saveCheckpoint('가져오기 직전 ('+txs.length+'건 시도)');
   var db=loadDB();
   if(!db.txs)db.txs=[];
   // 중복 체크 (날짜+금액+대분류+소분류+메모 - 메모까지 다 같아야 중복으로 봄)
   var existKeys={};
   db.txs.forEach(function(t){existKeys[t.date+'|'+t.amount+'|'+t.mid+'|'+t.sub+'|'+t.memo]=true;});
-  var batchId='imp_'+Date.now();
   var added=0;
   txs.forEach(function(t){
     var key=t.date+'|'+t.amount+'|'+t.mid+'|'+t.sub+'|'+t.memo;
-    if(!existKeys[key]){t.importBatch=batchId;db.txs.push(t);added++;}
+    if(!existKeys[key]){db.txs.push(t);added++;}
   });
   saveDB(db);
-  if(added>0){
-    localStorage.setItem('gaegyebu_last_import_batch',JSON.stringify({id:batchId,count:added,at:new Date().toISOString()}));
-  }
   document.getElementById('bs-preview-md').remove();
-  showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)'+(added>0?' · 실수했으면 "가져오기 취소" 버튼으로 되돌릴 수 있어요':''));
-  if(curPage==='inp'){renderInpDash();renderHis();buildImportUndoBtn();}
-  else if(curPage==='dash')renderDash();
-}
-function buildImportUndoBtn(){
-  var wrap=document.getElementById('import-undo-wrap');
-  if(!wrap)return;
-  var last=null;
-  try{last=JSON.parse(localStorage.getItem('gaegyebu_last_import_batch')||'null');}catch(e){}
-  if(!last){wrap.innerHTML='';return;}
-  wrap.innerHTML='<div class="al wrn" style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px">'
-    +'<span>📥 방금 가져온 '+last.count+'건 ('+new Date(last.at).toLocaleString()+')</span>'
-    +'<button class="btn br bsm" onclick="undoLastImport()" style="padding:4px 10px;font-size:11px">↩️ 이 가져오기 취소</button>'
-    +'</div>';
-}
-function undoLastImport(){
-  var last=null;
-  try{last=JSON.parse(localStorage.getItem('gaegyebu_last_import_batch')||'null');}catch(e){}
-  if(!last){showToast('취소할 가져오기 기록이 없어요.');return;}
-  if(!confirm(last.count+'건을 삭제해서 가져오기 전 상태로 되돌릴까요?'))return;
-  var db=loadDB();
-  var before=db.txs.length;
-  db.txs=db.txs.filter(function(t){return t.importBatch!==last.id;});
-  var removed=before-db.txs.length;
-  saveDB(db);
-  localStorage.removeItem('gaegyebu_last_import_batch');
-  showToast('↩️ '+removed+'건 삭제해서 되돌렸어요.');
-  buildImportUndoBtn();
+  showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)'+(added>0?' · 실수했으면 ⋮더보기 > "이전 기록으로 돌리기"로 되돌릴 수 있어요':''));
   if(curPage==='inp'){renderInpDash();renderHis();}
   else if(curPage==='dash')renderDash();
 }
