@@ -729,6 +729,10 @@ function getLatestAssetSnapshot(){
 }
 function goalMetricValue(goal,am,ym){
   if(goal.type==='networth')return calcNW(am,ym).nw;
+  // "거래연동(autoSub)" 자산은 스냅샷(am)에 원시값이 저장되지 않고 항상 실시간 계산되므로,
+  // 자산 탭과 동일하게 getAssetItemValue를 거쳐야 정확한 값이 나온다.
+  var linkedItem=AI.filter(function(a){return a.n===goal.linkedName;})[0];
+  if(linkedItem)return getAssetItemValue(linkedItem,am,ym);
   return Number(am[goal.linkedName])||0;
 }
 function computeGoalProgress(goal){
@@ -5383,104 +5387,6 @@ function openEditFx(i){
   document.body.appendChild(md);
 }
 
-// ── 토스증권 API 연동 ────────────────────────────────────
-function loadTossConfig(){
-  try{
-    return JSON.parse(localStorage.getItem('toss_config')||'{}');
-  }catch(e){return{};}
-}
-function saveTossConfigLocal(cfg){
-  localStorage.setItem('toss_config', JSON.stringify(cfg));
-}
-function toggleTossSetup(){
-  var el=document.getElementById('toss-setup');
-  if(!el)return;
-  var isOpen=el.style.display!=='none';
-  el.style.display=isOpen?'none':'block';
-  if(!isOpen){
-    var cfg=loadTossConfig();
-    if(document.getElementById('toss-cid'))document.getElementById('toss-cid').value=cfg.clientId||'';
-    if(document.getElementById('toss-acc'))document.getElementById('toss-acc').value=cfg.accountSeq||'';
-    // Client Secret은 로컬에 저장하지 않으므로 다시 채우지 않음 (보안)
-  }
-}
-function saveTossConfig(){
-  var clientId=document.getElementById('toss-cid').value.trim();
-  var clientSecret=document.getElementById('toss-secret').value.trim();
-  var accountSeq=document.getElementById('toss-acc').value.trim();
-  if(!clientId){showToast('⚠️ Client ID를 입력해주세요.');return;}
-  // Client Secret은 서버(Apps Script)에만 저장하고 브라우저에는 남기지 않음
-  saveTossConfigLocal({clientId:clientId,accountSeq:accountSeq});
-
-  var url=localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;
-  if(!url){showToast('⚠️ 서버 URL이 설정되지 않았어요. 서버설정에서 먼저 연결해주세요.');return;}
-
-  showToast('💾 서버에 저장 중...');
-  fetch(url,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain'},
-    body:JSON.stringify({action:'saveTossConfig',clientId:clientId,clientSecret:clientSecret,accountSeq:accountSeq})
-  }).then(function(r){return r.json();})
-    .then(function(res){
-      if(res&&res.ok){
-        showToast('✅ 토스증권 연동 정보 저장 완료!');
-        document.getElementById('toss-secret').value=''; // 서버 전송 후 화면에서 비움
-        document.getElementById('toss-status').textContent='연동 설정됨';
-        document.getElementById('toss-status').style.color='var(--gn)';
-        if(!accountSeq)showToast('💡 "🔍 계좌 조회"를 눌러서 계좌 Seq도 찾아보세요.');
-        else toggleTossSetup();
-      }else{
-        showToast('❌ 저장 실패: '+(res&&res.error||'알 수 없는 오류'));
-      }
-    })
-    .catch(function(e){showToast('❌ 서버 연결 실패: '+e.message);});
-}
-function lookupTossAccounts(){
-  var cfg=loadTossConfig();
-  if(!cfg.clientId){showToast('⚠️ 먼저 Client ID/Secret을 입력하고 "💾 저장"을 눌러주세요.');return;}
-  var url=localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;
-  if(!url){showToast('⚠️ 서버 URL이 설정되지 않았어요.');return;}
-  var accEl=document.getElementById('toss-accounts');
-  if(accEl)accEl.innerHTML='<div style="font-size:11px;color:var(--mu)">⏳ 계좌 조회 중...</div>';
-  fetch(url,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain'},
-    body:JSON.stringify({action:'getTossAccounts'})
-  }).then(function(r){return r.json();})
-    .then(function(res){
-      if(!res||!res.ok){
-        if(accEl)accEl.innerHTML='';
-        showToast('❌ 계좌 조회 실패: '+(res&&res.error||'알 수 없는 오류'));
-        return;
-      }
-      var accounts=res.accounts||[];
-      if(!accounts.length){
-        if(accEl)accEl.innerHTML='<div style="font-size:11px;color:var(--mu)">조회된 계좌가 없어요.</div>';
-        return;
-      }
-      if(!accEl)return;
-      accEl.innerHTML='<div style="font-size:11px;color:var(--mu2);margin-bottom:4px">계좌를 선택하세요 ('+accounts.length+'개)</div>'
-        +accounts.map(function(a){
-          return '<div class="bud-sub-row" style="cursor:pointer" onclick="selectTossAccount(\''+a.accountSeq+'\')">'
-            +'<span class="bud-sub-name">'+(a.accountNo||'')+' <span style="color:var(--mu);font-size:10px">('+(a.accountType||'')+')</span></span>'
-            +'<span style="font-size:11px;color:var(--bl);font-weight:700">seq '+a.accountSeq+'</span>'
-            +'</div>';
-        }).join('');
-      if(accounts.length===1)selectTossAccount(accounts[0].accountSeq);
-    })
-    .catch(function(e){
-      if(accEl)accEl.innerHTML='';
-      showToast('❌ 서버 연결 실패: '+e.message);
-    });
-}
-function selectTossAccount(accountSeq){
-  document.getElementById('toss-acc').value=accountSeq;
-  var cfg=loadTossConfig();
-  cfg.accountSeq=accountSeq;
-  saveTossConfigLocal(cfg);
-  showToast('✅ 계좌 선택됨 (seq '+accountSeq+') · 저장 버튼을 눌러 확정하세요');
-}
-
 // ── 📈 주식 탭 대시보드 ──────────────────────────────────
 function renderMonExtra(){
   var el=document.getElementById('mon-extra');
@@ -5796,30 +5702,6 @@ function renderStock(){
   });
   html+='</tbody></table></div></div>';
 
-  // 토스증권 연동 카드 (맨 아래로 이동)
-  html+='<div class="card mt12">'
-    +'<div class="card-title">'
-    +'🔗 토스증권 API 연동'
-    +'<span id="toss-status" style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0;margin-left:8px">미연동</span>'
-    +'<button class="btn bg2 bsm" onclick="toggleTossSetup()" style="margin-left:auto;font-size:11px">⚙️ 설정</button>'
-    +'</div>'
-    +'<div id="toss-setup" style="display:none;margin-top:10px">'
-    +'<div class="al inf mb8" style="font-size:11px">토스증권 Open API 승인 후 Client ID/Secret을 입력하고 저장하면, 계좌 Seq는 "🔍 계좌 조회"로 자동으로 찾아드려요.</div>'
-    +'<div class="fg c2">'
-    +'<div><label>Client ID</label><input type="text" id="toss-cid" placeholder="발급받은 Client ID"></div>'
-    +'<div><label>Client Secret</label><input type="password" id="toss-secret" placeholder="발급받은 Client Secret"></div>'
-    +'</div>'
-    +'<div class="fg c2">'
-    +'<div><label>Account Seq</label><input type="text" id="toss-acc" placeholder="계좌 조회로 자동 입력돼요"></div>'
-    +'<div style="display:flex;align-items:flex-end;gap:6px"><button class="btn bg2" style="width:100%" onclick="lookupTossAccounts()">🔍 계좌 조회</button><button class="btn bp" style="width:100%" onclick="saveTossConfig()">💾 저장</button></div>'
-    +'</div>'
-    +'<div id="toss-accounts" style="margin-top:8px"></div>'
-    +'</div>'
-    +'<div id="toss-holdings" style="margin-top:10px"></div>'
-    +'<div class="fx g8 mt8"><button class="btn bs" onclick="syncTossHoldings()">🔄 토스증권 잔고 동기화</button>'
-    +'<span id="toss-sync-msg" style="font-size:11px;color:var(--mu);align-self:center"></span></div>'
-    +'</div>';
-
   el.innerHTML=html;
 
   // 차트 그리기
@@ -5885,67 +5767,6 @@ function renderStock(){
       },options:{responsive:false,cutout:'70%',plugins:{legend:{display:false}}}});
     }
   },150);
-}
-
-
-function syncTossHoldings(){
-  var cfg=loadTossConfig();
-  if(!cfg.clientId||!cfg.accountSeq){
-    showToast('⚠️ 먼저 ⚙️ 설정에서 토스증권 연동 정보를 입력해주세요.');
-    toggleTossSetup();
-    return;
-  }
-  var url=localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;
-  if(!url){showToast('⚠️ 서버 URL이 설정되지 않았어요.');return;}
-
-  var msgEl=document.getElementById('toss-sync-msg');
-  if(msgEl)msgEl.textContent='⏳ 토스증권에서 잔고 가져오는 중...';
-
-  fetch(url,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain'},
-    body:JSON.stringify({action:'getTossHoldings',accountSeq:cfg.accountSeq})
-  }).then(function(r){return r.json();})
-    .then(function(res){
-      if(!res||!res.ok){
-        if(msgEl)msgEl.textContent='';
-        showToast('❌ 동기화 실패: '+(res&&res.error||'서버에 getTossHoldings 함수가 아직 없어요.'));
-        return;
-      }
-      renderTossHoldings(res.holdings||[], res.totalValue||0);
-      // 자산 탭의 주식계좌 항목에 자동 입력
-      var ym=gYM();
-      var db=loadDB();
-      if(!db.assets)db.assets={};
-      if(!db.assets[ym])db.assets[ym]={};
-      db.assets[ym]['주식계좌']=res.totalValue||0;
-      saveDB(db);
-      renderAst();
-      if(msgEl)msgEl.textContent='✅ '+new Date().toLocaleTimeString()+' 동기화 완료';
-      document.getElementById('toss-status').textContent='연동됨 · 평가금액 '+ff(res.totalValue||0);
-      document.getElementById('toss-status').style.color='var(--gn)';
-      showToast('✅ 토스증권 잔고 '+ff(res.totalValue||0)+' 동기화 완료!');
-    })
-    .catch(function(e){
-      if(msgEl)msgEl.textContent='';
-      showToast('❌ 동기화 실패: '+e.message);
-    });
-}
-
-function renderTossHoldings(holdings, totalValue){
-  var el=document.getElementById('toss-holdings');
-  if(!el)return;
-  if(!holdings.length){el.innerHTML='';return;}
-  var rows=holdings.map(function(h){
-    var pnlColor=(h.profitRate||0)>=0?'var(--rd)':'var(--bl)';
-    return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd)">'
-      +'<span style="font-size:12px;flex:1">'+(h.name||h.symbol||'')+'</span>'
-      +'<span style="font-size:11px;color:var(--mu)">'+(h.quantity||0)+'주</span>'
-      +'<span style="font-size:12px;font-weight:700;min-width:90px;text-align:right">'+ff(h.evalAmount||0)+'</span>'
-      +'<span style="font-size:11px;color:'+pnlColor+';min-width:55px;text-align:right">'+((h.profitRate||0)>=0?'+':'')+(h.profitRate||0).toFixed(1)+'%</span>'
-      +'</div>';
-  }).join('');
-  el.innerHTML='<div style="font-size:11px;color:var(--mu2);margin-bottom:4px;font-weight:700">보유 종목 ('+holdings.length+'개) · 총 '+ff(totalValue)+'</div>'+rows;
 }
 
 
