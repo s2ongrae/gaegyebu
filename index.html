@@ -279,6 +279,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   </div>
 
   <div id="d-cardperf" class="mb12"></div>
+  <div id="d-fixedexp" class="mb12"></div>
   <div id="mon-extra"></div>
 </div>
 <div class="pg" id="pg-inp">
@@ -2523,11 +2524,66 @@ function renderCardPerf(ym){
   html+='</div>';
   wrap.innerHTML=html;
 }
+// ── 월별 탭: 고정지출(구독료/통신비/보험료/월세 등 매달 나가는 지출) 요약 카드 ──
+// FX(고정거래 목록) 중 지출성 항목만 추려서, 이번달에 이미 결제됐는지 여부와 함께 보여준다.
+// (수입/저축 고정거래는 "입력/내역" 탭의 고정거래 관리에서 이미 다루므로 여기선 지출만 대상으로 함)
+function renderFixedExpenseCard(ym){
+  var wrap=document.getElementById('d-fixedexp');
+  if(!wrap)return;
+  var fixedExpItems=FX.filter(function(fi){return fi.type==='지출';});
+  if(!fixedExpItems.length){wrap.innerHTML='';return;}
+
+  var thisTxs=getTxs(ym);
+  var doneMap={};
+  thisTxs.forEach(function(t){
+    var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
+    doneMap[k]=t;
+    var k2=t.mid+'|'+t.sub;
+    if(!doneMap[k2])doneMap[k2]=t;
+  });
+
+  var rows=fixedExpItems.map(function(fi,i){
+    var k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    var k2=fi.mid+'|'+fi.sub;
+    var sameCount=fixedExpItems.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;}).length;
+    var tx=doneMap[k]||((!fi.memo&&sameCount===1)?doneMap[k2]:null)||null;
+    var done=!!tx;
+    var amt=done?Number(tx.amount)||0:(fi.amt||0);
+    return{fi:fi,done:done,amt:amt};
+  });
+  // 미결제(구독인데 아직 이번달 결제 안 된 것)를 위로, 그 다음 금액 큰 순
+  rows.sort(function(a,b){if(a.done!==b.done)return a.done-b.done;return b.amt-a.amt;});
+
+  var total=rows.reduce(function(s,r){return s+r.amt;},0);
+  var doneCount=rows.filter(function(r){return r.done;}).length;
+
+  var html='<div class="card"><div class="card-title">🔁 이번달 고정지출 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 구독료·통신비·보험료·월세 등 매달 나가는 지출 · '+doneCount+'/'+rows.length+'건 결제 확인됨</span></div>'
+    +'<div class="g2 mb8">'
+    +'<div class="kpi"><div class="kl">월 고정지출 총액</div><div class="kv" style="font-size:18px;color:var(--pu)">'+f(total)+'</div><div class="kb" style="background:var(--pu)"></div></div>'
+    +'<div class="kpi"><div class="kl">항목 개수</div><div class="kv" style="font-size:18px">'+rows.length+'개</div><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'</div>'
+    +rows.map(function(r){
+      var fi=r.fi;
+      var icon=CE[fi.mid]||'';
+      var statusColor=r.done?'var(--gn)':'var(--mu)';
+      var statusText=r.done?'✅ 결제 완료':'⏳ 아직 미확인';
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--bd);font-size:12px">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-weight:700">'+icon+' '+(fi.memo||fi.sub)+' <span style="font-size:10px;color:var(--mu);font-weight:400">('+fi.mid+' &gt; '+fi.sub+')</span></div>'
+        +'<div style="font-size:10px;color:'+statusColor+';margin-top:1px">'+statusText+'</div>'
+        +'</div>'
+        +'<span style="font-weight:700;white-space:nowrap;margin-left:10px">'+ff(r.amt)+'</span>'
+        +'</div>';
+    }).join('')
+    +'</div>';
+  wrap.innerHTML=html;
+}
 function renderCal(){
   var p=calYM.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);
   document.getElementById('cal-title').textContent=y+'년 '+m+'월';
   var sm=getMonthSummary(calYM);var ns=sm.income-sm.expense;
   renderCardPerf(calYM);
+  renderFixedExpenseCard(calYM);
   renderMonthlyReview(calYM);
   // KPI
   var kpiEl=document.getElementById('cal-kpi');
