@@ -263,6 +263,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div id="d-dash"><div class="ld"><div class="sp"></div>불러오는 중...</div></div>
 </div>
 <div class="pg" id="pg-mon">
+  <div id="d-monthreview"></div>
   <div class="card">
     <div class="cal-header">
       <button class="cal-nav" onclick="calMove(-1)">&#8249;</button>
@@ -2517,6 +2518,7 @@ function renderCal(){
   document.getElementById('cal-title').textContent=y+'년 '+m+'월';
   var sm=getMonthSummary(calYM);var ns=sm.income-sm.expense;
   renderCardPerf(calYM);
+  renderMonthlyReview(calYM);
   // KPI
   var kpiEl=document.getElementById('cal-kpi');
   kpiEl.innerHTML='';
@@ -2802,6 +2804,121 @@ function renderAnomalyDetailRows(ym2,mid,sub){
   }).join('')||'<div style="font-size:11px;color:var(--mu);padding:6px 8px">거래 내역이 없어요</div>';
 }
 // ── 다음달 예상 수지 (캐시플로우 예측) ──────────────────────────
+// ── 비정기 예정 지출(Sinking Fund): 재산세/자동차보험/명절비 등 "매달은 아니지만 특정 달에 크게 나가는 돈" 관리 ──
+var ANNUAL_EXP_KEY='gaegyebu_annual_expenses';
+function loadAnnualExpenses(){try{return JSON.parse(localStorage.getItem(ANNUAL_EXP_KEY)||'[]');}catch(e){return[];}}
+function saveAnnualExpenses(list){localStorage.setItem(ANNUAL_EXP_KEY,JSON.stringify(list));}
+function addAnnualExpense(item){var list=loadAnnualExpenses();item.id='ae_'+Date.now();list.push(item);saveAnnualExpenses(list);}
+function removeAnnualExpense(id){var list=loadAnnualExpenses().filter(function(x){return x.id!==id;});saveAnnualExpenses(list);}
+// 기준월(ym) 다음 N개월 안에 해당하는 예정지출들을 (매년 반복이면 월만 맞춰서) 찾아 반환
+function getUpcomingAnnualExpenses(fromYm,monthsAhead){
+  var list=loadAnnualExpenses();
+  var result=[];
+  for(var i=1;i<=monthsAhead;i++){
+    var ym=addMonthsToYm(fromYm,i);
+    var mon=Number(ym.slice(5,7));
+    list.forEach(function(x){
+      if(Number(x.month)===mon)result.push({id:x.id,name:x.name,amount:Number(x.amount)||0,ym:ym,memo:x.memo||''});
+    });
+  }
+  return result.sort(function(a,b){return a.ym<b.ym?-1:1;});
+}
+function openAnnualExpenseManager(){
+  var list=loadAnnualExpenses();
+  var existing=document.getElementById('annualexp-md');if(existing)existing.remove();
+  var md=document.createElement('div');md.className='mdbg on';md.id='annualexp-md';
+  var html='<div class="md" style="width:480px;max-width:96vw;max-height:85vh;overflow-y:auto">'
+    +'<div class="mdh"><h3>📅 비정기 예정지출 관리</h3><button class="mdc" onclick="document.getElementById(\'annualexp-md\').remove()">✕</button></div>'
+    +'<div class="al inf mb8" style="font-size:12px">재산세, 자동차보험 갱신, 명절비처럼 "매달은 아니지만 특정 달에 크게 나가는 돈"을 등록해두면, 다음달 예상 수지에 자동으로 반영돼요. 매년 반복되는 걸로 가정해요.</div>'
+    +'<div class="fg c3 mb8" style="align-items:end">'
+    +'<div><label>이름</label><input type="text" id="ae-name" placeholder="예: 재산세" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>예상 월</label><select id="ae-month" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+[1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){return'<option value="'+m+'">'+m+'월</option>';}).join('')+'</select></div>'
+    +'<div><label>예상 금액(원)</label><input type="number" id="ae-amount" placeholder="예: 300000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'</div>'
+    +'<button class="btn bp" style="width:100%" onclick="confirmAddAnnualExpense()">＋ 추가</button>'
+    +'<div class="mt8" style="border-top:1px solid var(--bd);padding-top:8px">'
+    +(list.length?list.map(function(x){
+      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)">'
+        +'<span style="font-size:12px">'+x.month+'월 · '+x.name+'</span>'
+        +'<span style="display:flex;align-items:center;gap:8px"><b style="font-size:12px">'+ff(x.amount)+'</b><button class="btn bg2 bsm" style="padding:3px 7px" onclick="removeAnnualExpense(\''+x.id+'\');openAnnualExpenseManager();">🗑️</button></span>'
+        +'</div>';
+    }).join(''):'<div class="em">아직 등록된 예정지출이 없어요.</div>')
+    +'</div>'
+    +'</div>';
+  md.innerHTML=html;
+  document.body.appendChild(md);
+}
+function confirmAddAnnualExpense(){
+  var name=document.getElementById('ae-name').value.trim();
+  var month=Number(document.getElementById('ae-month').value);
+  var amount=Number(document.getElementById('ae-amount').value)||0;
+  if(!name||!amount){showToast('⚠️ 이름과 금액을 입력해주세요.');return;}
+  addAnnualExpense({name:name,month:month,amount:amount});
+  showToast('✅ 등록했어요!');
+  openAnnualExpenseManager();
+  if(curPage==='dash')renderDash();
+}
+// ── 이번달 총평: 예산초과/이상치/카드실적/다음달전망을 한 화면 이야기로 묶어서, 매달 한 번 훑어보는 리츄얼 ──
+var REVIEW_DONE_KEY='gaegyebu_review_done';
+function isMonthReviewed(ym){try{var d=JSON.parse(localStorage.getItem(REVIEW_DONE_KEY)||'{}');return !!d[ym];}catch(e){return false;}}
+function markMonthReviewed(ym){
+  var d={};try{d=JSON.parse(localStorage.getItem(REVIEW_DONE_KEY)||'{}');}catch(e){}
+  if(d[ym])delete d[ym];else d[ym]=true;
+  localStorage.setItem(REVIEW_DONE_KEY,JSON.stringify(d));
+  renderMonthlyReview(ym);
+}
+function renderMonthlyReview(ym){
+  var wrap=document.getElementById('d-monthreview');
+  if(!wrap)return;
+  var months=getAllMonths();
+  if(months.indexOf(ym)<0&&!getTxs(ym).length){wrap.innerHTML='';return;}
+  var sm=getMonthSummary(ym);
+  var prevYm=getPrevYM(ym);
+  var prevSm=getMonthSummary(prevYm);
+  var ns=sm.income-sm.expense,prevNs=prevSm.income-prevSm.expense;
+  var lines=[];
+
+  // 예산초과
+  var eb=getEffectiveBudget(ym,'지출');
+  var overs=[];
+  Object.keys(eb.byMid||{}).forEach(function(mid){
+    var budget=eb.byMid[mid];var actual=sm.byMid[mid]||0;
+    if(budget>0&&actual>budget)overs.push({mid:mid,over:actual-budget,pct:Math.round(actual/budget*100)});
+  });
+  overs.sort(function(a,b){return b.over-a.over;});
+  overs.slice(0,2).forEach(function(o){
+    lines.push({icon:'⚠️',text:'"'+o.mid+'" 예산을 '+ff(o.over)+' 초과했어요 (목표의 '+o.pct+'%)',color:'var(--rd)'});
+  });
+
+  // 이상치
+  var anomalies=detectSpendingAnomalies(ym);
+  (anomalies.high||[]).slice(0,2).forEach(function(a){
+    lines.push({icon:'🔍',text:'"'+a.sub+'" 지출이 평소보다 확 늘었어요 ('+ff(a.cur)+', 평소 대비 +'+a.pct+'%)',color:'var(--yw)'});
+  });
+
+  // 카드실적 미달성
+  var txs=getTxs(ym).filter(function(t){return t.type==='지출';});
+  Object.keys(CARD_BENEFIT_INFO).forEach(function(pay){
+    var info=CARD_BENEFIT_INFO[pay];
+    var spent=txs.filter(function(t){return t.payment===pay;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+    if(spent>0&&spent<info.tiers[0].min){
+      lines.push({icon:'💳',text:info.name+' 최소 실적구간까지 '+ff(info.tiers[0].min-spent)+' 남았어요',color:'var(--mu2)'});
+    }
+  });
+
+  var reviewed=isMonthReviewed(ym);
+  var nsChange=ns-prevNs;
+  var html='<div class="card mb12" style="border:2px solid '+(reviewed?'var(--bd)':'var(--pu)')+'">'
+    +'<div class="card-title">📝 '+ym+' 총평'+(reviewed?' <span class="bk bg" style="font-size:10px;margin-left:6px;text-transform:none;letter-spacing:0">✓ 확인함</span>':'')+'</div>'
+    +'<div style="font-size:13px;line-height:1.7;margin-bottom:10px">'
+    +'이번달 수입 <b>'+ff(sm.income)+'</b> · 지출 <b style="color:var(--rd)">'+ff(sm.expense)+'</b> · 저축률 <b style="color:var(--bl)">'+sm.savingsRate+'%</b>'
+    +(prevSm.income>0||prevSm.expense>0?(' (순저축 전월대비 '+(nsChange>=0?'+':'')+ff(nsChange)+')'):'')
+    +'</div>'
+    +(lines.length?lines.map(function(l){return'<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--bd);color:'+l.color+'">'+l.icon+' '+l.text+'</div>';}).join(''):'<div style="font-size:12px;color:var(--gn);padding:6px 0">👍 이번달은 예산초과·이상치 없이 무난하게 지나갔어요.</div>')
+    +'<button class="btn '+(reviewed?'bg2':'bp')+'" style="width:100%;margin-top:10px" onclick="markMonthReviewed(\''+ym+'\')">'+(reviewed?'✓ 확인 완료 (다시 누르면 취소)':'✓ 이번달 다 봤어요')+'</button>'
+    +'</div>';
+  wrap.innerHTML=html;
+}
 function renderForecastCard(curYM2){
   var months=getAllMonths().filter(function(m){return m<=curYM2;});
   if(months.length<2)return'';
@@ -2825,17 +2942,20 @@ function renderForecastCard(curYM2){
     var st=getInsStatus(item,nextYm);
     if(!st.done&&!st.notStarted){insDue+=st.amount;insRows.push({name:item.name,amt:st.amount});}
   });
+  var upcomingAE=getUpcomingAnnualExpenses(curYM2,1); // 다음달분만
+  var aeDue=upcomingAE.reduce(function(s,x){return s+x.amount;},0);
   var expectedIncome=avgFixedInc+avgVarInc;
-  var expectedExpense=avgFixedExp+avgVarExp+insDue;
+  var expectedExpense=avgFixedExp+avgVarExp+insDue+aeDue;
   var expectedBalance=expectedIncome-expectedExpense;
   var color=expectedBalance>=0?'var(--gn)':'var(--rd)';
-  var html='<div class="card mb12"><div class="card-title">📅 '+nextYm+' 예상 수지 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 평균 기준 전망</span></div>'
+  var html='<div class="card mb12"><div class="card-title">📅 '+nextYm+' 예상 수지 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 평균 기준 전망</span><button onclick="event.stopPropagation();openAnnualExpenseManager()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">📅 예정지출 관리</button></div>'
     +'<div class="dtl-card" id="dtl-forecast" onclick="toggleDtl(\'dtl-forecast\')">'
     +'<div class="g3 mb8">'
     +'<div class="kpi"><div class="kl">예상 수입</div><div class="kv" style="font-size:16px;color:var(--gn)">'+f(Math.round(expectedIncome))+'</div><div class="kb" style="background:var(--gn)"></div></div>'
-    +'<div class="kpi"><div class="kl">예상 지출(할부 포함)</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(Math.round(expectedExpense))+'</div><div class="kb" style="background:var(--rd)"></div></div>'
+    +'<div class="kpi"><div class="kl">예상 지출(할부+예정지출 포함)</div><div class="kv" style="font-size:16px;color:var(--rd)">'+f(Math.round(expectedExpense))+'</div><div class="kb" style="background:var(--rd)"></div></div>'
     +'<div class="kpi"><div class="kl">예상 순잉여</div><div class="kv" style="font-size:16px;color:'+color+'">'+(expectedBalance>=0?'+':'')+f(Math.round(expectedBalance))+'</div><div class="kb" style="background:'+color+'"></div></div>'
     +'</div>'
+    +(upcomingAE.length?'<div style="font-size:11px;color:var(--yw);font-weight:700;margin-bottom:4px">📅 '+upcomingAE.map(function(x){return x.name+'('+ff(x.amount)+')';}).join(', ')+' 예정이라 반영했어요</div>':'')
     +(expectedBalance<0?'<div style="font-size:11px;color:var(--rd);font-weight:700">⚠️ 이 페이스면 '+nextYm+'에 적자가 예상돼요. 변동지출을 좀 줄여볼 타이밍이에요.</div>':'<div style="font-size:11px;color:var(--mu)">이 페이스대로면 '+nextYm+'에 여유가 있을 것 같아요.</div>')
     +'<div class="dtl-hint">눌러서 계산 내역보기 ▾</div>'
     +'<div class="dtl-body">'
@@ -2843,6 +2963,7 @@ function renderForecastCard(curYM2){
     +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 변동수입</span><span style="font-weight:700">'+ff(Math.round(avgVarInc))+'</span></div>'
     +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 고정지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgFixedExp))+'</span></div>'
     +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 변동지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgVarExp))+'</span></div>'
+    +(upcomingAE.length?upcomingAE.map(function(x){return'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>📅 '+x.name+'(예정지출)</span><span style="font-weight:700;color:var(--rd)">'+ff(x.amount)+'</span></div>';}).join(''):'')
     +(insRows.length?insRows.map(function(x){return'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>💳 '+x.name+'(할부)</span><span style="font-weight:700;color:var(--rd)">'+ff(x.amt)+'</span></div>';}).join(''):'')
     +'<div style="font-size:10px;color:var(--mu);margin-top:6px">⚠️ 실제 통장 잔액이 아니라, 최근 3개월 흐름을 그대로 다음달에 적용했을 때의 "예상 잉여자금"이에요. 일시적 지출(경조사 등)은 반영 안 돼요.</div>'
     +'</div>'
