@@ -374,20 +374,34 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   </div>
 </div>
 <div class="pg" id="pg-ast">
-  <div class="sec-divider">⚠️ 리스크 체크</div>
-  <div id="d-leverage" class="mb12"></div>
-  <div id="d-dsr" class="mb12"></div>
-  <div class="sec-divider">📊 재무 건강 지표</div>
-  <div id="d-liquidity" class="mb12"></div>
-  <div id="d-taxlimit" class="mb12"></div>
-  <div class="sec-divider">💡 손익 &amp; 전략</div>
-  <div id="d-realpl" class="mb12"></div>
-  <div id="d-refi" class="mb12"></div>
-  <div class="sec-divider">🏦 자산 현황</div>
-  <div id="d-ast-kpi" class="g3 mb12"></div>
-  <div class="card">
-    <div class="card-title">🏦 자산 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 포커스 이동 시 자동 저장</span><button onclick="openOrphanFix()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="이름이 바뀌어서 지금 목록엔 없는 예전 자산 이름을 찾아서 연결해요">🔍 옛날 이름 찾기</button><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
-    <div id="d-ast"></div>
+  <div class="sbar2" style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--bd);padding-bottom:0">
+    <button class="nb ast-subtab on" onclick="switchAstSub('overview')" id="ast-sub-overview">🏦 개요</button>
+    <button class="nb ast-subtab" onclick="switchAstSub('risk')" id="ast-sub-risk">⚠️ 리스크</button>
+    <button class="nb ast-subtab" onclick="switchAstSub('tax')" id="ast-sub-tax">📊 절세</button>
+    <button class="nb ast-subtab" onclick="switchAstSub('sim')" id="ast-sub-sim">💡 시뮬레이터</button>
+  </div>
+  <div class="ast-subpanel" id="ast-panel-risk" style="display:none">
+    <div class="sec-divider">⚠️ 리스크 체크</div>
+    <div id="d-leverage" class="mb12"></div>
+    <div id="d-dsr" class="mb12"></div>
+  </div>
+  <div class="ast-subpanel" id="ast-panel-tax" style="display:none">
+    <div class="sec-divider">📊 재무 건강 지표</div>
+    <div id="d-liquidity" class="mb12"></div>
+    <div id="d-taxlimit" class="mb12"></div>
+  </div>
+  <div class="ast-subpanel" id="ast-panel-sim" style="display:none">
+    <div class="sec-divider">💡 손익 &amp; 전략</div>
+    <div id="d-realpl" class="mb12"></div>
+    <div id="d-refi" class="mb12"></div>
+  </div>
+  <div class="ast-subpanel" id="ast-panel-overview">
+    <div class="sec-divider">🏦 자산 현황</div>
+    <div id="d-ast-kpi" class="g3 mb12"></div>
+    <div class="card">
+      <div class="card-title">🏦 자산 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 포커스 이동 시 자동 저장</span><button onclick="openOrphanFix()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="이름이 바뀌어서 지금 목록엔 없는 예전 자산 이름을 찾아서 연결해요">🔍 옛날 이름 찾기</button><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
+      <div id="d-ast"></div>
+    </div>
   </div>
 </div>
 
@@ -2548,6 +2562,17 @@ function renderCal(){
   var daysInMonth=new Date(y,m,0).getDate();
   var today=new Date();
   var todayStr=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  // 지출 히트맵 기준값: 이달 일별 지출 중 최댓값 대비 비율로 4단계 음영 처리
+  var maxDayExpense=0;
+  Object.keys(byDate).forEach(function(k){if(byDate[k].expense>maxDayExpense)maxDayExpense=byDate[k].expense;});
+  function heatBg(expense){
+    if(!expense||maxDayExpense<=0)return'';
+    var ratio=expense/maxDayExpense;
+    // 강도 4단계: 약함~강함, 빨강 계열 오버레이(다른 상태 클래스와 겹쳐도 튀지 않게 낮은 알파 사용)
+    if(ratio>=0.66)return'rgba(197,48,48,.22)';
+    if(ratio>=0.33)return'rgba(197,48,48,.13)';
+    return'rgba(197,48,48,.06)';
+  }
   // 그리드 빌드 - DOM 방식
   var grid=document.getElementById('cal-grid');
   grid.innerHTML='';
@@ -2568,6 +2593,7 @@ function renderCal(){
     if(ds===todayStr)cls+=' today';
     el.className=cls;
     el.id='calday-'+ds;
+    if(bd&&bd.expense){var hb=heatBg(bd.expense);if(hb)el.style.background='linear-gradient('+hb+','+hb+'), var(--sf2)';}
     // 날짜 숫자
     var num=document.createElement('div');num.className='cal-day-num';num.textContent=d2;el.appendChild(num);
     // 수입/지출/저축을 한 줄에 배지로 표시
@@ -3556,7 +3582,19 @@ function renderBud(){
       groups[m].push(o);
     });
 
-    Object.keys(groups).forEach(function(m){
+    // 지출 예산 섹션에 한해: 이번달 실적이 있는 대분류는 바로 표시, 실적 0원인 대분류는 하단에 접어서 모아둠
+    var activeMids=[],zeroMids=[];
+    if(isExpense){
+      Object.keys(groups).forEach(function(m){
+        var actualSum=0;
+        getTxs(ym).forEach(function(t){if(t.mid===m&&t.type===sec.type&&!isInvestLossTx(t))actualSum+=Number(t.amount)||0;});
+        if(actualSum>0)activeMids.push(m);else zeroMids.push(m);
+      });
+    }else{
+      activeMids=Object.keys(groups);
+    }
+
+    function buildCard(m){
       var items=groups[m];
       var rows=items.map(function(o){
         var key=o.item.mid+'|'+o.item.sub;
@@ -3627,8 +3665,31 @@ function renderBud(){
         row.appendChild(delBtn);
         card.appendChild(row);
       });
-      container.appendChild(card);
-    });
+      return card;
+    }
+
+    activeMids.forEach(function(m){container.appendChild(buildCard(m));});
+
+    if(isExpense&&zeroMids.length){
+      var accWrap=document.createElement('div');
+      accWrap.style.cssText='grid-column:1/-1;margin-top:4px';
+      var accBtn=document.createElement('button');
+      accBtn.className='btn bg2 bsm';
+      accBtn.style.cssText='width:100%;padding:8px;font-size:12px;text-align:left';
+      accBtn.textContent='▸ 이번달 실적 없는 카테고리 '+zeroMids.length+'개 더보기 ('+zeroMids.join(', ')+')';
+      var accBody=document.createElement('div');
+      accBody.style.cssText='display:none;margin-top:8px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px';
+      accBody.className='bud-grid';
+      zeroMids.forEach(function(m){accBody.appendChild(buildCard(m));});
+      accBtn.onclick=function(){
+        var open=accBody.style.display==='grid';
+        accBody.style.display=open?'none':'grid';
+        accBtn.textContent=(open?'▸':'▾')+' 이번달 실적 없는 카테고리 '+zeroMids.length+'개 '+(open?'더보기':'접기')+' ('+zeroMids.join(', ')+')';
+      };
+      accWrap.appendChild(accBtn);
+      accWrap.appendChild(accBody);
+      container.appendChild(accWrap);
+    }
   });
 }
 
@@ -3793,6 +3854,13 @@ function confirmBulkVarBudget(){
 }
 
 function onBud(el,ym,m,s){var a=Number(el.value)||0;if(!a)return;el.style.borderColor='var(--bl)';saveBudgetItem(ym,m,s,a);el.style.borderColor='var(--gn)';setTimeout(function(){el.style.borderColor='';renderBud();},700);}
+// ── 자산 탭 서브탭(개요/리스크/절세/시뮬레이터) 전환 ──────────────────────────────
+function switchAstSub(name){
+  ['overview','risk','tax','sim'].forEach(function(k){
+    var panel=document.getElementById('ast-panel-'+k);if(panel)panel.style.display=(k===name?'':'none');
+    var tab=document.getElementById('ast-sub-'+k);if(tab)tab.classList.toggle('on',k===name);
+  });
+}
 function renderAst(){
   var ym=gYM();var am=getAssets(ym);var r=calcNW(am,ym);
   renderLiquidityCard(am,r);
@@ -5785,6 +5853,18 @@ function renderStock(){
     }
     var c2=document.getElementById(cid2);
     if(c2&&typeof Chart!=='undefined'){
+      var zeroLinePlugin={
+        id:'zeroLine_'+cid2,
+        afterDraw:function(chart){
+          var yScale=chart.scales.y;if(!yScale)return;
+          var yZero=yScale.getPixelForValue(0);
+          var ctx=chart.ctx;var area=chart.chartArea;
+          ctx.save();
+          ctx.strokeStyle='#4a6fa5';ctx.lineWidth=1.5;ctx.setLineDash([]);
+          ctx.beginPath();ctx.moveTo(area.left,yZero);ctx.lineTo(area.right,yZero);ctx.stroke();
+          ctx.restore();
+        }
+      };
       new Chart(c2,{type:'bar',data:{
         labels:investMonths.map(function(m){return m.slice(5)+'월';}),
         datasets:[{label:'실현수익',data:investMonths.map(function(m){return investByMonth[m];}),
@@ -5793,7 +5873,8 @@ function renderStock(){
       },options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:false}},
         scales:{y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},
-                x:{ticks:{color:'#4a6fa5'},grid:{display:false}}}}});
+                x:{ticks:{color:'#4a6fa5'},grid:{display:false}}}},
+        plugins:[zeroLinePlugin]});
     }
     var c3=document.getElementById(cid3);
     if(c3&&typeof Chart!=='undefined'){
