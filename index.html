@@ -369,7 +369,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div id="d-bud-summary"></div>
   <div id="d-bud-warn"></div>
   <div class="card">
-    <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="openBulkVarBudget()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">🪄 전월 변동지출 95%</button><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
+    <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="fillMissingBudgetTemplatesManual()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="데이트처럼 새로 생겼거나 예산이 아예 없는 카테고리에, 최근 6개월 평균 지출로 예산 초안을 채워요">📊 미설정 카테고리 채우기</button><button onclick="openBulkVarBudget()" class="btn bg2 bsm" style="padding:3px 9px;font-size:11px">🪄 전월 변동지출 95%</button><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
     <div class="bud-grid" id="d-bud"></div>
   </div>
 </div>
@@ -4845,9 +4845,54 @@ function runDateCategoryMigration(){
   });
   saveDB(db);
   localStorage.setItem(MIGRATION_DATE_FLAG,'1');
-  showToast('✅ '+changed+'건을 "데이트" 카테고리로 이관했어요.');
+  var budgetsAdded=fillMissingBudgetTemplates(); // 새로 생긴 카테고리(데이트 등)에 예산 초안을 자동으로 채워둠
+  showToast('✅ '+changed+'건을 "데이트" 카테고리로 이관했어요.'+(budgetsAdded>0?' 예산 초안도 '+budgetsAdded+'개 채웠어요.':''));
   if(typeof renderDash==='function'&&curPage==='dash')renderDash();
   if(typeof renderBud==='function'&&curPage==='bud')renderBud();
+}
+// ── 예산 템플릿(BT)에 아직 등록 안 된 카테고리에, 최근 실적 평균을 "초안"으로 채워두는 함수 ──
+// BT에 추가만 하고 값은 평균 지출액이라, 예산탭에서 그대로 확정해도 되고 원하는 값으로 고쳐도 됨.
+// (전월 95% 자동채움과 달리, 최근 최대 6개월 평균을 써서 카테고리 신설 초반의 값 튐을 줄인다.)
+function fillMissingBudgetTemplates(){
+  var allMonths=getAllMonths();
+  var recentMonths=allMonths.slice(-6); // 최근 최대 6개월
+  if(!recentMonths.length)return;
+  var db=loadDB();var txs=db.txs||[];
+  var recentTxs=txs.filter(function(t){return t.date&&recentMonths.indexOf(t.date.slice(0,7))>=0;});
+  // 이미 BT에 등록된 mid|sub 조합은 건너뜀
+  var existing={};
+  BT.forEach(function(item){existing[item.mid+'|'+item.sub]=true;});
+  // 카테고리 트리(CATS)에 정의된 모든 지출 대분류/소분류 조합 중, 실제 실적이 있고 BT에 없는 것만 대상으로 함
+  var sumBySubKey={};
+  recentTxs.forEach(function(t){
+    if(t.type!=='지출')return;
+    var key=t.mid+'|'+t.sub;
+    sumBySubKey[key]=(sumBySubKey[key]||0)+(Number(t.amount)||0);
+  });
+  var added=0;
+  Object.keys(CATS).forEach(function(mid){
+    var cat=CATS[mid];if(cat.p!=='지출')return;
+    cat.s.forEach(function(sub){
+      var key=mid+'|'+sub;
+      if(existing[key])return; // 이미 예산 설정돼 있음
+      var sum=sumBySubKey[key]||0;
+      if(sum<=0)return; // 실적 자체가 없으면 채울 근거가 없으니 건너뜀(계속 "예산 미설정"으로 남아 눈에 띄게 함)
+      var avg=Math.round(sum/recentMonths.length/1000)*1000;
+      if(avg<=0)return;
+      BT.push({mid:mid,sub:sub,amount:avg});
+      added++;
+    });
+  });
+  if(added>0)saveBT();
+  return added;
+}
+// 예산 탭 버튼에서 수동으로 호출하는 진입점 (확인창 + 결과 안내 + 화면 갱신)
+function fillMissingBudgetTemplatesManual(){
+  if(!confirm('예산이 설정 안 된 카테고리(예: 데이트)에, 최근 최대 6개월 지출 평균으로 예산 초안을 채울까요?\n이미 예산이 설정된 카테고리는 건드리지 않아요. 채워진 값은 예산탭에서 언제든 수정할 수 있어요.'))return;
+  var added=fillMissingBudgetTemplates();
+  if(added>0)showToast('📊 예산 미설정 카테고리 '+added+'개에 최근 평균 지출로 예산 초안을 채워뒀어요. 확인/수정해주세요.');
+  else showToast('채울 카테고리가 없어요. 이미 다 설정돼 있거나, 최근 실적이 없는 카테고리예요.');
+  if(curPage==='bud')renderBud();
 }
 function importHomeXlsx(e){
   var file=e.target.files[0];if(!file)return;
