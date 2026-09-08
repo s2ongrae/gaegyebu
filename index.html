@@ -191,9 +191,9 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div class="md" style="max-width:300px;text-align:center">
     <div style="font-size:40px;margin-bottom:10px">🔒</div>
     <h3 style="margin-bottom:16px">가계부 잠금</h3>
-    <input type="password" id="lock-pin-input" placeholder="비밀번호" onkeydown="if(event.key==='Enter')tryUnlock()" style="width:100%;text-align:center;font-size:18px;letter-spacing:4px;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:10px;border-radius:var(--rs);font-family:inherit;box-sizing:border-box">
-    <div id="lock-error" style="color:var(--rd);font-size:12px;margin-top:8px;min-height:16px"></div>
-    <button class="btn bp" style="width:100%;margin-top:6px" onclick="tryUnlock()">🔓 잠금 해제</button>
+    <div id="lock-pin-dots" style="display:flex;justify-content:center;gap:14px;margin:16px 0"></div>
+    <div id="lock-error" style="color:var(--rd);font-size:12px;margin-bottom:8px;min-height:16px"></div>
+    <div id="lock-keypad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:220px;margin:0 auto"></div>
   </div>
 </div>
 <nav class="nav">
@@ -1247,16 +1247,54 @@ function isUnlocked(){
   if(!pinHash)return true;
   return sessionStorage.getItem(UNLOCK_SESSION_KEY)==='1';
 }
+// ── 4자리 PIN 키패드 (잠금해제 / 잠금설정 공용) ──────────────────────
+var pinBuffer='';
+function renderPinKeypad(containerId,onDigit,onBackspace){
+  var wrap=document.getElementById(containerId);
+  if(!wrap)return;
+  wrap.innerHTML='';
+  ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(function(k){
+    var btn=document.createElement('button');
+    btn.type='button';
+    btn.style.cssText='padding:16px 0;font-size:20px;font-weight:700;border-radius:var(--r);border:1px solid var(--bd2);background:var(--sf2);color:var(--tx);cursor:pointer;font-family:inherit';
+    if(k===''){btn.style.visibility='hidden';btn.disabled=true;}
+    else if(k==='⌫'){btn.onclick=onBackspace;btn.style.color='var(--rd)';}
+    else btn.onclick=function(){onDigit(k);};
+    btn.textContent=k;
+    wrap.appendChild(btn);
+  });
+}
+function renderPinDots(containerId,len,max){
+  var wrap=document.getElementById(containerId);
+  if(!wrap)return;
+  wrap.innerHTML='';
+  for(var i=0;i<max;i++){
+    var dot=document.createElement('div');
+    dot.style.cssText='width:16px;height:16px;border-radius:50%;border:2px solid var(--bl);'+(i<len?'background:var(--bl)':'background:transparent');
+    wrap.appendChild(dot);
+  }
+}
 function showLockScreen(){
   var el=document.getElementById('lock-screen');
   if(!el)return;
   el.style.display='flex';
-  var inp=document.getElementById('lock-pin-input');
-  if(inp){inp.value='';setTimeout(function(){inp.focus();},50);}
+  pinBuffer='';
+  renderPinDots('lock-pin-dots',0,4);
+  var errEl=document.getElementById('lock-error');if(errEl)errEl.textContent='';
+  renderPinKeypad('lock-keypad',onLockDigit,onLockBackspace);
+}
+function onLockDigit(d){
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=d;
+  renderPinDots('lock-pin-dots',pinBuffer.length,4);
+  if(pinBuffer.length===4)setTimeout(tryUnlock,150);
+}
+function onLockBackspace(){
+  pinBuffer=pinBuffer.slice(0,-1);
+  renderPinDots('lock-pin-dots',pinBuffer.length,4);
 }
 async function tryUnlock(){
-  var inp=document.getElementById('lock-pin-input');
-  var val=inp?inp.value:'';
+  var val=pinBuffer;
   var hash=await sha256(val);
   if(hash===localStorage.getItem(PIN_KEY)){
     sessionStorage.setItem(UNLOCK_SESSION_KEY,'1');
@@ -1265,46 +1303,89 @@ async function tryUnlock(){
   }else{
     var errEl=document.getElementById('lock-error');
     if(errEl)errEl.textContent='비밀번호가 틀렸어요';
-    if(inp){inp.value='';inp.focus();}
+    pinBuffer='';
+    renderPinDots('lock-pin-dots',0,4);
   }
 }
+// ── 비밀번호 설정: 4자리 키패드 (현재확인 → 새 PIN → 재확인 3단계) ──
+var setupBuffer='';
+var setupNewPin='';
+var setupStep='new'; // 'verify' | 'new' | 'confirm'
 function openPinSetup(){
   var hasPin=!!localStorage.getItem(PIN_KEY);
   var existing=document.getElementById('pin-setup-md');if(existing)existing.remove();
+  setupBuffer='';setupNewPin='';setupStep=hasPin?'verify':'new';
   var md=document.createElement('div');md.className='mdbg on';md.id='pin-setup-md';
-  md.innerHTML='<div class="md">'
-    +'<div class="mdh"><h3>🔒 비밀번호 '+(hasPin?'변경 / 해제':'설정')+'</h3><button class="mdc" onclick="document.getElementById(\'pin-setup-md\').remove()">✕</button></div>'
-    +(hasPin?'<div><label>현재 비밀번호</label><input type="password" id="pin-current" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>':'')
-    +'<div class="mt8"><label>새 비밀번호 (4자리 이상 · 비워두고 저장하면 잠금 해제)</label><input type="password" id="pin-new" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div style="font-size:11px;color:var(--mu);margin-top:6px">⚠️ 같은 기기/브라우저에서 남이 화면을 슬쩍 보는 걸 막는 정도예요. 데이터 자체를 암호화하는 건 아니에요.</div>'
-    +'<div class="fx g8 mt8">'
-    +'<button class="btn bp" onclick="confirmPinSetup()">💾 저장</button>'
-    +'<button class="btn bg2" onclick="document.getElementById(\'pin-setup-md\').remove()">취소</button>'
-    +'</div>'
+  md.innerHTML='<div class="md" style="max-width:300px;text-align:center">'
+    +'<div class="mdh"><h3 id="pin-setup-title"></h3><button class="mdc" onclick="document.getElementById(\'pin-setup-md\').remove()">✕</button></div>'
+    +'<div id="pin-setup-dots" style="display:flex;justify-content:center;gap:14px;margin:16px 0"></div>'
+    +'<div id="pin-setup-error" style="color:var(--rd);font-size:12px;margin-bottom:8px;min-height:16px"></div>'
+    +'<div id="pin-setup-keypad" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:220px;margin:0 auto"></div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-top:12px">⚠️ 같은 기기/브라우저에서 남이 화면을 슬쩍 보는 걸 막는 정도예요. 데이터 자체를 암호화하는 건 아니에요.</div>'
+    +(hasPin?'<button class="btn bg2" style="width:100%;margin-top:10px" onclick="removePinLock()">🔓 비밀번호 잠금 없애기</button>':'')
     +'</div>';
   document.body.appendChild(md);
+  renderPinSetupStep();
 }
-async function confirmPinSetup(){
-  var hasPin=!!localStorage.getItem(PIN_KEY);
-  if(hasPin){
-    var curEl=document.getElementById('pin-current');
-    var curHash=await sha256(curEl?curEl.value:'');
-    if(curHash!==localStorage.getItem(PIN_KEY)){showToast('❌ 현재 비밀번호가 틀렸어요.');return;}
-  }
-  var newPin=document.getElementById('pin-new').value;
-  if(!newPin){
-    localStorage.removeItem(PIN_KEY);
-    sessionStorage.removeItem(UNLOCK_SESSION_KEY);
-    showToast('🔓 비밀번호 잠금이 해제됐어요.');
-  }else{
-    if(newPin.length<4){showToast('⚠️ 4자리 이상으로 설정해주세요.');return;}
-    var newHash=await sha256(newPin);
+function renderPinSetupStep(){
+  var titles={verify:'현재 비밀번호 입력',new:'새 비밀번호 (4자리)',confirm:'다시 한번 입력해주세요'};
+  var titleEl=document.getElementById('pin-setup-title');if(titleEl)titleEl.textContent='🔒 '+titles[setupStep];
+  renderPinDots('pin-setup-dots',setupBuffer.length,4);
+  var errEl=document.getElementById('pin-setup-error');if(errEl)errEl.textContent='';
+  renderPinKeypad('pin-setup-keypad',onSetupDigit,onSetupBackspace);
+}
+function onSetupDigit(d){
+  if(setupBuffer.length>=4)return;
+  setupBuffer+=d;
+  renderPinDots('pin-setup-dots',setupBuffer.length,4);
+  if(setupBuffer.length===4)setTimeout(advancePinSetup,150);
+}
+function onSetupBackspace(){
+  setupBuffer=setupBuffer.slice(0,-1);
+  renderPinDots('pin-setup-dots',setupBuffer.length,4);
+}
+async function advancePinSetup(){
+  if(setupStep==='verify'){
+    var hash=await sha256(setupBuffer);
+    if(hash!==localStorage.getItem(PIN_KEY)){
+      var errEl=document.getElementById('pin-setup-error');if(errEl)errEl.textContent='현재 비밀번호가 틀렸어요';
+      setupBuffer='';renderPinDots('pin-setup-dots',0,4);
+      return;
+    }
+    setupStep='new';setupBuffer='';renderPinSetupStep();
+  }else if(setupStep==='new'){
+    setupNewPin=setupBuffer;
+    setupStep='confirm';setupBuffer='';renderPinSetupStep();
+  }else if(setupStep==='confirm'){
+    if(setupBuffer!==setupNewPin){
+      var errEl2=document.getElementById('pin-setup-error');if(errEl2)errEl2.textContent='입력한 비밀번호가 서로 달라요, 다시 시도해주세요';
+      setupStep='new';setupBuffer='';setupNewPin='';renderPinSetupStep();
+      return;
+    }
+    var newHash=await sha256(setupNewPin);
     localStorage.setItem(PIN_KEY,newHash);
     sessionStorage.setItem(UNLOCK_SESSION_KEY,'1');
     showToast('✅ 비밀번호가 설정됐어요.');
+    var md=document.getElementById('pin-setup-md');if(md)md.remove();
   }
+}
+function removePinLock(){
+  if(!confirm('비밀번호 잠금을 없앨까요?'))return;
+  localStorage.removeItem(PIN_KEY);
+  sessionStorage.removeItem(UNLOCK_SESSION_KEY);
+  showToast('🔓 비밀번호 잠금이 해제됐어요.');
   var md=document.getElementById('pin-setup-md');if(md)md.remove();
 }
+document.addEventListener('keydown',function(e){
+  var lockVisible=document.getElementById('lock-screen')&&document.getElementById('lock-screen').style.display==='flex';
+  var setupVisible=!!document.getElementById('pin-setup-md');
+  if(!lockVisible&&!setupVisible)return;
+  if(e.key>='0'&&e.key<='9'){
+    if(lockVisible)onLockDigit(e.key);else if(setupVisible)onSetupDigit(e.key);
+  }else if(e.key==='Backspace'){
+    if(lockVisible)onLockBackspace();else if(setupVisible)onSetupBackspace();
+  }
+});
 
 window.onload=function(){
   if(!isUnlocked()){showLockScreen();return;}
