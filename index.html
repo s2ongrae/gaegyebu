@@ -475,7 +475,8 @@ var CATS={
   '금융지출':{'p':'지출','s':['보험료','투자손실','기타금융지출','이자/대출']},
   '문화여가':{'p':'지출','s':['영화관람','풋살','런닝','구독료','기타문화비']},
   '교육':{'p':'지출','s':['학원/강의','교육투자','기타교육비']},
-  '유흥':{'p':'지출','s':['음주','대리비','데이트','기타유흥']},
+  '유흥':{'p':'지출','s':['음주','대리비','기타유흥']},
+  '데이트':{'p':'지출','s':['식비','여행','선물','교통비']},
   '반려동물':{'p':'지출','s':['펫보험/병원','메리용품','메리사료/간식','반려동물 기타']},
   '경조선물':{'p':'지출','s':['경조사','선물','엄마적금','엄마보험','기타경조사']},
   '여행':{'p':'지출','s':['항공권','숙박비','기타여행비']},
@@ -485,7 +486,7 @@ var CATS={
 };
 var SUB_ICON={
   // 식비
-  '외식':'🍽️','배달':'🛵','식자재':'🛒','커피':'☕',
+  '외식':'🍽️','배달':'🛵','식자재':'🛒','커피':'☕','식비':'🍽️',
   // 생활
   '생활서비스':'🔧','생활용품':'📦','가구/가전':'🛋️','기타생활비':'🏠',
   // 꾸밈
@@ -507,7 +508,7 @@ var SUB_ICON={
   // 교육
   '학원/강의':'📚','교육투자':'🎓','기타교육비':'📝',
   // 유흥
-  '음주':'🍻','대리비':'🚖','데이트':'💑','기타유흥':'🎉',
+  '음주':'🍻','대리비':'🚖','기타유흥':'🎉',
   // 반려동물
   '펫보험/병원':'🐾','메리용품':'🐱','메리사료/간식':'🐟','반려동물 기타':'🐾',
   // 경조선물
@@ -558,8 +559,8 @@ function migratePaysCleanup(){
   extra.forEach(function(p){var i=PAYS.indexOf(p);if(i>=0)PAYS.splice(i,1);});
   localStorage.removeItem(PAYS_CUSTOM_KEY);
 }
-var MC={'식비':'#06b6d4','생활':'#94a3b8','꾸밈':'#ec4899','교통':'#f97316','자동차':'#64748b','주거':'#84cc16','통신':'#22d3ee','건강':'#f43f5e','금융지출':'#a78bfa','문화여가':'#fbbf24','교육':'#34d399','유흥':'#ef4444','반려동물':'#fb923c','경조선물':'#e879f9','여행':'#38bdf8','업무지출':'#6366f1','수입':'#10b981','저축':'#3b82f6'};
-var CE={'식비':'🍱','생활':'🏠','꾸밈':'👔','교통':'🚌','자동차':'🚗','주거':'🏡','통신':'📱','건강':'💊','금융지출':'💳','문화여가':'🎬','교육':'📚','유흥':'🍻','반려동물':'🐱','경조선물':'🎁','여행':'✈️','업무지출':'💼','수입':'💰','저축':'🏦'};
+var MC={'식비':'#06b6d4','생활':'#94a3b8','꾸밈':'#ec4899','교통':'#f97316','자동차':'#64748b','주거':'#84cc16','통신':'#22d3ee','건강':'#f43f5e','금융지출':'#a78bfa','문화여가':'#fbbf24','교육':'#34d399','유흥':'#ef4444','데이트':'#f472b6','반려동물':'#fb923c','경조선물':'#e879f9','여행':'#38bdf8','업무지출':'#6366f1','수입':'#10b981','저축':'#3b82f6'};
+var CE={'식비':'🍱','생활':'🏠','꾸밈':'👔','교통':'🚌','자동차':'🚗','주거':'🏡','통신':'📱','건강':'💊','금융지출':'💳','문화여가':'🎬','교육':'📚','유흥':'🍻','데이트':'💑','반려동물':'🐱','경조선물':'🎁','여행':'✈️','업무지출':'💼','수입':'💰','저축':'🏦'};
 var FX=[
   // ── 수입 ──────────────────────────────────────────────────
   {type:'수입',mid:'수입',sub:'레드윗 급여',  memo:'고정수입',                  amt:0,      pay:'현금',        eval:''},
@@ -2824,25 +2825,78 @@ function getUpcomingAnnualExpenses(fromYm,monthsAhead){
   }
   return result.sort(function(a,b){return a.ym<b.ym?-1:1;});
 }
+// 카테고리별 태그(아이콘/색) — 이름에 포함된 키워드로 자동 추정, 명시 지정도 가능
+var AE_TAG_DEFS=[
+  {key:'세금',icon:'🏛️',color:'var(--rd)',kw:['세','재산세','자동차세','종부세']},
+  {key:'보험',icon:'🛡️',color:'var(--pu)',kw:['보험']},
+  {key:'명절/경조',icon:'🎊',color:'var(--yw)',kw:['명절','설','추석','경조']},
+  {key:'기타',icon:'📌',color:'var(--mu)',kw:[]}
+];
+function guessAeTag(name){
+  for(var i=0;i<AE_TAG_DEFS.length-1;i++){
+    var d=AE_TAG_DEFS[i];
+    for(var j=0;j<d.kw.length;j++)if(name.indexOf(d.kw[j])>=0)return d;
+  }
+  return AE_TAG_DEFS[AE_TAG_DEFS.length-1];
+}
+// 기준월(오늘) 대비 등록된 항목의 다음 발생까지 남은 개월수(0=이번달)
+function monthsUntil(month){
+  var now=new Date();var curMon=now.getMonth()+1;
+  var diff=(Number(month)-curMon+12)%12;
+  return diff;
+}
 function openAnnualExpenseManager(){
   var list=loadAnnualExpenses();
   var existing=document.getElementById('annualexp-md');if(existing)existing.remove();
   var md=document.createElement('div');md.className='mdbg on';md.id='annualexp-md';
-  var html='<div class="md" style="width:480px;max-width:96vw;max-height:85vh;overflow-y:auto">'
+  // 다가오는 순서로 정렬(이번달에 가까운 것부터), 총액/월평균 계산
+  var sorted=list.slice().sort(function(a,b){return monthsUntil(a.month)-monthsUntil(b.month);});
+  var yearTotal=list.reduce(function(s,x){return s+(Number(x.amount)||0);},0);
+  var monthlyAvg=yearTotal/12;
+  var html='<div class="md" style="width:520px;max-width:96vw;max-height:85vh;overflow-y:auto">'
     +'<div class="mdh"><h3>📅 비정기 예정지출 관리</h3><button class="mdc" onclick="document.getElementById(\'annualexp-md\').remove()">✕</button></div>'
     +'<div class="al inf mb8" style="font-size:12px">재산세, 자동차보험 갱신, 명절비처럼 "매달은 아니지만 특정 달에 크게 나가는 돈"을 등록해두면, 다음달 예상 수지에 자동으로 반영돼요. 매년 반복되는 걸로 가정해요.</div>'
+    // 연간 요약 카드
+    +(list.length?(
+      '<div style="display:flex;gap:8px;margin-bottom:12px">'
+        +'<div style="flex:1;background:var(--sf2);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 12px">'
+          +'<div style="font-size:11px;color:var(--mu);font-weight:700;letter-spacing:.04em;text-transform:uppercase">연간 총액</div>'
+          +'<div style="font-size:18px;font-weight:900;margin-top:2px">'+ff(yearTotal)+'</div>'
+        +'</div>'
+        +'<div style="flex:1;background:var(--sf2);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 12px">'
+          +'<div style="font-size:11px;color:var(--mu);font-weight:700;letter-spacing:.04em;text-transform:uppercase">월평균 반영액</div>'
+          +'<div style="font-size:18px;font-weight:900;margin-top:2px">'+ff(monthlyAvg)+'</div>'
+        +'</div>'
+      +'</div>'
+    ):'')
     +'<div class="fg c3 mb8" style="align-items:end">'
     +'<div><label>이름</label><input type="text" id="ae-name" placeholder="예: 재산세" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div><label>예상 월</label><select id="ae-month" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+[1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){return'<option value="'+m+'">'+m+'월</option>';}).join('')+'</select></div>'
     +'<div><label>예상 금액(원)</label><input type="number" id="ae-amount" placeholder="예: 300000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'</div>'
     +'<button class="btn bp" style="width:100%" onclick="confirmAddAnnualExpense()">＋ 추가</button>'
-    +'<div class="mt8" style="border-top:1px solid var(--bd);padding-top:8px">'
-    +(list.length?list.map(function(x){
-      return'<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd)">'
-        +'<span style="font-size:12px">'+x.month+'월 · '+x.name+'</span>'
-        +'<span style="display:flex;align-items:center;gap:8px"><b style="font-size:12px">'+ff(x.amount)+'</b><button class="btn bg2 bsm" style="padding:3px 7px" onclick="removeAnnualExpense(\''+x.id+'\');openAnnualExpenseManager();if(curPage===\'dash\')renderDash();else if(curPage===\'bud\')renderBud();">🗑️</button></span>'
-        +'</div>';
+    +'<div class="mt8" style="border-top:1px solid var(--bd);padding-top:8px;display:flex;flex-direction:column;gap:6px">'
+    +(sorted.length?sorted.map(function(x){
+      var tag=guessAeTag(x.name);
+      var mleft=monthsUntil(x.month);
+      var dday=mleft===0?'이번달':(mleft===1?'다음달':mleft+'개월 후');
+      var ratio=yearTotal>0?Math.round((Number(x.amount)||0)/yearTotal*100):0;
+      return'<div style="background:var(--sf2);border:1px solid var(--bd);border-radius:var(--rs);padding:9px 11px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center">'
+          +'<div style="display:flex;align-items:center;gap:7px">'
+            +'<span style="font-size:15px">'+tag.icon+'</span>'
+            +'<span style="font-size:13px;font-weight:700">'+x.name+'</span>'
+            +'<span style="font-size:11px;color:var(--mu);background:var(--sf3);padding:1px 7px;border-radius:99px">'+x.month+'월 · '+dday+'</span>'
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:8px">'
+            +'<b style="font-size:13px">'+ff(x.amount)+'</b>'
+            +'<button class="btn bg2 bsm" style="padding:3px 7px" onclick="removeAnnualExpense(\''+x.id+'\');openAnnualExpenseManager();if(curPage===\'dash\')renderDash();else if(curPage===\'bud\')renderBud();">🗑️</button>'
+          +'</div>'
+        +'</div>'
+        +'<div style="height:4px;background:var(--sf3);border-radius:99px;margin-top:7px;overflow:hidden">'
+          +'<div style="height:100%;width:'+Math.max(ratio,3)+'%;background:'+tag.color+'"></div>'
+        +'</div>'
+      +'</div>';
     }).join(''):'<div class="em">아직 등록된 예정지출이 없어요.</div>')
     +'</div>'
     +'</div>';
@@ -4667,6 +4721,62 @@ var HOME_XLSX_CAT_MAP={
   '금융지출|투자':'금융지출|투자손실',
   '기타|기타업무처리':'생활|기타생활비','기타|연간비':'생활|기타생활비'
 };
+// ── 1회성 마이그레이션: 유흥>데이트 → 데이트 대분류로 이관 (2026-09 작업) ──
+// 실행 전 체크포인트 자동 저장. 실행 후 이 버튼은 숨김 처리됨(gaegyebu_migration_date_v1 플래그).
+var MIGRATION_DATE_FLAG='gaegyebu_migration_date_v1';
+function classifyDateTx(memo){
+  var m=memo||'';
+  var overrides={
+    '[장어] 주형이랑 식비 - 우렁각시 선물':'식비',
+    '주형이 용돈':'선물',
+    '올리브영-CD':'선물',
+    '쿠팡 - 여행지도 구매':'여행',
+    '[이환헤어] 주형이 머리 선물':'선물'
+  };
+  if(Object.prototype.hasOwnProperty.call(overrides,m))return overrides[m];
+  var giftKw=['선물','반지','꽃 + 편지지','케이크','생일','200일','600일','신발 - 나이키','루피 가방','쿠션','잠옷'];
+  var travelKw=['여행','숙소','숙박','글램핑','렌터카','제주도','칭다오','다낭','거제','태안','강릉','전주','통영','해운대','경주','부산','목포','양떼목장','휴게소'];
+  var transportKw=['택시','주차','하이패스','톨비','철도','승차권','대리'];
+  for(var i=0;i<giftKw.length;i++)if(m.indexOf(giftKw[i])>=0)return'선물';
+  for(var j=0;j<travelKw.length;j++)if(m.indexOf(travelKw[j])>=0)return'여행';
+  for(var k=0;k<transportKw.length;k++)if(m.indexOf(transportKw[k])>=0)return'교통비';
+  return'식비';
+}
+function runDateCategoryMigration(){
+  if(localStorage.getItem(MIGRATION_DATE_FLAG)){showToast('이미 실행된 마이그레이션이에요.');return;}
+  if(!confirm('"유흥>데이트" 및 관련 거래를 새 "데이트" 대분류로 이관할까요?\n(실행 전 자동 백업이 저장돼요)'))return;
+  saveCheckpoint('데이트 카테고리 분리 전 백업');
+  var db=loadDB();var txs=db.txs||[];
+  var changed=0;
+  txs.forEach(function(t){
+    var memo=t.memo||'';
+    // 1) 유흥>데이트 → 데이트>(식비/여행/선물/교통비)
+    if(t.mid==='유흥'&&t.sub==='데이트'){
+      t.sub=classifyDateTx(memo);t.mid='데이트';changed++;return;
+    }
+    // 2) 여행 대분류 중 "주형"+"다낭" 언급 → 데이트>여행
+    if(t.mid==='여행'&&memo.indexOf('주형')>=0&&memo.indexOf('다낭')>=0){
+      t.mid='데이트';t.sub='여행';changed++;return;
+    }
+    // 3) 자동차>주차/통행료 중 "데이트" 메모 → 데이트>교통비
+    if(t.mid==='자동차'&&t.sub==='주차/통행료'&&memo.indexOf('데이트')>=0){
+      t.mid='데이트';t.sub='교통비';changed++;return;
+    }
+    // 4) 유흥>음주,대리비 중 "주형" 언급 → 데이트>식비
+    if(t.mid==='유흥'&&(t.sub==='음주'||t.sub==='대리비')&&memo.indexOf('주형')>=0){
+      t.mid='데이트';t.sub='식비';changed++;return;
+    }
+    // 5) 저축>연금저축펀드 중 "로또" 메모 → 금융지출>투자손실 (2025-04~05 오분류 4건)
+    if(t.mid==='저축'&&t.sub==='연금저축펀드'&&memo.indexOf('로또')>=0){
+      t.mid='금융지출';t.sub='투자손실';changed++;return;
+    }
+  });
+  saveDB(db);
+  localStorage.setItem(MIGRATION_DATE_FLAG,'1');
+  showToast('✅ '+changed+'건을 "데이트" 카테고리로 이관했어요.');
+  if(typeof renderDash==='function'&&curPage==='dash')renderDash();
+  if(typeof renderBud==='function'&&curPage==='bud')renderBud();
+}
 function importHomeXlsx(e){
   var file=e.target.files[0];if(!file)return;
   var reader=new FileReader();
