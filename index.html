@@ -454,29 +454,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 
 <script>
 
-// 연간 목표 데이터 (2026년 기준)
-var ANNUAL={
-  income_goals:[
-    {name:'레드윗 급여', goal:38890404},
-    {name:'AZ 급여',     goal:18000000},
-    {name:'투자수입',    goal:6000000},
-    {name:'돌보미수입',  goal:3600000},
-    {name:'보험금수입',  goal:2400000},
-    {name:'중고거래수입',goal:2300000},
-    {name:'기타수입',    goal:2400000}
-  ],
-  saving_goals:[
-    {name:'주택청약',    goal:1040000},
-    {name:'ISA',         goal:1200000},
-    {name:'IRP',         goal:1500000},
-    {name:'연금저축펀드',goal:2000000},
-    {name:'종신(KDB)',   goal:1203957},
-    {name:'종신(라이나)',goal:1345767},
-    {name:'대출상환',    goal:20400000}
-  ],
-  budget_total: 51472989
-};
-
 var CATS={
   '식비':{'p':'지출','s':['외식','배달','식자재','커피']},
   '생활':{'p':'지출','s':['생활서비스','생활용품','가구/가전','기타생활비']},
@@ -1046,7 +1023,20 @@ function saveBT(){localStorage.setItem(BT_KEY,JSON.stringify(BT));}
 function addBudgetTemplateItem(item){BT.push(item);saveBT();}
 function updateBudgetTemplateItem(i,item){BT[i]=item;saveBT();}
 function removeBudgetTemplateItem(i){BT.splice(i,1);saveBT();}
-// 예산탭이 수입/저축 목표도 지원하게 된 뒤 처음 접속하는 기존 사용자를 위한 1회성 백필.
+// 예산탭이 수입/저축 목표도 지원하게 된 뒤 처음 접속하는 기존 사용자를 위한 1회성 백필용 초기값.
+// ⚠️ 이 배열은 백필(최초 1회) 용도로만 쓴다. 실제 목표값은 예산탭(BT)에 저장된 값이 항상 최신이므로,
+//    화면 표시용 로직(renderAnnual 등)에서는 절대 이 배열을 직접 참조하지 말고 getEffectiveBudget()을 통해야 한다.
+//    (과거에 renderAnnual이 이 배열을 직접 참조해서, 예산탭에서 값을 고쳐도 연간결산엔 반영 안 되는 버그가 있었음)
+var ANNUAL_INCOME_GOALS=[
+  {sub:'레드윗 급여', goal:38890404},{sub:'AZ 급여',goal:18000000},
+  {sub:'투자수입',goal:6000000},{sub:'돌보미수입',goal:3600000},
+  {sub:'보험금수입',goal:2400000},{sub:'중고거래수입',goal:2300000},{sub:'기타수입',goal:2400000}
+];
+var ANNUAL_SAVING_GOALS=[
+  {sub:'주택청약',goal:1040000},{sub:'ISA',goal:1200000},{sub:'IRP',goal:1500000},
+  {sub:'연금저축펀드',goal:2000000},{sub:'종신(KDB)',goal:1203957},
+  {sub:'종신(라이나)',goal:1345767},{sub:'대출상환',goal:20400000}
+];
 // 이미 수입/저축 항목이 하나라도 BT에 있으면(직접 추가했든, 이미 백필됐든) 다시 건드리지 않는다.
 function backfillIncomeSavingsGoals(){
   var hasNonExpense=BT.some(function(b){var cat=CATS[b.mid];return cat&&(cat.p==='수입'||cat.p==='저축');});
@@ -6115,26 +6105,26 @@ function renderAssetComp(){
   return wrap.outerHTML;
 }
 
-// 연간 수입/저축 목표 (renderAnnual과 예산탭 백필이 공유)
-var ANNUAL_INCOME_GOALS=[
-  {sub:'레드윗 급여', goal:38890404},{sub:'AZ 급여',goal:18000000},
-  {sub:'투자수입',goal:6000000},{sub:'돌보미수입',goal:3600000},
-  {sub:'보험금수입',goal:2400000},{sub:'중고거래수입',goal:2300000},{sub:'기타수입',goal:2400000}
-];
-var ANNUAL_SAVING_GOALS=[
-  {sub:'주택청약',goal:1040000},{sub:'ISA',goal:1200000},{sub:'IRP',goal:1500000},
-  {sub:'연금저축펀드',goal:2000000},{sub:'종신(KDB)',goal:1203957},
-  {sub:'종신(라이나)',goal:1345767},{sub:'대출상환',goal:20400000}
-];
-
 function renderAnnual(months){
-  // 연간 총 예산: 하드코딩 숫자 대신, 해당 연도 각 달에 "실제로 적용된" 예산(예산탭과 동일 로직)을 합산
+  // 연간 총 예산/목표: 하드코딩 숫자 대신, 해당 연도 각 달에 "실제로 적용된" 예산/목표(예산탭과 동일 로직)를 합산
+  // (이렇게 해야 예산탭에서 값을 수정하면 여기도 항상 같이 바뀐다 — 전에는 지출만 이 방식이고 수입/저축은 하드코딩이라 서로 안 맞았음)
   var ANNUAL_BUDGET_TOTAL=0;
   var ANNUAL_BUDGET_BY_MID={};
+  var incGoalBySub={},savGoalBySub={};
   months.forEach(function(monthYm){
-    var eb=getEffectiveBudget(monthYm);
+    var eb=getEffectiveBudget(monthYm,'지출');
     ANNUAL_BUDGET_TOTAL+=eb.total;
     Object.keys(eb.byMid).forEach(function(m){ANNUAL_BUDGET_BY_MID[m]=(ANNUAL_BUDGET_BY_MID[m]||0)+eb.byMid[m];});
+    var ebInc=getEffectiveBudget(monthYm,'수입');
+    Object.keys(ebInc.bySub).forEach(function(key){
+      var sub=key.split('|')[1];
+      incGoalBySub[sub]=(incGoalBySub[sub]||0)+ebInc.bySub[key];
+    });
+    var ebSav=getEffectiveBudget(monthYm,'저축');
+    Object.keys(ebSav.bySub).forEach(function(key){
+      var sub=key.split('|')[1];
+      savGoalBySub[sub]=(savGoalBySub[sub]||0)+ebSav.bySub[key];
+    });
   });
   var db=loadDB();
   var allTxs=(db.txs||[]).filter(function(t){return months.indexOf(t.date.slice(0,7))>=0;});
@@ -6145,7 +6135,7 @@ function renderAnnual(months){
     incMap[t.sub]=(incMap[t.sub]||0)+(Number(t.amount)||0);
   });
   var totalInc=Object.values(incMap).reduce(function(s,v){return s+v;},0);
-  var totalIncGoal=ANNUAL_INCOME_GOALS.reduce(function(s,g){return s+g.goal;},0);
+  var totalIncGoal=Object.values(incGoalBySub).reduce(function(s,v){return s+v;},0);
 
   // 저축별 현황
   var savMap={};
@@ -6153,7 +6143,7 @@ function renderAnnual(months){
     savMap[t.sub]=(savMap[t.sub]||0)+(Number(t.amount)||0);
   });
   var totalSav=Object.values(savMap).reduce(function(s,v){return s+v;},0);
-  var totalSavGoal=ANNUAL_SAVING_GOALS.reduce(function(s,g){return s+g.goal;},0);
+  var totalSavGoal=Object.values(savGoalBySub).reduce(function(s,v){return s+v;},0);
 
   // 지출별 현황 (투자손실은 실제 생활비 실적이 아니므로 제외)
   var expMap={};
@@ -6281,24 +6271,26 @@ function renderAnnual(months){
     +'<span>💰 수입 목표 달성률</span>'
     +'<span style="font-size:11px;color:var(--mu2)">목표 '+f(totalIncGoal)+' / 현황 '+f(totalInc)+'</span>'
     +'</div>'
-    +ANNUAL_INCOME_GOALS.map(function(g,gi){
-      var v=incMap[g.sub]||0;
+    +(CATS['수입'].s.filter(function(sub){return(incGoalBySub[sub]||0)>0||(incMap[sub]||0)>0;}).map(function(sub,gi){
+      var v=incMap[sub]||0;
+      var goal=incGoalBySub[sub]||0;
       var rowId='inc-goal-sub-'+gi;
-      var txList=allTxs.filter(function(t){return t.type==='수입'&&t.sub===g.sub;});
-      return mkGoalRow(g.sub,v,g.goal,'var(--gn)',months.length,rowId,txList);
-    }).join('')
+      var txList=allTxs.filter(function(t){return t.type==='수입'&&t.sub===sub;});
+      return mkGoalRow(sub,v,goal,'var(--gn)',months.length,rowId,txList);
+    }).join(''))
     +'</div>'
     +'<div>'
     +'<div style="font-size:12px;font-weight:700;color:var(--bl);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between">'
     +'<span>🏦 저축 목표 달성률</span>'
     +'<span style="font-size:11px;color:var(--mu2)">목표 '+f(totalSavGoal)+' / 현황 '+f(totalSav)+'</span>'
     +'</div>'
-    +ANNUAL_SAVING_GOALS.map(function(g,gi){
-      var v=savMap[g.sub]||0;
+    +(CATS['저축'].s.filter(function(sub){return(savGoalBySub[sub]||0)>0||(savMap[sub]||0)>0;}).map(function(sub,gi){
+      var v=savMap[sub]||0;
+      var goal=savGoalBySub[sub]||0;
       var rowId='sav-goal-sub-'+gi;
-      var txList=allTxs.filter(function(t){return t.type==='저축'&&t.sub===g.sub;});
-      return mkGoalRow(g.sub,v,g.goal,'var(--bl)',months.length,rowId,txList);
-    }).join('')
+      var txList=allTxs.filter(function(t){return t.type==='저축'&&t.sub===sub;});
+      return mkGoalRow(sub,v,goal,'var(--bl)',months.length,rowId,txList);
+    }).join(''))
     +'</div></div>'
 
     // 지출순위 + 예산 통합 테이블
