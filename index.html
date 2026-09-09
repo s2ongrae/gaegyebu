@@ -558,6 +558,59 @@ function migratePaysCleanup(){
 }
 var MC={'식비':'#06b6d4','생활':'#94a3b8','꾸밈':'#ec4899','교통':'#f97316','자동차':'#64748b','주거':'#84cc16','통신':'#22d3ee','건강':'#f43f5e','금융지출':'#a78bfa','문화여가':'#fbbf24','교육':'#34d399','유흥':'#ef4444','데이트':'#f472b6','반려동물':'#fb923c','경조선물':'#e879f9','여행':'#38bdf8','업무지출':'#6366f1','수입':'#10b981','저축':'#3b82f6'};
 var CE={'식비':'🍱','생활':'🏠','꾸밈':'👔','교통':'🚌','자동차':'🚗','주거':'🏡','통신':'📱','건강':'💊','금융지출':'💳','문화여가':'🎬','교육':'📚','유흥':'🍻','데이트':'💑','반려동물':'🐱','경조선물':'🎁','여행':'✈️','업무지출':'💼','수입':'💰','저축':'🏦'};
+// ── 사용자 정의(커스텀) 대분류: 앱에 기본 내장된 CATS/MC/CE 위에 사용자가 추가한 대분류를 병합한다 ──
+// 기존 17개 기본 카테고리는 절대 건드리지 않고, 여기 저장된 것만 얹어서 확장한다.
+var USER_CATS_KEY='gaegyebu_user_cats';
+// 저장된 원본 목록만 순수하게 읽어온다 (CATS/CE/MC에는 영향 주지 않음) - 저장/수정 로직에서 사용.
+function readUserCatsRaw(){
+  try{return JSON.parse(localStorage.getItem(USER_CATS_KEY)||'[]');}catch(e){return[];}
+}
+// 앱 시작 시 1회 호출: 저장된 사용자 카테고리를 CATS/CE/MC에 병합한다.
+function loadUserCats(){
+  var list=readUserCatsRaw();
+  list.forEach(function(c){
+    if(!c||!c.mid)return;
+    CATS[c.mid]={p:c.p,s:(c.s||[]).slice()};
+    if(c.icon)CE[c.mid]=c.icon;
+    if(c.color)MC[c.mid]=c.color;
+  });
+  return list;
+}
+function saveUserCats(list){localStorage.setItem(USER_CATS_KEY,JSON.stringify(list));}
+// 새 대분류 추가. 이름 중복(기본 카테고리 포함) 방지.
+function addUserCategory(mid,p,icon,color){
+  mid=(mid||'').trim();
+  if(!mid)return{ok:false,msg:'카테고리 이름을 입력해주세요.'};
+  if(CATS[mid])return{ok:false,msg:'이미 있는 카테고리 이름이에요.'};
+  var list=readUserCatsRaw();
+  list.push({mid:mid,p:p,s:[],icon:icon,color:color});
+  saveUserCats(list);
+  CATS[mid]={p:p,s:[]};
+  if(icon)CE[mid]=icon;
+  if(color)MC[mid]=color;
+  return{ok:true};
+}
+// 사용자 정의 대분류 삭제 (기본 카테고리는 삭제 불가)
+function removeUserCategory(mid){
+  var list=readUserCatsRaw().filter(function(c){return c.mid!==mid;});
+  saveUserCats(list);
+  delete CATS[mid];delete CE[mid];delete MC[mid];
+}
+// 대분류(mid)에 새 소분류(sub) 추가 - 기본 카테고리든 사용자 카테고리든 상관없이 그 카테고리의 소분류 목록에 추가한다.
+// 사용자 정의 대분류인 경우, 소분류 목록도 localStorage에 함께 저장해서 새로고침 후에도 유지되게 한다.
+function addSubCategory(mid,sub){
+  sub=(sub||'').trim();
+  if(!sub)return{ok:false,msg:'소분류 이름을 입력해주세요.'};
+  var cat=CATS[mid];
+  if(!cat)return{ok:false,msg:'대분류를 먼저 선택해주세요.'};
+  if(cat.s.indexOf(sub)>=0)return{ok:false,msg:'이미 있는 소분류예요.'};
+  cat.s.push(sub);
+  // 사용자 정의 대분류라면, 소분류 변경사항도 영구 저장 (readUserCatsRaw는 CATS를 건드리지 않으므로 방금 push한 값이 안전함)
+  var list=readUserCatsRaw();
+  var idx=list.findIndex(function(c){return c.mid===mid;});
+  if(idx>=0){list[idx].s=cat.s.slice();saveUserCats(list);}
+  return{ok:true};
+}
 var FX=[
   // ── 수입 ──────────────────────────────────────────────────
   {type:'수입',mid:'수입',sub:'레드윗 급여',  memo:'고정수입',                  amt:0,      pay:'현금',        eval:''},
@@ -1425,6 +1478,7 @@ function initApp(){
     localStorage.setItem('gaegyebu_stock_principal_reset_v1','1');
   }
   loadFX();
+  loadUserCats();
   loadAI();
   loadBT();
   loadGoals();
@@ -1585,12 +1639,12 @@ function initTxAc(){
   if(inp._acInit)return;
   inp._acInit=true;
 
-  var acData=buildAcData();
   var selIdx=-1;
 
   function renderDrop(kw){
     drop.innerHTML='';selIdx=-1;
     var kw2=(kw||'').trim().toLowerCase();
+    var acData=buildAcData(); // 새 카테고리가 방금 추가됐을 수 있으니 검색할 때마다 최신 목록을 다시 만든다
     var results=kw2
       ?acData.filter(function(d){
           return d.mid.toLowerCase().includes(kw2)||d.sub.toLowerCase().includes(kw2);
@@ -3589,7 +3643,36 @@ function budgetMidOptions(selectedMid){
 function fillBudgetSubOptions(selId,mid,selectedSub){
   var el=document.getElementById(selId);if(!el)return;
   var cat=CATS[mid];
-  el.innerHTML=(cat?cat.s:[]).map(function(s){return'<option value="'+s+'"'+(s===selectedSub?' selected':'')+'>'+s+'</option>';}).join('');
+  var subs=cat?cat.s:[];
+  // select가 아니라 datalist를 쓰는 input인 경우(자유 입력 지원)
+  if(el.tagName==='DATALIST'){
+    el.innerHTML=subs.map(function(s){return'<option value="'+s+'">';}).join('');
+    return;
+  }
+  el.innerHTML=subs.map(function(s){return'<option value="'+s+'"'+(s===selectedSub?' selected':'')+'>'+s+'</option>';}).join('');
+}
+// 새 대분류 생성 미니폼을 펼치거나 접는다 (예산 항목 추가/수정 모달 공용)
+function toggleNewCatForm(prefix){
+  var el=document.getElementById(prefix+'-newcat-form');
+  if(!el)return;
+  el.style.display=el.style.display==='none'?'block':'none';
+}
+function confirmNewCategory(prefix,midSelId,subDatalistId){
+  var name=document.getElementById(prefix+'-newcat-name').value.trim();
+  var p=document.getElementById(prefix+'-newcat-type').value;
+  var icon=document.getElementById(prefix+'-newcat-icon').value.trim()||'📌';
+  var color=document.getElementById(prefix+'-newcat-color').value;
+  var res=addUserCategory(name,p,icon,color);
+  if(!res.ok){showToast('⚠️ '+res.msg);return;}
+  showToast('✅ "'+name+'" 카테고리를 만들었어요!');
+  var midEl=document.getElementById(midSelId);
+  if(midEl){
+    midEl.innerHTML=budgetMidOptions(name);
+    midEl.value=name;
+    fillBudgetSubOptions(subDatalistId,name);
+  }
+  document.getElementById(prefix+'-newcat-form').style.display='none';
+  document.getElementById(prefix+'-newcat-name').value='';
 }
 function openAddBudgetItem(){
   var existing=document.getElementById('add-bud-md');if(existing)existing.remove();
@@ -3599,10 +3682,22 @@ function openAddBudgetItem(){
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>➕ 예산 항목 추가</h3><button class="mdc" onclick="document.getElementById(\'add-bud-md\').remove()">✕</button></div>'
     +'<div class="fg c2">'
-    +'<div><label>대분류</label><select id="abud-mid" onchange="fillBudgetSubOptions(\'abud-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
-    +'<div><label>소분류</label><select id="abud-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'<div><label>대분류</label><select id="abud-mid" onchange="fillBudgetSubOptions(\'abud-sub-dl\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
+    +'<div><label>소분류 <span style="font-weight:400;color:var(--mu);font-size:10px">(직접 입력 가능)</span></label><input type="text" id="abud-sub" list="abud-sub-dl" placeholder="예: 세차" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"><datalist id="abud-sub-dl"></datalist></div>'
     +'</div>'
-    +'<div><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="abud-amt" placeholder="예: 100000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div style="margin-top:4px"><a href="javascript:void(0)" onclick="toggleNewCatForm(\'abud\')" style="font-size:11px;color:var(--bl)">➕ 새 대분류 만들기</a></div>'
+    +'<div id="abud-newcat-form" style="display:none;background:var(--sf2);border-radius:var(--rs);padding:10px;margin-top:8px">'
+    +'<div class="fg c2">'
+    +'<div><label style="font-size:11px">카테고리 이름</label><input type="text" id="abud-newcat-name" placeholder="예: 자기계발" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
+    +'<div><label style="font-size:11px">종류</label><select id="abud-newcat-type" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"><option value="지출">지출</option><option value="수입">수입</option><option value="저축">저축</option></select></div>'
+    +'</div>'
+    +'<div class="fg c2" style="margin-top:6px">'
+    +'<div><label style="font-size:11px">아이콘(이모지)</label><input type="text" id="abud-newcat-icon" placeholder="📌" maxlength="4" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
+    +'<div><label style="font-size:11px">색상</label><input type="color" id="abud-newcat-color" value="#64748b" style="width:100%;height:32px;background:var(--sf);border:1px solid var(--bd2);border-radius:var(--rs);cursor:pointer"></div>'
+    +'</div>'
+    +'<button class="btn bpu2 bsm" style="width:100%;margin-top:8px" onclick="confirmNewCategory(\'abud\',\'abud-mid\',\'abud-sub-dl\')">＋ 카테고리 만들기</button>'
+    +'</div>'
+    +'<div style="margin-top:10px"><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="abud-amt" placeholder="예: 100000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div style="font-size:11px;color:var(--mu);margin-top:6px">매달 이 금액이 기본으로 적용돼요. 특정 달만 다르게 하고 싶으면 예산탭에서 그 달 값만 수정하면 돼요.</div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmAddBudgetItem()">💾 추가</button>'
@@ -3614,9 +3709,15 @@ function openAddBudgetItem(){
 }
 function confirmAddBudgetItem(){
   var mid=document.getElementById('abud-mid').value;
-  var sub=document.getElementById('abud-sub').value;
-  if(!sub){showToast('⚠️ 소분류를 선택해주세요.');return;}
+  var sub=document.getElementById('abud-sub').value.trim();
+  if(!sub){showToast('⚠️ 소분류를 입력해주세요.');return;}
   if(BT.some(function(b){return b.mid===mid&&b.sub===sub;})){showToast('⚠️ 이미 추가된 항목이에요.');return;}
+  // 아직 카테고리 트리(CATS)에 없는 소분류 이름이면(직접 입력) 그 대분류에 새 소분류로 등록
+  var cat=CATS[mid];
+  if(cat&&cat.s.indexOf(sub)<0){
+    var subRes=addSubCategory(mid,sub);
+    if(!subRes.ok){showToast('⚠️ '+subRes.msg);return;}
+  }
   var amount=Number(document.getElementById('abud-amt').value)||0;
   addBudgetTemplateItem({mid:mid,sub:sub,amount:amount});
   document.getElementById('add-bud-md').remove();
@@ -3634,23 +3735,40 @@ function openEditBudgetItem(i){
     +'<div class="mdh"><h3>⚙️ 예산 항목 수정</h3><button class="mdc" onclick="document.getElementById(\'edit-bud-md\').remove()">✕</button></div>'
     +(valid?'':'<div class="al inf mb8" style="font-size:11px;color:var(--rd)">이전 카테고리("'+item.mid+' &gt; '+item.sub+'")가 더 이상 없어서, 새 대분류/소분류를 다시 선택해주세요.</div>')
     +'<div class="fg c2">'
-    +'<div><label>대분류</label><select id="ebud-mid" onchange="fillBudgetSubOptions(\'ebud-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
-    +'<div><label>소분류</label><select id="ebud-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'<div><label>대분류</label><select id="ebud-mid" onchange="fillBudgetSubOptions(\'ebud-sub-dl\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
+    +'<div><label>소분류 <span style="font-weight:400;color:var(--mu);font-size:10px">(직접 입력 가능)</span></label><input type="text" id="ebud-sub" list="ebud-sub-dl" value="'+(valid?item.sub:'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"><datalist id="ebud-sub-dl"></datalist></div>'
     +'</div>'
-    +'<div><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="ebud-amt" value="'+(item.amount||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div style="margin-top:4px"><a href="javascript:void(0)" onclick="toggleNewCatForm(\'ebud\')" style="font-size:11px;color:var(--bl)">➕ 새 대분류 만들기</a></div>'
+    +'<div id="ebud-newcat-form" style="display:none;background:var(--sf2);border-radius:var(--rs);padding:10px;margin-top:8px">'
+    +'<div class="fg c2">'
+    +'<div><label style="font-size:11px">카테고리 이름</label><input type="text" id="ebud-newcat-name" placeholder="예: 자기계발" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
+    +'<div><label style="font-size:11px">종류</label><select id="ebud-newcat-type" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"><option value="지출">지출</option><option value="수입">수입</option><option value="저축">저축</option></select></div>'
+    +'</div>'
+    +'<div class="fg c2" style="margin-top:6px">'
+    +'<div><label style="font-size:11px">아이콘(이모지)</label><input type="text" id="ebud-newcat-icon" placeholder="📌" maxlength="4" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
+    +'<div><label style="font-size:11px">색상</label><input type="color" id="ebud-newcat-color" value="#64748b" style="width:100%;height:32px;background:var(--sf);border:1px solid var(--bd2);border-radius:var(--rs);cursor:pointer"></div>'
+    +'</div>'
+    +'<button class="btn bpu2 bsm" style="width:100%;margin-top:8px" onclick="confirmNewCategory(\'ebud\',\'ebud-mid\',\'ebud-sub-dl\')">＋ 카테고리 만들기</button>'
+    +'</div>'
+    +'<div style="margin-top:10px"><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="ebud-amt" value="'+(item.amount||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmEditBudgetItem('+i+')">💾 저장</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'edit-bud-md\').remove()">취소</button>'
     +'</div>'
     +'</div>';
   document.body.appendChild(md);
-  fillBudgetSubOptions('ebud-sub',defMid,valid?item.sub:null);
+  fillBudgetSubOptions('ebud-sub-dl',defMid,valid?item.sub:null);
 }
 function confirmEditBudgetItem(i){
   var mid=document.getElementById('ebud-mid').value;
-  var sub=document.getElementById('ebud-sub').value;
-  if(!sub){showToast('⚠️ 소분류를 선택해주세요.');return;}
+  var sub=document.getElementById('ebud-sub').value.trim();
+  if(!sub){showToast('⚠️ 소분류를 입력해주세요.');return;}
   if(BT.some(function(b,idx){return idx!==i&&b.mid===mid&&b.sub===sub;})){showToast('⚠️ 이미 있는 항목이에요.');return;}
+  var cat=CATS[mid];
+  if(cat&&cat.s.indexOf(sub)<0){
+    var subRes=addSubCategory(mid,sub);
+    if(!subRes.ok){showToast('⚠️ '+subRes.msg);return;}
+  }
   var amount=Number(document.getElementById('ebud-amt').value)||0;
   updateBudgetTemplateItem(i,{mid:mid,sub:sub,amount:amount});
   document.getElementById('edit-bud-md').remove();
