@@ -1076,7 +1076,7 @@ function getEffectiveBudget(ym,wantType){
     var bgm=bg[item.mid]||{};
     var amt,tag;
     if(bgm[item.sub]!==undefined){amt=bgm[item.sub];tag='explicit';}
-    else if(item.amount>0){amt=item.amount;tag='template';}
+    else if(item.amount>=0){amt=item.amount;tag='template';}
     else{
       var prevActual=0;
       prevTxs.forEach(function(t){if(t.mid===item.mid&&t.sub===item.sub&&t.type===wantType)prevActual+=Number(t.amount)||0;});
