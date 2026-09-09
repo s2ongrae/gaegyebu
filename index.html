@@ -436,6 +436,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
       <div id="em-evg"><label>지출유형</label><select id="em-ev"><option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option><option value="저축">저축</option></select></div>
       <div><label>메모</label><input type="text" id="em-memo"></div>
     </div>
+    <div class="mb8" style="background:var(--sf2);border-radius:var(--rs);padding:8px 10px;display:flex;align-items:center;gap:8px">
+      <input type="checkbox" id="em-mkfixed" style="cursor:pointer;accent-color:var(--bl);width:15px;height:15px">
+      <label for="em-mkfixed" style="font-size:12px;cursor:pointer;margin:0">🔁 이 거래를 고정지출로 등록 (매달 반복되는 항목이면 체크하세요 · 같은 메모의 고정거래가 이미 있으면 중복 등록 안 돼요)</label>
+    </div>
     <div class="fx g8 mt12">
       <button class="btn bp" onclick="saveEdit()">💾 수정 저장</button>
       <button class="btn brd" onclick="deleteFromEdit()">🗑️ 삭제</button>
@@ -847,13 +851,38 @@ function estimateMonthsToGoalWithExtra(goal,extraPerMonth){
 }
 function renderGoalsCard(){
   var html='<div class="card mb12"><div class="card-title">🎯 목표 현황<button onclick="openAddGoal()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 목표 추가</button></div>';
-  if(!GOALS.length){
+  // 자동차 할부 잔금 카드: GOALS와 별개로, 할부관리(INSTALLMENTS)에 등록된 "자동차>자동차 할부" 항목이 있으면 자동으로 노출한다.
+  // (사용자가 따로 "목표"를 만들 필요 없이, 할부관리에 등록만 해두면 여기 잔금이 자동으로 보임)
+  var carLoanCards='';
+  var ym0=gYM();
+  INSTALLMENTS.filter(function(item){return item.mid==='자동차'&&item.sub==='자동차 할부';}).forEach(function(item,ci){
+    var st=getInsStatus(item,ym0);
+    if(st.done)return; // 완납된 할부는 표시 안 함
+    var pct=Math.round((item.principal-st.remaining)/item.principal*100);
+    var rowId='dtl-carloan-'+ci;
+    carLoanCards+='<div class="dtl-card" id="'+rowId+'" onclick="toggleDtl(\''+rowId+'\')" style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:6px">🚗 '+(item.name||'자동차 할부')+' 잔금</div>'
+      +'<div style="font-size:20px;font-weight:900;color:var(--pu);margin-bottom:4px">'+pct+'%</div>'
+      +'<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
+      +'<div style="width:'+pct+'%;height:100%;background:var(--pu);border-radius:3px"></div></div>'
+      +'<div style="font-size:11px;color:var(--mu)">남은 잔금 '+ff(st.remaining)+' · 원금 '+ff(item.principal)+'</div>'
+      +'<div style="font-size:11px;color:var(--bl);margin-top:4px">📅 '+st.num+'/'+item.totalMonths+'회차 · 매달 '+ff(st.perMonth)+'</div>'
+      +'<div class="dtl-hint">눌러서 상세 보기 ▾</div>'
+      +'<div class="dtl-body">'
+      +'<div style="font-size:11px;color:var(--mu2);display:flex;justify-content:space-between;padding:2px 0"><span>지금까지 납입</span><b style="color:var(--tx)">'+ff(item.principal-st.remaining)+'</b></div>'
+      +'<div style="font-size:11px;color:var(--mu2);display:flex;justify-content:space-between;padding:2px 0"><span>이자율</span><b style="color:var(--tx)">'+(Number(item.rate)||0)+'%</b></div>'
+      +'<div style="font-size:11px;color:var(--mu2);display:flex;justify-content:space-between;padding:2px 0"><span>시작월</span><b style="color:var(--tx)">'+item.firstYm+'</b></div>'
+      +'</div>'
+      +'</div>';
+  });
+  if(!GOALS.length&&!carLoanCards){
     html+='<div class="em">아직 등록된 목표가 없어요. "순자산 1억 모으기", "마통 다 갚기" 같은 목표를 추가해보세요.</div></div>';
     return html;
   }
   var topCat=getTopExpenseCategoryThisMonth();
   var reduceAmt=topCat?Math.round(topCat.amt*0.2/1000)*1000:0;
   html+='<div class="g3" style="align-items:stretch">';
+  html+=carLoanCards;
   GOALS.forEach(function(g,i){
     var p=computeGoalProgress(g);
     var eta=estimateMonthsToGoal(g);
@@ -1775,9 +1804,32 @@ function openEdit(id){
   ensureSelectHasValue('em-pay',tx.payment);
   document.getElementById('em-pay').value=tx.payment||'';
   document.getElementById('em-ev').value=tx.eval||'소비';
+  // 이미 같은 mid/sub/memo로 등록된 고정거래가 있으면 체크된 상태로 보여주고, 체크박스를 비활성화(중복 등록 방지)
+  var alreadyFixed=FX.some(function(f){return f.mid===tx.mid&&f.sub===tx.sub&&(f.memo||'')===(tx.memo||'');});
+  var fixedCb=document.getElementById('em-mkfixed');
+  fixedCb.checked=alreadyFixed;
+  fixedCb.disabled=alreadyFixed;
+  var fixedLabel=fixedCb.nextElementSibling;
+  if(fixedLabel)fixedLabel.textContent=alreadyFixed?'🔁 이미 고정지출로 등록된 항목이에요 (입력/내역 탭의 고정거래 관리에서 수정하세요)':'🔁 이 거래를 고정지출로 등록 (매달 반복되는 항목이면 체크하세요 · 같은 메모의 고정거래가 이미 있으면 중복 등록 안 돼요)';
   document.getElementById('edit-md').classList.add('on');
 }
-function saveEdit(){if(!editId)return;var tx={date:document.getElementById('em-date').value,mid:document.getElementById('em-mid').value,sub:document.getElementById('em-sub').value,type:document.getElementById('em-type').value,amount:Number(document.getElementById('em-amt').value)||0,memo:document.getElementById('em-memo').value,payment:document.getElementById('em-pay').value,eval:document.getElementById('em-ev').value};updateTx(editId,tx);closeMd("edit-md");renderHis();showToast('✅ 수정 완료!');}
+function saveEdit(){
+  if(!editId)return;
+  var tx={date:document.getElementById('em-date').value,mid:document.getElementById('em-mid').value,sub:document.getElementById('em-sub').value,type:document.getElementById('em-type').value,amount:Number(document.getElementById('em-amt').value)||0,memo:document.getElementById('em-memo').value,payment:document.getElementById('em-pay').value,eval:document.getElementById('em-ev').value};
+  updateTx(editId,tx);
+  // "고정지출로 등록" 체크박스가 켜져 있고, 아직 등록 안 된 경우에만 FX에 새로 추가
+  var mkFixed=document.getElementById('em-mkfixed');
+  if(mkFixed&&mkFixed.checked&&!mkFixed.disabled){
+    var dup=FX.some(function(f){return f.mid===tx.mid&&f.sub===tx.sub&&(f.memo||'')===(tx.memo||'');});
+    if(!dup){
+      addFxItem({type:tx.type,mid:tx.mid,sub:tx.sub,memo:tx.memo||'',amt:tx.amount,pay:tx.payment,eval:tx.eval||''});
+      showToast('✅ 수정 완료! 🔁 고정지출로도 등록했어요.');
+      closeMd("edit-md");renderHis();
+      return;
+    }
+  }
+  closeMd("edit-md");renderHis();showToast('✅ 수정 완료!');
+}
 function deleteFromEdit(){if(!editId)return;if(!confirm('이 거래를 삭제할까요?'))return;deleteTx(editId);closeMd("edit-md");renderHis();showToast('🗑️ 삭제됐어요.');}
 // ── 할부 관리 ────────────────────────────────────────────────
 // 총 원금과 총 개월수만 넣어두면, 매달 회차와 이번달 납부액을 자동 계산해서 알려준다.
