@@ -353,6 +353,13 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
           <select class="search-sel" id="s-eval" onchange="renderHis()"><option value="">전체평가</option><option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option><option value="저축">저축</option></select>
           <select class="search-sel" id="s-fixed" onchange="renderHis()"><option value="">고정+변동</option><option value="fixed">고정</option><option value="variable">변동</option></select>
         </div>
+        <div class="fx fxc g8 mb8" style="flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--mu2);font-weight:700">📅 기간</span>
+          <input type="date" id="s-date-from" class="search-sel" style="width:auto" onchange="renderHis()">
+          <span style="font-size:11px;color:var(--mu)">~</span>
+          <input type="date" id="s-date-to" class="search-sel" style="width:auto" onchange="renderHis()">
+          <button class="btn bg2 bsm" onclick="clearHisDateRange()">이번달만 보기</button>
+        </div>
 
         <div class="fx fxc g8 mb8" id="his-bulk-bar">
           <input type="checkbox" id="his-all-cb" onclick="toggleSelectAll()" style="cursor:pointer;accent-color:var(--bl);width:15px;height:15px">
@@ -1195,7 +1202,6 @@ function exportJSON(){var blob=new Blob([JSON.stringify(loadDB(),null,2)],{type:
 function importJSON(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var db=JSON.parse(ev.target.result);localStorage.setItem(DB_KEY,JSON.stringify(db));showToast('✅ 가져오기 완료!');var url=getServerURL();if(url){fetch(url,{method:'POST',body:JSON.stringify(db)}).then(function(){setSyncStatus('ok','동기화 완료');go(curPage);}).catch(function(){go(curPage);});}else go(curPage);}catch(err){showToast('❌ 파일 오류입니다.');}};reader.readAsText(file);e.target.value='';}
 function f(n){if(n==null||isNaN(n))return'0';var a=Math.abs(Number(n));if(a>=100000000)return(n/100000000).toFixed(1)+'억';if(a>=10000)return Math.round(n/10000)+'만';return Number(n).toLocaleString();}
 function ff(n){return Math.round(Number(n)||0).toLocaleString()+'원';}
-function pc(a,b){return b?Math.min(Math.round(a/b*100),999):0;}
 function gYM(){return document.getElementById('gYM').value;}
 function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
@@ -1570,61 +1576,6 @@ function buildAcData(){
     });
   });
   return data;
-}
-
-function makeAcInput(wrap, onSelect){
-  // wrap: 기존 select가 있던 컨테이너
-  // 검색 input + 드롭다운 생성
-  var acWrap=document.createElement('div');acWrap.className='ac-wrap';
-  var inp=document.createElement('input');
-  inp.className='ac-input';inp.placeholder='검색... (예: 식비, 커피, 주유)';inp.autocomplete='off';
-  var drop=document.createElement('div');drop.className='ac-drop';
-
-  var acData=buildAcData();
-  var selIdx=-1;
-
-  function renderDrop(kw){
-    drop.innerHTML='';selIdx=-1;
-    var kw2=kw.trim().toLowerCase();
-    var results=kw2?acData.filter(function(d){
-      return d.mid.includes(kw2)||d.sub.includes(kw2)||d.type.includes(kw2);
-    }):acData.slice(0,20);
-    if(!results.length){
-      drop.innerHTML='<div class="ac-item"><span style="color:var(--mu)">검색 결과 없음</span></div>';
-      drop.classList.add('open');return;
-    }
-    results.slice(0,30).forEach(function(d,i){
-      var item=document.createElement('div');item.className='ac-item';
-      item.innerHTML='<span style="font-size:14px">'+(d.subIcon||d.icon||'')+'</span>'
-        +'<span class="ac-main">'+(d.subIcon&&d.subIcon!==d.icon?d.sub:d.mid+' / '+d.sub)+'</span>'
-        +'<span class="ac-sub ac-badge '+(d.type==='수입'?'bg':d.type==='저축'?'bb':'br')+'">'+d.type+'</span>';
-      item.onmousedown=function(e){
-        e.preventDefault();
-        inp.value=d.mid+' / '+d.sub;
-        drop.classList.remove('open');
-        onSelect(d);
-      };
-      drop.appendChild(item);
-    });
-    drop.classList.add('open');
-  }
-
-  inp.oninput=function(){renderDrop(inp.value);};
-  inp.onfocus=function(){renderDrop(inp.value);};
-  inp.onblur=function(){setTimeout(function(){drop.classList.remove('open');},150);};
-  inp.onkeydown=function(e){
-    var items=drop.querySelectorAll('.ac-item');
-    if(e.key==='ArrowDown'){selIdx=Math.min(selIdx+1,items.length-1);}
-    else if(e.key==='ArrowUp'){selIdx=Math.max(selIdx-1,0);}
-    else if(e.key==='Enter'&&selIdx>=0){items[selIdx].onmousedown(e);return;}
-    else if(e.key==='Escape'){drop.classList.remove('open');return;}
-    items.forEach(function(it,i){it.classList.toggle('sel',i===selIdx);});
-    if(selIdx>=0)items[selIdx].scrollIntoView({block:'nearest'});
-  };
-
-  acWrap.appendChild(inp);acWrap.appendChild(drop);
-  wrap.appendChild(acWrap);
-  return {inp:inp,drop:drop};
 }
 
 function initTxAc(){
@@ -2236,15 +2187,32 @@ function getPrevYM(ym){
 
 function toggleFxi(idOrBtn){var id=typeof idOrBtn==='string'?idOrBtn:(idOrBtn.dataset&&idOrBtn.dataset.fxi?idOrBtn.dataset.fxi:idOrBtn);if(typeof id==='string'){var el=document.getElementById(id);if(el)el.classList.toggle('open');}}
 function onFxMid(i){var m=document.getElementById('fx-mid-'+i).value;var ss=document.getElementById('fx-sub-'+i);if(!ss||!CATS[m])return;ss.innerHTML=CATS[m].s.map(function(s){return'<option value="'+s+'">'+s+'</option>';}).join('');}
+function clearHisDateRange(){
+  document.getElementById('s-date-from').value='';
+  document.getElementById('s-date-to').value='';
+  renderHis();
+}
 function renderHis(){
   var ym=gYM();
-  document.getElementById('his-ym-label').textContent=ym.replace('-','년 ')+'월';
+  var dateFrom=document.getElementById('s-date-from').value;
+  var dateTo=document.getElementById('s-date-to').value;
+  var useRange=!!(dateFrom||dateTo);
   var kw=(document.getElementById('s-kw').value||'').toLowerCase();
   var tf=document.getElementById('s-type').value;
   var mf=document.getElementById('s-mid').value;
   var ef=document.getElementById('s-eval').value;
   var ff2=document.getElementById('s-fixed').value;
-  var txs=getTxs(ym).filter(function(t){
+  // 기간 지정(날짜 범위) 시: 전체 거래 중 [dateFrom, dateTo] 범위로 필터링해서 이번달 제한을 넘어 과거까지 검색 가능하게 함.
+  // 날짜 범위를 지우면 기존처럼 현재 선택된 월(gYM())로만 좁혀서 본다.
+  var baseTxs=useRange?getTxs():getTxs(ym);
+  if(useRange){
+    if(dateFrom)baseTxs=baseTxs.filter(function(t){return t.date&&t.date>=dateFrom;});
+    if(dateTo)baseTxs=baseTxs.filter(function(t){return t.date&&t.date<=dateTo;});
+    document.getElementById('his-ym-label').textContent=(dateFrom||'처음')+' ~ '+(dateTo||'지금');
+  }else{
+    document.getElementById('his-ym-label').textContent=ym.replace('-','년 ')+'월';
+  }
+  var txs=baseTxs.filter(function(t){
     if(tf&&t.type!==tf)return false;
     if(mf&&t.mid!==mf)return false;
     if(ef&&t.eval!==ef)return false;
@@ -2842,13 +2810,21 @@ function getSubBreakdown(txList,mid){
   txList.forEach(function(t){if(t.mid===mid)m[t.sub]=(m[t.sub]||0)+(Number(t.amount)||0);});
   return Object.keys(m).map(function(s){return{sub:s,amt:m[s]};}).sort(function(a,b){return b.amt-a.amt;});
 }
-function renderSubBreakdownRows(subRanked,indent){
+// getSubBreakdown과 형태는 같지만(renderSubBreakdownRows 재사용 위해), 특정 mid 하나가 아니라
+// 주어진 거래 목록 전체를 "대분류(mid)" 기준으로 묶어서 보여줄 때 쓴다 (예: 평가값/고정·변동별 상세보기)
+function getSubBreakdownByMid(txList){
+  var m={};
+  txList.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});
+  return Object.keys(m).map(function(mid){return{sub:mid,amt:m[mid]};}).sort(function(a,b){return b.amt-a.amt;});
+}
+function renderSubBreakdownRows(subRanked,indent,iconMap){
   indent=indent||36;
+  iconMap=iconMap||SUB_ICON;
   if(!subRanked.length)return'<div style="font-size:11px;color:var(--mu);padding:4px '+indent+'px">세부 내역 없음</div>';
   var total=subRanked.reduce(function(s,x){return s+x.amt;},0);
   return subRanked.map(function(s){
     return'<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd)">'
-      +'<span>'+(SUB_ICON[s.sub]||'')+' '+s.sub+'</span>'
+      +'<span>'+(iconMap[s.sub]||'')+' '+s.sub+'</span>'
       +'<span><b style="color:var(--tx)">'+ff(s.amt)+'</b> <span style="color:var(--mu)">('+(total?Math.round(s.amt/total*100):0)+'%)</span></span>'
       +'</div>';
   }).join('');
@@ -3322,7 +3298,6 @@ function swMon(el,secId){
   if(target)target.classList.add('on');
 }
 
-function swTab(el,secId){var tabs=el.parentElement.querySelectorAll('.sec-tab');tabs.forEach(function(t){t.classList.remove('on');});el.classList.add('on');var suffix=secId.slice(-3);var prefix=secId.slice(0,-4);['inc','exp','sav'].forEach(function(s){var sc=document.getElementById(prefix+'-'+s);if(sc)sc.classList.toggle('on',s===suffix);});}
 // ── 예산탭 상단: 이번달 결산 카드 (전체탭의 연간결산과 같은 스타일, 범위만 '이번달') ──
 function renderBudMonthSummary(ym,eb,sm,savActual){
   var wrap=document.getElementById('d-bud-summary');
@@ -3443,8 +3418,10 @@ function renderBud(){
   });
 
   var eb={'지출':getEffectiveBudget(ym,'지출'),'수입':getEffectiveBudget(ym,'수입'),'저축':getEffectiveBudget(ym,'저축')};
+  // 이 달 거래를 한 번만 가져와서(비용이 큰 localStorage 조회+필터링) 아래에서 재사용 - 카테고리/소분류별로 매번 다시 조회하면 렌더링이 느려짐
+  var monthTxs=getTxs(ym);
   var savActual=0;
-  getTxs(ym).forEach(function(t){if(t.type==='저축')savActual+=Number(t.amount)||0;});
+  monthTxs.forEach(function(t){if(t.type==='저축')savActual+=Number(t.amount)||0;});
   renderBudMonthSummary(ym,eb,sm,savActual);
 
   // 항목별 "올해 월평균 실적" 계산용 (예산 잡을 때 참고하라고 보여줌) - 당해년도 데이터만 사용
@@ -3522,7 +3499,7 @@ function renderBud(){
       });
       var totalBudget=sectionEb.byMid[m]||0;
       var actual=0;
-      getTxs(ym).forEach(function(t){if(t.mid===m&&t.type===sec.type&&!isInvestLossTx(t))actual+=Number(t.amount)||0;});
+      monthTxs.forEach(function(t){if(t.mid===m&&t.type===sec.type&&!isInvestLossTx(t))actual+=Number(t.amount)||0;});
       var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
       var over=isExpense&&totalBudget>0&&pct2>100;
       var achieved=!isExpense&&totalBudget>0&&pct2>=100;
@@ -3547,7 +3524,7 @@ function renderBud(){
       }
       rows.forEach(function(r){
         var act=0;
-        getTxs(ym).forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type===sec.type)act+=Number(t.amount)||0;});
+        monthTxs.forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type===sec.type)act+=Number(t.amount)||0;});
         var row=document.createElement('div');row.className='bud-sub-row';
         var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub+' ';
         if(r.autoTag==='prev95'){
@@ -5792,16 +5769,22 @@ function renderInpDash(){
   topTitle.textContent='🏆 이달 지출 TOP5';
   topCard.appendChild(topTitle);
   if(expTop.length){
-    expTop.forEach(function(e){
+    var expTxsAll=getTxs(ym).filter(function(t){return t.type==='지출';});
+    expTop.forEach(function(e,ti){
       var name=e[0],amt=e[1];
       var pct2=Math.round(amt/maxExp*100);
       var color=MC[name]||'var(--bl)';
+      var rowId='inpdash-top5-'+ti;
       var row=document.createElement('div');
-      row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:7px';
-      row.innerHTML='<span style="font-size:11px;color:var(--tx);min-width:70px">'+(CE[name]||'')+' '+name+'</span>'
+      row.style.cssText='margin-bottom:7px;cursor:pointer';
+      row.innerHTML='<div style="display:flex;align-items:center;gap:8px">'
+        +'<span style="font-size:11px;color:var(--tx);min-width:70px">'+(CE[name]||'')+' '+name+'</span>'
         +'<div style="flex:1;height:5px;background:var(--sf3);border-radius:3px;overflow:hidden">'
         +'<div style="width:'+pct2+'%;height:100%;background:'+color+';border-radius:3px"></div></div>'
-        +'<span style="font-size:11px;font-weight:700;color:var(--mu2);min-width:50px;text-align:right">'+f(amt)+'</span>';
+        +'<span style="font-size:11px;font-weight:700;color:var(--mu2);min-width:50px;text-align:right">'+f(amt)+'</span>'
+        +'</div>'
+        +'<div id="'+rowId+'" style="display:none;margin-top:4px">'+renderSubBreakdownRows(getSubBreakdown(expTxsAll,name),20)+'</div>';
+      row.onclick=function(){toggleCatSub(rowId);};
       topCard.appendChild(row);
     });
   }else{
@@ -5831,29 +5814,43 @@ function renderInpDash(){
   });
   var totalE=sm.expense||1;
 
-  [{k:'소비',c:'var(--mu2)'},{k:'낭비',c:'var(--rd)'},{k:'투자',c:'var(--pu)'},{k:'저축',c:'var(--bl)'}].forEach(function(x){
+  [{k:'소비',c:'var(--mu2)'},{k:'낭비',c:'var(--rd)'},{k:'투자',c:'var(--pu)'},{k:'저축',c:'var(--bl)'}].forEach(function(x,xi){
     if(!evalMap[x.k])return;
     var v=evalMap[x.k]||0;var p=Math.round(v/totalE*100);
+    var rowId='inpdash-eval-'+xi;
+    var evalTxs=txs.filter(function(t){return(t.type==='지출'||t.type==='저축')&&t.eval===x.k;});
+    var breakdown=getSubBreakdownByMid(evalTxs);
     var row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:6px';
-    row.innerHTML='<span style="font-size:11px;font-weight:700;color:'+x.c+';min-width:28px">'+x.k+'</span>'
+    row.style.cssText='margin-bottom:6px;cursor:pointer';
+    row.innerHTML='<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="font-size:11px;font-weight:700;color:'+x.c+';min-width:28px">'+x.k+'</span>'
       +'<div style="flex:1;height:5px;background:var(--sf3);border-radius:3px;overflow:hidden">'
       +'<div style="width:'+p+'%;height:100%;background:'+x.c+';border-radius:3px"></div></div>'
       +'<span style="font-size:11px;color:'+x.c+';font-weight:700;min-width:30px">'+p+'%</span>'
-      +'<span style="font-size:11px;color:var(--mu);min-width:45px;text-align:right">'+f(v)+'</span>';
+      +'<span style="font-size:11px;color:var(--mu);min-width:45px;text-align:right">'+f(v)+'</span>'
+      +'</div>'
+      +'<div id="'+rowId+'" style="display:none;margin-top:4px">'+renderSubBreakdownRows(breakdown,20,CE)+'</div>';
+    row.onclick=function(){toggleCatSub(rowId);};
     evalCard.appendChild(row);
   });
   // 구분선
   var div2=document.createElement('div');div2.style.cssText='border-top:1px solid var(--bd);margin:8px 0';evalCard.appendChild(div2);
-  [{k:'고정',v:fixAmt,c:'var(--bl)'},{k:'변동',v:varAmt,c:'var(--cy)'}].forEach(function(x){
+  [{k:'고정',v:fixAmt,c:'var(--bl)',fixed:true},{k:'변동',v:varAmt,c:'var(--cy)',fixed:false}].forEach(function(x,xi){
     var p=Math.round(x.v/totalE*100);
+    var rowId='inpdash-fixvar-'+xi;
+    var fixVarTxs=txs.filter(function(t){return t.type==='지출'&&isFixed(t)===x.fixed;});
+    var breakdown=getSubBreakdownByMid(fixVarTxs);
     var row=document.createElement('div');
-    row.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:4px';
-    row.innerHTML='<span style="font-size:11px;font-weight:700;color:'+x.c+';min-width:28px">'+x.k+'</span>'
+    row.style.cssText='margin-bottom:4px;cursor:pointer';
+    row.innerHTML='<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="font-size:11px;font-weight:700;color:'+x.c+';min-width:28px">'+x.k+'</span>'
       +'<div style="flex:1;height:5px;background:var(--sf3);border-radius:3px;overflow:hidden">'
       +'<div style="width:'+p+'%;height:100%;background:'+x.c+';border-radius:3px"></div></div>'
       +'<span style="font-size:11px;color:'+x.c+';font-weight:700;min-width:30px">'+p+'%</span>'
-      +'<span style="font-size:11px;color:var(--mu);min-width:45px;text-align:right">'+f(x.v)+'</span>';
+      +'<span style="font-size:11px;color:var(--mu);min-width:45px;text-align:right">'+f(x.v)+'</span>'
+      +'</div>'
+      +'<div id="'+rowId+'" style="display:none;margin-top:4px">'+renderSubBreakdownRows(breakdown,20,CE)+'</div>';
+    row.onclick=function(){toggleCatSub(rowId);};
     evalCard.appendChild(row);
   });
   bottomWrap.appendChild(evalCard);
@@ -6103,13 +6100,6 @@ function renderAnnual(months){
     else varExp+=(Number(t.amount)||0);
   });
 
-  function pctBar(val,goal,color){
-    var pct=goal>0?Math.min(Math.round(val/goal*100),999):0;
-    var w=Math.min(pct,100);
-    var oc=pct>100?'var(--rd)':color;
-    return '<div class="prg" style="height:4px;margin-top:3px"><div class="prb" style="width:'+w+'%;background:'+oc+'"></div></div>'
-      +'<span style="font-size:10px;color:'+(pct>100?'var(--rd)':oc)+';font-weight:700">'+pct+'%</span>';
-  }
   function mkGoalRow(name,val,goal,color,numMonths,rowId,txList){
     var pct=goal>0?Math.min(Math.round(val/goal*100),999):0;
     var oc=pct>100?'var(--rd)':color;
