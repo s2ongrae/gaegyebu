@@ -3026,11 +3026,19 @@ function renderMonthlyReview(ym){
     +'</div>';
   wrap.innerHTML=html;
 }
+// "완결된 달"만 골라 최근 N개월 평균을 낼 때 쓰는 헬퍼.
+// 문제였던 지점: 이번달처럼 아직 안 끝난 달은 월급이 아직 안 들어왔거나 지출도 다 안 찍힌 상태라,
+// 이걸 다른 완결된 달과 똑같이 평균에 넣으면 "수입은 실제보다 훨씬 적고, 지출 비중만 커 보이는" 착시가 생긴다.
+// 그래서 실제 오늘 날짜 기준으로 아직 진행 중인 달은 항상 제외하고, 그 이전 달들만 대상으로 삼는다.
+function getRecentCompleteMonths(beforeYm,count){
+  var todayYm=new Date().toISOString().slice(0,7);
+  var months=getAllMonths().filter(function(m){return m<=beforeYm&&m<todayYm;});
+  return months.slice(-count);
+}
 function renderForecastCard(curYM2){
-  var months=getAllMonths().filter(function(m){return m<=curYM2;});
-  if(months.length<2)return'';
+  var recentMonths=getRecentCompleteMonths(curYM2,3);
+  if(recentMonths.length<2)return'';
   var nextYm=addMonthsToYm(curYM2,1);
-  var recentMonths=months.slice(-3);
   var n=recentMonths.length;
   var fixedIncSum=0,varIncSum=0,fixedExpSum=0,varExpSum=0;
   recentMonths.forEach(function(ym){
@@ -3078,9 +3086,8 @@ function renderForecastCard(curYM2){
 // renderForecastCard와 같은 방식(최근 3개월 평균)으로 매달 예상 수입/변동지출을 추정하되,
 // 할부(INSTALLMENTS)는 각 미래월마다 실제 상태(진행중/완납)를 그대로 반영해서 "할부 끝나는 시점에 여유 생기는 것"까지 잡아낸다.
 function buildFutureTimeline(startYm,numMonths){
-  var months=getAllMonths().filter(function(m){return m<=startYm;});
-  if(months.length<2)return null;
-  var recentMonths=months.slice(-3);
+  var recentMonths=getRecentCompleteMonths(startYm,3);
+  if(recentMonths.length<2)return null;
   var n=recentMonths.length;
   var fixedIncSum=0,varIncSum=0,fixedExpSum=0,varExpSum=0;
   recentMonths.forEach(function(ym){
@@ -3165,14 +3172,14 @@ function renderFutureTimelineCard(curYM2){
     new Chart(c,{
       type:'bar',
       data:{labels:labels,datasets:[
-        {type:'bar',label:'월별 순잉여',data:balances,backgroundColor:balances.map(function(b){return b>=0?'rgba(16,185,129,.55)':'rgba(239,68,68,.55)';}),borderRadius:3,order:2,yAxisID:'y'},
+        {type:'bar',label:'월별 순잉여',data:balances,backgroundColor:balances.map(function(b){return b>=0?'rgba(16,185,129,.6)':'rgba(239,68,68,.6)';}),borderRadius:3,order:2,yAxisID:'y'},
         {type:'line',label:'누적 순잉여',data:cumulative,borderColor:'#8b5cf6',backgroundColor:'transparent',borderWidth:2,pointRadius:2,tension:.3,order:1,yAxisID:'y1'}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:10}}}},
         scales:{
-          y:{position:'left',ticks:{font:{size:9},callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},
-          y1:{position:'right',ticks:{font:{size:9},callback:function(v){return f(v);}},grid:{display:false}},
+          y:{position:'left',beginAtZero:true,ticks:{font:{size:9},callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},
+          y1:{position:'right',beginAtZero:true,ticks:{font:{size:9},callback:function(v){return f(v);}},grid:{display:false}},
           x:{ticks:{font:{size:9}},grid:{display:false}}
         }}
     });
