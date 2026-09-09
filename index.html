@@ -601,7 +601,26 @@ function removeUserCategory(mid){
   delete CATS[mid];delete CE[mid];delete MC[mid];
 }
 // 대분류(mid)에 새 소분류(sub) 추가 - 기본 카테고리든 사용자 카테고리든 상관없이 그 카테고리의 소분류 목록에 추가한다.
-// 사용자 정의 대분류인 경우, 소분류 목록도 localStorage에 함께 저장해서 새로고침 후에도 유지되게 한다.
+// 사용자 정의 대분류라면 USER_CATS(gaegyebu_user_cats)에, 기본 카테고리(식비/여행 등 17개)라면
+// 아래 EXTRA_SUBS(gaegyebu_extra_subs)에 각각 저장해서 새로고침 후에도 유지되게 한다.
+// (예전 버그: 기본 카테고리에 추가한 소분류는 저장할 곳 자체가 없어서, 메모리에서만 잠깐 보이고
+//  새로고침하면 사라져 "예산 항목은 남아있는데 카테고리에선 안 보이는" 불일치가 생겼었음)
+var EXTRA_SUBS_KEY='gaegyebu_extra_subs';
+function readExtraSubsRaw(){
+  try{return JSON.parse(localStorage.getItem(EXTRA_SUBS_KEY)||'{}');}catch(e){return{};}
+}
+function saveExtraSubs(map){localStorage.setItem(EXTRA_SUBS_KEY,JSON.stringify(map));}
+// 앱 시작 시 1회 호출: 기본 카테고리에 저장돼 있던 추가 소분류를 CATS에 병합한다. (loadUserCats와 함께 initApp에서 호출)
+function loadExtraSubs(){
+  var map=readExtraSubsRaw();
+  Object.keys(map).forEach(function(mid){
+    var cat=CATS[mid];
+    if(!cat)return; // 카테고리 개편 등으로 대분류 자체가 사라졌으면 건드리지 않음(이미 있는 "사라진 항목" 안내 로직이 처리)
+    (map[mid]||[]).forEach(function(sub){
+      if(cat.s.indexOf(sub)<0)cat.s.push(sub);
+    });
+  });
+}
 function addSubCategory(mid,sub){
   sub=(sub||'').trim();
   if(!sub)return{ok:false,msg:'소분류 이름을 입력해주세요.'};
@@ -609,10 +628,18 @@ function addSubCategory(mid,sub){
   if(!cat)return{ok:false,msg:'대분류를 먼저 선택해주세요.'};
   if(cat.s.indexOf(sub)>=0)return{ok:false,msg:'이미 있는 소분류예요.'};
   cat.s.push(sub);
-  // 사용자 정의 대분류라면, 소분류 변경사항도 영구 저장 (readUserCatsRaw는 CATS를 건드리지 않으므로 방금 push한 값이 안전함)
+  // 사용자 정의 대분류라면 USER_CATS에 저장
   var list=readUserCatsRaw();
   var idx=list.findIndex(function(c){return c.mid===mid;});
-  if(idx>=0){list[idx].s=cat.s.slice();saveUserCats(list);}
+  if(idx>=0){
+    list[idx].s=cat.s.slice();saveUserCats(list);
+  }else{
+    // 기본 카테고리(식비/여행 등)에 추가한 소분류는 EXTRA_SUBS에 저장
+    var map=readExtraSubsRaw();
+    if(!map[mid])map[mid]=[];
+    if(map[mid].indexOf(sub)<0)map[mid].push(sub);
+    saveExtraSubs(map);
+  }
   return{ok:true};
 }
 var FX=[
@@ -1093,6 +1120,24 @@ function loadBT(){
     }
   }catch(e){BT=[];}
 }
+// 예산 항목(BT)에는 있지만 카테고리 트리(CATS)엔 없는 소분류를 찾아서 자동 복구한다.
+// 대분류(mid) 자체는 CATS에 존재하는데 소분류(sub)만 없는 경우에만 복구 대상으로 삼는다 -
+// 대분류 자체가 없어진 경우(진짜 카테고리 개편)는 기존 "사라진 예산 항목" 안내로 남겨둬야 하므로 건드리지 않는다.
+function recoverOrphanedBTCategories(){
+  var recovered=false;
+  BT.forEach(function(item){
+    var cat=CATS[item.mid];
+    if(!cat)return; // 대분류 자체가 없으면 손대지 않음(진짜 카테고리 개편 케이스)
+    if(cat.s.indexOf(item.sub)>=0)return; // 이미 정상적으로 있으면 스킵
+    cat.s.push(item.sub);
+    // 기본 카테고리의 소분류 복구분은 EXTRA_SUBS에 영구 저장해서, 다음부턴 이 복구 로직 없이도 유지되게 한다.
+    var map=readExtraSubsRaw();
+    if(!map[item.mid])map[item.mid]=[];
+    if(map[item.mid].indexOf(item.sub)<0){map[item.mid].push(item.sub);recovered=true;}
+    saveExtraSubs(map);
+  });
+  if(recovered)console.log('[가계부] 예산 항목에만 있던 카테고리를 자동 복구했어요.');
+}
 function migrateBTFromExistingBudgets(){
   var db=loadDB();
   var budgets=db.budgets||{};
@@ -1508,8 +1553,12 @@ function initApp(){
   }
   loadFX();
   loadUserCats();
+  loadExtraSubs();
   loadAI();
   loadBT();
+  // 안전망: 예산 항목(BT)엔 있는데 카테고리 트리(CATS)엔 없는 소분류가 있으면 자동 복구한다.
+  // (기본 카테고리에 새 소분류를 추가할 때 저장 위치가 없어서 새로고침 시 사라지던 예전 버그로 생긴 데이터를 구제)
+  recoverOrphanedBTCategories();
   loadGoals();
   loadIns();
   maybeSaveDailyCheckpoint();
