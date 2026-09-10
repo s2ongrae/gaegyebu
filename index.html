@@ -6397,7 +6397,11 @@ function renderAnnual(months){
     var w=Math.min(pct,100);
     var avg=numMonths?Math.round(val/numMonths):0;
     var detailRows=(txList||[]).slice().sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;})
-      .map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 16px;color:var(--mu2);border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700;color:'+color+'">'+ff(t.amount)+'</span></div>';}).join('');
+      .map(function(t){
+        var amt=Number(t.amount)||0;
+        var rowColor=amt<0?'var(--rd)':color; // 손실(마이너스)로 합쳐진 항목은 빨간색으로 구분되게
+        return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 16px;color:var(--mu2);border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700;color:'+rowColor+'">'+(amt>=0?'':'')+ff(amt)+'</span></div>';
+      }).join('');
     return '<div'+(rowId?' style="cursor:pointer"'+' onclick="toggleCatSub(\''+rowId+'\')"':'')+'>'
       +'<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd);gap:8px">'
       +'<span style="flex:1;font-size:12px;color:var(--tx)">'+name+'</span>'
@@ -6493,6 +6497,14 @@ function renderAnnual(months){
       var goal=incGoalBySub[sub]||0;
       var rowId='inc-goal-sub-'+gi;
       var txList=allTxs.filter(function(t){return t.type==='수입'&&t.sub===sub;});
+      // "투자수입"만큼은 배당/순수익(수입)뿐 아니라 실제 투자 손실(금융지출>투자손실)도 순액으로 반영한다.
+      // 이렇게 안 하면 "손해 난 달"이 여기 전혀 안 잡혀서, 실제로는 마이너스인데 화면엔 수익만 쌓인 것처럼 보이는 문제가 있었음.
+      if(sub==='투자수입'){
+        var lossTxs=allTxs.filter(function(t){return isInvestLossTx(t);});
+        v=v-lossTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+        // 상세 내역에도 손실 건을 마이너스로 같이 보여준다 (날짜순 정렬은 mkGoalRow 내부에서 처리)
+        txList=txList.concat(lossTxs.map(function(t){return Object.assign({},t,{amount:-(Number(t.amount)||0)});}));
+      }
       return mkGoalRow(sub,v,goal,'var(--gn)',months.length,rowId,txList);
     }).join(''))
     +'</div>'
