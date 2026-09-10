@@ -65,10 +65,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .cal-day-num{font-size:12px;font-weight:700;color:var(--mu2);margin-bottom:3px}
 .cal-day.today .cal-day-num{color:var(--bl)}
 .cal-day-sum{display:flex;flex-wrap:wrap;gap:2px;margin-top:2px}
-.cds{font-size:9px;font-weight:700;white-space:nowrap;border-radius:3px;padding:1px 4px}
-.cds-in{background:rgba(16,185,129,.14);color:var(--gn)}
-.cds-ex{background:rgba(239,68,68,.12);color:var(--rd)}
-.cds-sv{background:rgba(59,130,246,.14);color:var(--bl)}
+.cds{font-size:9px;font-weight:800;white-space:nowrap;border-radius:3px;padding:1px 4px}
+.cds-in{background:rgba(16,185,129,.28);color:#047857}
+.cds-ex{background:rgba(239,68,68,.28);color:#b91c1c}
+.cds-sv{background:rgba(59,130,246,.28);color:#1d4ed8}
 .cal-detail{margin-top:12px;background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
 /* 월별 카드 */
 .mon-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:8px;overflow:hidden}
@@ -908,9 +908,15 @@ function renderGoalsCard(){
   }
   var topCat=getTopExpenseCategoryThisMonth();
   var reduceAmt=topCat?Math.round(topCat.amt*0.2/1000)*1000:0;
-  html+='<div class="g3" style="align-items:stretch">';
+  html+='<div class="g4" style="align-items:stretch">';
+  // 순자산 목표(networth)를 맨 앞에 오도록, GOALS를 표시 순서용으로 재정렬(원본 배열/저장 순서는 건드리지 않음)
+  var sortedGoals=GOALS.slice().sort(function(a,b){
+    if(a.type==='networth'&&b.type!=='networth')return-1;
+    if(b.type==='networth'&&a.type!=='networth')return 1;
+    return 0;
+  });
   html+=carLoanCards;
-  GOALS.forEach(function(g,i){
+  sortedGoals.forEach(function(g,i){
     var p=computeGoalProgress(g);
     var eta=estimateMonthsToGoal(g);
     var color=g.type==='debt'?(p.done?'var(--gn)':'var(--rd)'):(p.done?'var(--gn)':'var(--pu)');
@@ -2742,10 +2748,10 @@ function renderCal(){
   function heatBg(expense){
     if(!expense||maxDayExpense<=0)return'';
     var ratio=expense/maxDayExpense;
-    // 강도 4단계: 약함~강함, 빨강 계열 오버레이(다른 상태 클래스와 겹쳐도 튀지 않게 낮은 알파 사용)
-    if(ratio>=0.66)return'rgba(197,48,48,.22)';
-    if(ratio>=0.33)return'rgba(197,48,48,.13)';
-    return'rgba(197,48,48,.06)';
+    // 강도 4단계: 이전 값(.06~.22)이 너무 옅어서 지출 유무가 잘 구분이 안 됐음 → 알파값을 확실히 올려서 대비를 키움
+    if(ratio>=0.66)return'rgba(220,38,38,.55)';
+    if(ratio>=0.33)return'rgba(220,38,38,.35)';
+    return'rgba(220,38,38,.18)';
   }
   // 그리드 빌드 - DOM 방식
   var grid=document.getElementById('cal-grid');
