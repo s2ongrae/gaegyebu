@@ -1144,6 +1144,24 @@ function recoverOrphanedBTCategories(){
   });
   if(recovered)console.log('[가계부] 예산 항목에만 있던 카테고리를 자동 복구했어요.');
 }
+// 데이터 정정: "투자손실/투자수입" 거래인데 fixed:true(고정거래)로 잘못 표시된 것이 있었음(수동 입력 실수로 추정).
+// 투자손익은 매달 금액이 다른 비정기 거래라 고정거래일 수가 없는데, 이게 fixed=true면
+// - 지출타입(금융지출>투자손실)인 경우 isFixed(t)가 true를 반환해서, 비상금 커버리지의 "평균 고정지출" 계산에 잘못 합산됨
+// 실행 1회만 하고 다시 실행 안 되도록 플래그로 막는다.
+var FIX_INVEST_FIXED_FLAG='gaegyebu_fix_invest_fixed_v1';
+function fixMisflaggedInvestTxFixed(){
+  if(localStorage.getItem(FIX_INVEST_FIXED_FLAG))return;
+  var db=loadDB();var txs=db.txs||[];
+  var fixed=0;
+  txs.forEach(function(t){
+    if((t.sub==='투자손실'||t.sub==='투자수입')&&t.fixed){
+      t.fixed=false;fixed++;
+    }
+  });
+  if(fixed>0)saveDB(db);
+  localStorage.setItem(FIX_INVEST_FIXED_FLAG,'1');
+  if(fixed>0)console.log('[가계부] 투자손익 거래 중 잘못 고정거래로 표시된 '+fixed+'건을 정정했어요.');
+}
 function migrateBTFromExistingBudgets(){
   var db=loadDB();
   var budgets=db.budgets||{};
@@ -1565,6 +1583,7 @@ function initApp(){
   // 안전망: 예산 항목(BT)엔 있는데 카테고리 트리(CATS)엔 없는 소분류가 있으면 자동 복구한다.
   // (기본 카테고리에 새 소분류를 추가할 때 저장 위치가 없어서 새로고침 시 사라지던 예전 버그로 생긴 데이터를 구제)
   recoverOrphanedBTCategories();
+  fixMisflaggedInvestTxFixed();
   loadGoals();
   loadIns();
   maybeSaveDailyCheckpoint();
@@ -2437,7 +2456,7 @@ function renderHis(){
     dayTxs.forEach(function(t){
       var a=Number(t.amount)||0;
       if(t.type==='수입')dayInc+=a;
-      else if(t.type==='지출')dayExp+=a;
+      else if(t.type==='지출'&&!isInvestLossTx(t))dayExp+=a;
     });
 
     // 날짜 헤더 행
@@ -2740,7 +2759,10 @@ function renderCal(){
     if(!byDate[d])byDate[d]={income:0,expense:0,saving:0};
     var a=Number(t.amount)||0;
     if(t.type==='수입')byDate[d].income+=a;
-    else if(t.type==='지출')byDate[d].expense+=a;
+    // 투자손실(금융지출>투자손실)은 실제 생활비 지출이 아니라 투자 손익이므로,
+    // getMonthSummary와 동일하게 캘린더 배경색/일별 지출 집계에서도 제외한다.
+    // (이걸 빼먹었을 때, 투자손실이 크게 잡힌 날이 실제 생활비와 무관하게 캘린더에서 과도하게 "지출 많은 날"로 표시되는 문제가 있었음)
+    else if(t.type==='지출'&&!isInvestLossTx(t))byDate[d].expense+=a;
     else if(t.type==='저축')byDate[d].saving+=a;
   });
   var firstDay=new Date(y,m-1,1).getDay();
@@ -2865,7 +2887,7 @@ function calSelect(ds){
   var TC={'수입':'bg','지출':'br','저축':'bb'};
   var EC={'소비':'bgy','낭비':'br','투자':'bpu','저축':'bb'};
   var inc=txs.filter(function(t){return t.type==='수입';}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
-  var exp=txs.filter(function(t){return t.type==='지출';}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  var exp=txs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   // 헤더
   det.style.display='block';
   det.innerHTML='';
@@ -3119,7 +3141,7 @@ function renderForecastCard(curYM2){
     var s=getMonthSummary(ym);
     fixedIncSum+=s.incomeFixed;varIncSum+=s.incomeVar;
     getTxs(ym).forEach(function(t){
-      if(t.type==='지출'&&!t.installmentId){
+      if(t.type==='지출'&&!t.installmentId&&!isInvestLossTx(t)){
         if(isFixed(t))fixedExpSum+=Number(t.amount)||0;
         else varExpSum+=Number(t.amount)||0;
       }
@@ -3955,7 +3977,7 @@ function deleteBudgetTemplateItem(i){
 // ── 지난달 변동지출 95%로 예산 일괄설정 (고정지출은 건드리지 않음) ──
 function openBulkVarBudget(){
   var ym=gYM();var prevYm=getPrevYM(ym);
-  var prevTxs=getTxs(prevYm).filter(function(t){return t.type==='지출'&&!isFixed(t);});
+  var prevTxs=getTxs(prevYm).filter(function(t){return t.type==='지출'&&!isFixed(t)&&!isInvestLossTx(t);});
   var sums={};
   prevTxs.forEach(function(t){
     var key=t.mid+'|'+t.sub;
@@ -6060,7 +6082,7 @@ function renderInpDash(){
   topTitle.textContent='🏆 이달 지출 TOP5';
   topCard.appendChild(topTitle);
   if(expTop.length){
-    var expTxsAll=getTxs(ym).filter(function(t){return t.type==='지출';});
+    var expTxsAll=getTxs(ym).filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);});
     expTop.forEach(function(e,ti){
       var name=e[0],amt=e[1];
       var pct2=Math.round(amt/maxExp*100);
@@ -6097,12 +6119,16 @@ function renderInpDash(){
   txs.filter(function(t){return t.type==='지출';}).forEach(function(t){
     var a=Number(t.amount)||0;
     if(evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;
-    if(isFixed(t))fixAmt+=a;else varAmt+=a;
+    // 투자손실은 "투자" 성격 분석에는 남기되(자금 흐름 파악용), 고정/변동 비중 계산에서는 뺀다.
+    // (이걸 안 뺐을 때, 투자손실 거래 하나가 실수로 fixed=true로 잘못 표시돼서 "고정지출" 비중이 크게 왜곡된 적이 있었음)
+    if(!isInvestLossTx(t)){if(isFixed(t))fixAmt+=a;else varAmt+=a;}
   });
   txs.filter(function(t){return t.type==='저축';}).forEach(function(t){
     var a=Number(t.amount)||0;
     if(evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;
   });
+  // 퍼센트 계산 기준(totalE)은 sm.expense(투자손실 제외된 "진짜 지출") 기준이라,
+  // "투자" 항목처럼 투자손실이 섞여 분자가 더 큰 경우엔 100%를 넘을 수 있다 — 의도된 동작(자금흐름 전체를 보여주기 위함).
   var totalE=sm.expense||1;
 
   [{k:'소비',c:'var(--mu2)'},{k:'낭비',c:'var(--rd)'},{k:'투자',c:'var(--pu)'},{k:'저축',c:'var(--bl)'}].forEach(function(x,xi){
@@ -6129,7 +6155,7 @@ function renderInpDash(){
   [{k:'고정',v:fixAmt,c:'var(--bl)',fixed:true},{k:'변동',v:varAmt,c:'var(--cy)',fixed:false}].forEach(function(x,xi){
     var p=Math.round(x.v/totalE*100);
     var rowId='inpdash-fixvar-'+xi;
-    var fixVarTxs=txs.filter(function(t){return t.type==='지출'&&isFixed(t)===x.fixed;});
+    var fixVarTxs=txs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t)&&isFixed(t)===x.fixed;});
     var breakdown=getSubBreakdownByMid(fixVarTxs);
     var row=document.createElement('div');
     row.style.cssText='margin-bottom:4px;cursor:pointer';
