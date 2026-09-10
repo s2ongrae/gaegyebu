@@ -182,7 +182,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .sp{width:26px;height:26px;border:2px solid var(--bd);border-top-color:var(--bl);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 @media(max-width:900px){.inp-layout{grid-template-columns:1fr}.his-panel{position:static;max-height:none}}
-@media(max-width:700px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}.fg.c3,.fg.c4{grid-template-columns:1fr 1fr}.bud-grid{grid-template-columns:1fr}.cal-day{min-height:64px}}
+@media(max-width:700px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}.fg.c3,.fg.c4{grid-template-columns:1fr 1fr}.bud-grid{grid-template-columns:1fr}.cal-day{min-height:64px}.bud-pair-wrap{grid-template-columns:1fr!important}}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -3595,6 +3595,80 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
   wrap.innerHTML=html;
 }
 
+// 예산/목표 카드 하나를 만드는 공용 함수 (지출 섹션과, 나란히 배치되는 수입/저축 섹션이 함께 사용)
+function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym,curYear){
+  var items=groups[m];
+  var rows=items.map(function(o){
+    var key=o.item.mid+'|'+o.item.sub;
+    return{i:o.i,sub:o.item.sub,amount:sectionEb.bySub[key]||0,autoTag:sectionEb.tags[key]};
+  });
+  var totalBudget=sectionEb.byMid[m]||0;
+  var actual=0;
+  monthTxs.forEach(function(t){if(t.mid===m&&t.type===sec.type&&!isInvestLossTx(t))actual+=Number(t.amount)||0;});
+  var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
+  var over=isExpense&&totalBudget>0&&pct2>100;
+  var achieved=!isExpense&&totalBudget>0&&pct2>=100;
+  var barColor=isExpense?(pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)')
+                        :(pct2>=100?'var(--gn)':pct2>=70?'var(--yw)':'var(--rd)');
+  var badgeCls=isExpense?(over?'br':'bgy'):(achieved?'bg':(pct2>=70?'bgy':'br'));
+
+  var card=document.createElement('div');card.className='bud-card';
+  var head=document.createElement('div');head.className='bud-card-head';
+  var name=document.createElement('div');name.className='bud-card-name';
+  name.textContent=(CE[m]||'')+' '+m+' ';
+  if(totalBudget){var badge=document.createElement('span');badge.className='bk '+badgeCls;badge.style.fontSize='10px';badge.textContent=pct2+'%';name.appendChild(badge);}
+  head.appendChild(name);
+  var total=document.createElement('div');total.className='bud-card-total';
+  total.innerHTML=totalBudget?('예산 '+ff(totalBudget)+'<span style="display:block;font-size:10px;font-weight:700;color:'+(isExpense?(over?'var(--rd)':'var(--mu2)'):'var(--gn)')+';margin-top:1px">실적 '+ff(actual)+'</span>'):(actual?('미설정<span style="display:block;font-size:10px;font-weight:700;color:var(--mu2);margin-top:1px">실적 '+ff(actual)+'</span>'):'미설정');
+  head.appendChild(total);
+  card.appendChild(head);
+  if(totalBudget){
+    var prg=document.createElement('div');prg.className='prg mb8';
+    var prb=document.createElement('div');prb.className='prb';prb.style.cssText='width:'+Math.min(pct2,100)+'%;background:'+barColor;
+    prg.appendChild(prb);card.appendChild(prg);
+  }
+  rows.forEach(function(r){
+    var act=0;
+    monthTxs.forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type===sec.type)act+=Number(t.amount)||0;});
+    var row=document.createElement('div');row.className='bud-sub-row';
+    var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub+' ';
+    if(r.autoTag==='prev95'){
+      var abk=document.createElement('span');abk.className='bk bcy';abk.style.fontSize='9px';abk.title='전월 실사용액의 95%로 자동 채워졌어요.';abk.textContent='🔁 전월 95%';
+      subName.appendChild(abk);
+    }else if(r.autoTag==='prev100'){
+      var pbk=document.createElement('span');pbk.className='bk bcy';pbk.style.fontSize='9px';pbk.title='전월 실적과 동일한 금액이 목표로 자동 채워졌어요.';pbk.textContent='🔁 전월과 동일';
+      subName.appendChild(pbk);
+    }else if(r.autoTag==='template'){
+      var tbk=document.createElement('span');tbk.className='bk bpu';tbk.style.fontSize='9px';tbk.title='설정해두신 기본값이 적용됐어요. 이번달만 다르게 하려면 값을 바꾸고 포커스를 옮기세요.';tbk.textContent='📌 기본값';
+      subName.appendChild(tbk);
+    }
+    row.appendChild(subName);
+    var histAvg=getHistAvg(m,r.sub,sec.type);
+    if(histAvg>0){
+      var avgEl=document.createElement('span');
+      avgEl.style.cssText='font-size:9px;color:var(--pu);display:block;margin-top:1px';
+      avgEl.title='올해('+curYear+') 데이터 기준 월평균 (예산 잡을 때 참고하세요)';
+      avgEl.textContent='평균 '+ff(histAvg);
+      subName.appendChild(avgEl);
+    }
+    var actEl=document.createElement('span');actEl.className='bud-sub-actual';if(act)actEl.textContent=ff(act);row.appendChild(actEl);
+    var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder=isExpense?'예산':'목표';inp.min='0';inp.className='bud-sub-input';
+    if(r.autoTag)inp.style.borderColor='rgba(8,151,160,.4)';
+    (function(ym2,m2,s2){
+      inp.onfocus=function(){this.style.borderColor='var(--bl)';};
+      inp.onblur=function(){onBud(this,ym2,m2,s2);};
+    })(ym,m,r.sub);
+    row.appendChild(inp);
+    var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:4px 7px;margin-left:4px';
+    (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
+    row.appendChild(editBtn);
+    var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 7px;margin-left:4px';
+    (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
+    row.appendChild(delBtn);
+    card.appendChild(row);
+  });
+  return card;
+}
 function renderBud(){
   var ym=gYM();var sm=getMonthSummary(ym);
   var container=document.getElementById('d-bud');
@@ -3665,7 +3739,40 @@ function renderBud(){
     {type:'저축',title:'🏦 저축 목표'}
   ];
 
+  // 수입/저축은 각각 대분류가 하나뿐이라 카드가 1개씩만 나오는데, 예전엔 섹션 헤더가 grid-column:1/-1이라
+  // 항상 줄바꿈이 생겨서 세로로 떨어져 보였음. 이제 이 둘만 한 줄에 반반(2열)으로 나란히 배치한다.
+  var incSec=sections[1],savSec=sections[2];
+  var incItems=validItems.filter(function(o){var c=CATS[o.item.mid];return c&&c.p===incSec.type;});
+  var savItems=validItems.filter(function(o){var c=CATS[o.item.mid];return c&&c.p===savSec.type;});
+  if(incItems.length||savItems.length){
+    var pairWrap=document.createElement('div');
+    pairWrap.className='bud-pair-wrap';
+    pairWrap.style.cssText='grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px';
+    container.appendChild(pairWrap);
+    [{sec:incSec,items:incItems},{sec:savSec,items:savItems}].forEach(function(pair){
+      if(!pair.items.length)return;
+      var col=document.createElement('div');
+      var sectionEb=eb[pair.sec.type];
+      var isExpense=false;
+      var secHead=document.createElement('div');
+      secHead.style.cssText='font-size:13px;font-weight:800;color:var(--tx);margin-bottom:8px;padding-bottom:6px;border-bottom:2px solid var(--bd)';
+      secHead.textContent=pair.sec.title;
+      col.appendChild(secHead);
+      var groups={};
+      pair.items.forEach(function(o){
+        var m=o.item.mid;
+        if(!groups[m])groups[m]=[];
+        groups[m].push(o);
+      });
+      Object.keys(groups).forEach(function(m){
+        col.appendChild(buildBudgetCard(m,groups,sectionEb,pair.sec,isExpense,monthTxs,getHistAvg,ym,curYear));
+      });
+      pairWrap.appendChild(col);
+    });
+  }
+
   sections.forEach(function(sec){
+    if(sec.type==='수입'||sec.type==='저축')return; // 위에서 이미 나란히 처리함
     var itemsOfType=validItems.filter(function(o){var c=CATS[o.item.mid];return c&&c.p===sec.type;});
     if(!itemsOfType.length)return;
     var sectionEb=eb[sec.type];
@@ -3683,81 +3790,9 @@ function renderBud(){
       groups[m].push(o);
     });
 
-    function buildCard(m){
-      var items=groups[m];
-      var rows=items.map(function(o){
-        var key=o.item.mid+'|'+o.item.sub;
-        return{i:o.i,sub:o.item.sub,amount:sectionEb.bySub[key]||0,autoTag:sectionEb.tags[key]};
-      });
-      var totalBudget=sectionEb.byMid[m]||0;
-      var actual=0;
-      monthTxs.forEach(function(t){if(t.mid===m&&t.type===sec.type&&!isInvestLossTx(t))actual+=Number(t.amount)||0;});
-      var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
-      var over=isExpense&&totalBudget>0&&pct2>100;
-      var achieved=!isExpense&&totalBudget>0&&pct2>=100;
-      var barColor=isExpense?(pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)')
-                            :(pct2>=100?'var(--gn)':pct2>=70?'var(--yw)':'var(--rd)');
-      var badgeCls=isExpense?(over?'br':'bgy'):(achieved?'bg':(pct2>=70?'bgy':'br'));
-
-      var card=document.createElement('div');card.className='bud-card';
-      var head=document.createElement('div');head.className='bud-card-head';
-      var name=document.createElement('div');name.className='bud-card-name';
-      name.textContent=(CE[m]||'')+' '+m+' ';
-      if(totalBudget){var badge=document.createElement('span');badge.className='bk '+badgeCls;badge.style.fontSize='10px';badge.textContent=pct2+'%';name.appendChild(badge);}
-      head.appendChild(name);
-      var total=document.createElement('div');total.className='bud-card-total';
-      total.innerHTML=totalBudget?('예산 '+ff(totalBudget)+'<span style="display:block;font-size:10px;font-weight:700;color:'+(isExpense?(over?'var(--rd)':'var(--mu2)'):'var(--gn)')+';margin-top:1px">실적 '+ff(actual)+'</span>'):(actual?('미설정<span style="display:block;font-size:10px;font-weight:700;color:var(--mu2);margin-top:1px">실적 '+ff(actual)+'</span>'):'미설정');
-      head.appendChild(total);
-      card.appendChild(head);
-      if(totalBudget){
-        var prg=document.createElement('div');prg.className='prg mb8';
-        var prb=document.createElement('div');prb.className='prb';prb.style.cssText='width:'+Math.min(pct2,100)+'%;background:'+barColor;
-        prg.appendChild(prb);card.appendChild(prg);
-      }
-      rows.forEach(function(r){
-        var act=0;
-        monthTxs.forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type===sec.type)act+=Number(t.amount)||0;});
-        var row=document.createElement('div');row.className='bud-sub-row';
-        var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub+' ';
-        if(r.autoTag==='prev95'){
-          var abk=document.createElement('span');abk.className='bk bcy';abk.style.fontSize='9px';abk.title='전월 실사용액의 95%로 자동 채워졌어요.';abk.textContent='🔁 전월 95%';
-          subName.appendChild(abk);
-        }else if(r.autoTag==='prev100'){
-          var pbk=document.createElement('span');pbk.className='bk bcy';pbk.style.fontSize='9px';pbk.title='전월 실적과 동일한 금액이 목표로 자동 채워졌어요.';pbk.textContent='🔁 전월과 동일';
-          subName.appendChild(pbk);
-        }else if(r.autoTag==='template'){
-          var tbk=document.createElement('span');tbk.className='bk bpu';tbk.style.fontSize='9px';tbk.title='설정해두신 기본값이 적용됐어요. 이번달만 다르게 하려면 값을 바꾸고 포커스를 옮기세요.';tbk.textContent='📌 기본값';
-          subName.appendChild(tbk);
-        }
-        row.appendChild(subName);
-        var histAvg=getHistAvg(m,r.sub,sec.type);
-        if(histAvg>0){
-          var avgEl=document.createElement('span');
-          avgEl.style.cssText='font-size:9px;color:var(--pu);display:block;margin-top:1px';
-          avgEl.title='올해('+curYear+') 데이터 기준 월평균 (예산 잡을 때 참고하세요)';
-          avgEl.textContent='평균 '+ff(histAvg);
-          subName.appendChild(avgEl);
-        }
-        var actEl=document.createElement('span');actEl.className='bud-sub-actual';if(act)actEl.textContent=ff(act);row.appendChild(actEl);
-        var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder=isExpense?'예산':'목표';inp.min='0';inp.className='bud-sub-input';
-        if(r.autoTag)inp.style.borderColor='rgba(8,151,160,.4)';
-        (function(ym2,m2,s2){
-          inp.onfocus=function(){this.style.borderColor='var(--bl)';};
-          inp.onblur=function(){onBud(this,ym2,m2,s2);};
-        })(ym,m,r.sub);
-        row.appendChild(inp);
-        var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:4px 7px;margin-left:4px';
-        (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
-        row.appendChild(editBtn);
-        var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 7px;margin-left:4px';
-        (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
-        row.appendChild(delBtn);
-        card.appendChild(row);
-      });
-      return card;
-    }
-
-    Object.keys(groups).forEach(function(m){container.appendChild(buildCard(m));});
+    Object.keys(groups).forEach(function(m){
+      container.appendChild(buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym,curYear));
+    });
   });
 }
 
