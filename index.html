@@ -3036,16 +3036,33 @@ function getSubBreakdownByMid(txList){
   txList.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});
   return Object.keys(m).map(function(mid){return{sub:mid,amt:m[mid]};}).sort(function(a,b){return b.amt-a.amt;});
 }
-function renderSubBreakdownRows(subRanked,indent,iconMap){
+// 소분류(또는 대분류) 목록을 렌더링한다. txList와 groupKeyField를 함께 넘기면,
+// 각 행을 클릭했을 때 그 소분류에 해당하는 "개별 거래 내역"(날짜/메모/결제수단/금액)까지 한 번 더 펼쳐볼 수 있다.
+// - groupKeyField: 'sub'(소분류 breakdown일 때) 또는 'mid'(대분류 breakdown일 때) — subRanked의 각 항목을 txList와 매칭할 필드명
+// - rowIdPrefix: 펼침 상태를 저장할 DOM id 접두사 (같은 화면에 여러 breakdown이 있을 때 id 충돌 방지용)
+function renderSubBreakdownRows(subRanked,indent,iconMap,txList,groupKeyField,rowIdPrefix){
   indent=indent||36;
   iconMap=iconMap||SUB_ICON;
   if(!subRanked.length)return'<div style="font-size:11px;color:var(--mu);padding:4px '+indent+'px">세부 내역 없음</div>';
   var total=subRanked.reduce(function(s,x){return s+x.amt;},0);
-  return subRanked.map(function(s){
-    return'<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd)">'
+  var clickable=!!(txList&&groupKeyField);
+  return subRanked.map(function(s,si){
+    var rowId=clickable?(rowIdPrefix||'subbrk')+'-'+si:null;
+    var row='<div'+(clickable?' style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+rowId+'\')"':' style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd)"')+'>'
       +'<span>'+(iconMap[s.sub]||'')+' '+s.sub+'</span>'
       +'<span><b style="color:var(--tx)">'+ff(s.amt)+'</b> <span style="color:var(--mu)">('+(total?Math.round(s.amt/total*100):0)+'%)</span></span>'
       +'</div>';
+    if(!clickable)return row;
+    // 이 소분류(또는 대분류)에 속한 개별 거래를 최신순으로 나열
+    var itemTxs=txList.filter(function(t){return t[groupKeyField]===s.sub;})
+      .slice().sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;});
+    var detail=itemTxs.length?itemTxs.map(function(t){
+      return'<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px '+(indent+16)+'px;color:var(--mu);border-bottom:1px dashed var(--bd)">'
+        +'<span>'+t.date+' '+(t.memo||'(메모 없음)')+'</span>'
+        +'<span>'+ff(Number(t.amount)||0)+(t.payment?' · '+t.payment:'')+'</span>'
+        +'</div>';
+    }).join(''):'<div style="font-size:10px;color:var(--mu);padding:3px '+(indent+16)+'px">거래 내역 없음</div>';
+    return row+'<div id="'+rowId+'" style="display:none">'+detail+'</div>';
   }).join('');
 }
 function toggleCatSub(id){
@@ -6601,7 +6618,7 @@ function renderAnnual(months){
           +'</div>'):'<span style="font-size:10px;color:var(--mu)">예산 미설정</span>')
         +'</td>'
         +'</tr>'
-        +'<tr><td colspan="7" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),x.name),16)+'</div></td></tr>';
+        +'<tr><td colspan="7" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type==='지출'&&t.mid===x.name&&!isInvestLossTx(t);}),'sub','annualcat-detail-'+idx)+'</div></td></tr>';
     }).join('')
     +'</tbody></table>'
     +'</div>'
