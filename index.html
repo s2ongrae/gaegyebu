@@ -6658,102 +6658,156 @@ function renderAnnual(months){
     }).join(''))
     +'</div></div>'
 
-    // 지출순위 + 예산 + 월별 매트릭스 통합 테이블
-    // (예전엔 "카테고리별 지출 순위" 표와 "카테고리 × 월별 매트릭스" 표가 따로 있었는데,
-    //  둘 다 "행 = 카테고리"라 같은 표 오른쪽에 월별 열을 이어붙여 하나로 합쳤다.)
+    // ── 카테고리(또는 소분류) 순위 + 목표/예산 대비 + 월별 매트릭스 통합 테이블을 만드는 공용 함수 ──
+    // 지출표에서 먼저 이 구조를 만들었는데, 수입/저축도 "행=카테고리, 열=월"이라는 같은 틀이 잘 맞아서
+    // 함수로 뽑아 세 군데(지출/수입/저축)에서 재사용한다.
+    // - ranked: [{name, amt}] 형태, 이미 amt 내림차순 정렬된 배열
+    // - goalByName: {name: 목표/예산 금액} 맵
+    // - opts.txField: 그 항목의 개별 거래를 찾을 때 비교할 필드('mid' 또는 'sub')
+    // - opts.txType: '지출'|'수입'|'저축'
+    // - opts.goodWhenOver: true면 목표 초과가 좋은 일(수입/저축), false면 나쁜 일(지출)이라 색상 로직이 반대가 됨
+    // - opts.goalLabel/opts.remainLabel: 표 헤더에 쓸 라벨("예산"/"잔액" vs "목표"/"초과분")
     +(function(){
-      var matrixMonths=months.slice(-12);
-      var byMidMonth={}; // mid -> ym -> amount
-      allTxs.forEach(function(t){
-        if(t.type!=='지출'||isInvestLossTx(t))return;
-        var ym=t.date.slice(0,7);
-        if(matrixMonths.indexOf(ym)<0)return;
-        if(!byMidMonth[t.mid])byMidMonth[t.mid]={};
-        byMidMonth[t.mid][ym]=(byMidMonth[t.mid][ym]||0)+(Number(t.amount)||0);
-      });
-      var showMonthCols=matrixMonths.length>=2;
-      var maxCell=0;
-      if(showMonthCols){
-        expRanked.forEach(function(x){matrixMonths.forEach(function(ym){var v=(byMidMonth[x.name]||{})[ym]||0;if(v>maxCell)maxCell=v;});});
-      }
-      function cellBg(v){
-        if(!v||maxCell<=0)return'';
-        var ratio=v/maxCell;
-        if(ratio>=0.66)return'rgba(220,38,38,.30)';
-        if(ratio>=0.33)return'rgba(220,38,38,.16)';
-        return'rgba(220,38,38,.07)';
-      }
-      var monthTotals=showMonthCols?matrixMonths.map(function(ym){
-        return expRanked.reduce(function(s,x){return s+((byMidMonth[x.name]||{})[ym]||0);},0);
-      }):[];
+      function buildRankedMonthlyTable(ranked,goalByName,opts){
+        var matrixMonths=months.slice(-12);
+        var byNameMonth={}; // name -> ym -> amount
+        allTxs.forEach(function(t){
+          if(t.type!==opts.txType)return;
+          if(opts.txType==='지출'&&isInvestLossTx(t))return;
+          var ym=t.date.slice(0,7);
+          if(matrixMonths.indexOf(ym)<0)return;
+          var name=t[opts.txField];
+          if(!byNameMonth[name])byNameMonth[name]={};
+          byNameMonth[name][ym]=(byNameMonth[name][ym]||0)+(Number(t.amount)||0);
+        });
+        var showMonthCols=matrixMonths.length>=2;
+        var maxCell=0;
+        if(showMonthCols){
+          ranked.forEach(function(x){matrixMonths.forEach(function(ym){var v=(byNameMonth[x.name]||{})[ym]||0;if(v>maxCell)maxCell=v;});});
+        }
+        function cellBg(v){
+          if(!v||maxCell<=0)return'';
+          var ratio=v/maxCell;
+          var c=opts.cellColor;
+          if(ratio>=0.66)return c.strong;
+          if(ratio>=0.33)return c.mid;
+          return c.weak;
+        }
+        var monthTotals=showMonthCols?matrixMonths.map(function(ym){
+          return ranked.reduce(function(s,x){return s+((byNameMonth[x.name]||{})[ym]||0);},0);
+        }):[];
 
-      var html='<div style="margin-top:14px">'
-        +'<div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:8px">🏆 카테고리별 지출 순위 &amp; 예산 대비 <span style="font-weight:400;font-size:10px;color:var(--mu)">(카테고리 클릭 시 소분류, 월별 금액 클릭 시 그 달 소분류 보기)</span></div>'
-        +'<div style="overflow-x:auto">'
-        +'<table style="width:100%;border-collapse:collapse;white-space:nowrap"><thead><tr>'
-        +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:28px">순위</th>'
-        +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);position:sticky;left:0;background:var(--sf)">카테고리</th>'
-        +(showMonthCols?matrixMonths.map(function(ym){return'<th style="text-align:right;font-size:11px;color:var(--mu2);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd)">'+ym.slice(2).replace('-','/')+'</th>';}).join(''):'')
-        +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:2px solid var(--bd2)">예산</th>'
-        +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
-        +'<th style="text-align:right;font-size:11px;color:var(--pu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">월평균</th>'
-        +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">잔액</th>'
-        +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:90px">예산사용률</th>'
-        +'</tr></thead><tbody>'
-        +expRanked.map(function(x,idx){
-          var avg=months.length?Math.round(x.amt/months.length):0;
-          var budget=ANNUAL_BUDGET_BY_MID[x.name]||0;
-          var hasBudget=budget>0;
-          var pct=hasBudget?Math.min(Math.round(x.amt/budget*100),999):0;
-          var remain=budget-x.amt;
-          var color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
-          var w=Math.min(pct,100);
-          var subId='annualcat-sub-'+idx;
-          var colCount=7+(showMonthCols?matrixMonths.length:0);
-          return'<tr>'
-            +'<td style="font-size:11px;font-weight:700;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(idx+1)+'</td>'
-            +'<td style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;position:sticky;left:0;background:var(--sf)" onclick="toggleCatSub(\''+subId+'\')">'+(CE[x.name]||'')+' '+x.name+'</td>'
-            +(showMonthCols?matrixMonths.map(function(ym,yi){
-              var v=(byMidMonth[x.name]||{})[ym]||0;
-              var bg=cellBg(v);
-              var cellId='matrix-cell-'+idx+'-'+yi;
-              if(!v)return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);color:var(--mu)">-</td>';
-              return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);cursor:pointer;background:'+bg+'" onclick="toggleCatSub(\''+cellId+'\')" title="눌러서 그 달 소분류 보기">'+f(v)+'</td>';
-            }).join(''):'')
-            +'<td style="text-align:right;font-size:11px;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);border-left:2px solid var(--bd2);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(hasBudget?ff(budget):'-')+'</td>'
-            +'<td style="text-align:right;font-weight:700;font-size:11px;color:var(--rd);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(x.amt)+'</td>'
-            +'<td style="text-align:right;font-size:11px;color:var(--pu);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(avg)+'</td>'
-            +'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;color:'+(!hasBudget?'var(--mu)':(remain>=0?'var(--gn)':'var(--rd)'))+'" onclick="toggleCatSub(\''+subId+'\')">'+(hasBudget?ff(remain):'-')+'</td>'
-            +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'
-            +(hasBudget?('<div style="display:flex;align-items:center;gap:3px">'
-              +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
-              +'<div style="width:'+w+'%;height:100%;background:'+color+';border-radius:2px"></div></div>'
-              +'<span style="font-size:10px;font-weight:700;color:'+color+';min-width:28px">'+pct+'%</span>'
-              +'</div>'):'<span style="font-size:10px;color:var(--mu)">예산 미설정</span>')
-            +'</td>'
-            +'</tr>'
-            +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type==='지출'&&t.mid===x.name&&!isInvestLossTx(t);}),'sub','annualcat-detail-'+idx)+'</div></td></tr>'
-            +(showMonthCols?matrixMonths.map(function(ym,yi){
-              var v=(byMidMonth[x.name]||{})[ym]||0;
-              if(!v)return'';
-              var cellId='matrix-cell-'+idx+'-'+yi;
-              var monthTxs=allTxs.filter(function(t){return t.type==='지출'&&t.mid===x.name&&t.date.slice(0,7)===ym&&!isInvestLossTx(t);});
-              return'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+cellId+'" style="display:none;padding:6px 8px 6px 32px;background:var(--sf2)">'
-                +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:3px">'+ym+' '+x.name+'</div>'
-                +renderSubBreakdownRows(getSubBreakdown(monthTxs,x.name),4)
-                +'</div></td></tr>';
-            }).join(''):'');
-        }).join('')
-        +'</tbody>'
-        +(showMonthCols?'<tfoot><tr>'
-          +'<td colspan="2" style="padding:6px 6px;border-top:2px solid var(--bd);font-weight:800;position:sticky;left:0;background:var(--sf)">월별 합계</td>'
-          +monthTotals.map(function(v){return'<td style="text-align:right;padding:6px 6px;border-top:2px solid var(--bd);border-left:1px solid var(--bd);font-weight:800;font-size:11px">'+f(v)+'</td>';}).join('')
-          +'<td colspan="5" style="border-top:2px solid var(--bd);border-left:2px solid var(--bd2)"></td>'
-          +'</tr></tfoot>':'')
-        +'</table>'
-        +'</div>'
-        +'</div>';
-      return html;
+        var html='<div style="margin-top:14px">'
+          +'<div style="font-size:12px;font-weight:700;color:'+opts.titleColor+';margin-bottom:8px">'+opts.icon+' '+opts.title+' <span style="font-weight:400;font-size:10px;color:var(--mu)">(항목 클릭 시 소분류, 월별 금액 클릭 시 그 달 소분류 보기)</span></div>'
+          +'<div style="overflow-x:auto">'
+          +'<table style="width:100%;border-collapse:collapse;white-space:nowrap"><thead><tr>'
+          +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:28px">순위</th>'
+          +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);position:sticky;left:0;background:var(--sf)">'+opts.nameColLabel+'</th>'
+          +(showMonthCols?matrixMonths.map(function(ym){return'<th style="text-align:right;font-size:11px;color:var(--mu2);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd)">'+ym.slice(2).replace('-','/')+'</th>';}).join(''):'')
+          +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:2px solid var(--bd2)">'+opts.goalLabel+'</th>'
+          +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
+          +'<th style="text-align:right;font-size:11px;color:var(--pu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">월평균</th>'
+          +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">'+opts.remainLabel+'</th>'
+          +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:90px">달성률</th>'
+          +'</tr></thead><tbody>'
+          +ranked.map(function(x,idx){
+            var avg=months.length?Math.round(x.amt/months.length):0;
+            var goal=goalByName[x.name]||0;
+            var hasGoal=goal>0;
+            var pct=hasGoal?Math.min(Math.round(x.amt/goal*100),999):0;
+            var remain=goal-x.amt;
+            var color;
+            if(!hasGoal)color='var(--mu)';
+            else if(opts.goodWhenOver)color=pct>=100?'var(--gn)':pct>=70?'var(--yw)':'var(--rd)';
+            else color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
+            var w=Math.min(pct,100);
+            var subId=opts.idPrefix+'-sub-'+idx;
+            var colCount=7+(showMonthCols?matrixMonths.length:0);
+            return'<tr>'
+              +'<td style="font-size:11px;font-weight:700;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(idx+1)+'</td>'
+              +'<td style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;position:sticky;left:0;background:var(--sf)" onclick="toggleCatSub(\''+subId+'\')">'+(opts.icon2?(opts.icon2(x.name)+' '):'')+x.name+'</td>'
+              +(showMonthCols?matrixMonths.map(function(ym,yi){
+                var v=(byNameMonth[x.name]||{})[ym]||0;
+                var bg=cellBg(v);
+                var cellId=opts.idPrefix+'-cell-'+idx+'-'+yi;
+                if(!v)return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);color:var(--mu)">-</td>';
+                return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);cursor:pointer;background:'+bg+'" onclick="toggleCatSub(\''+cellId+'\')" title="눌러서 그 달 소분류 보기">'+f(v)+'</td>';
+              }).join(''):'')
+              +'<td style="text-align:right;font-size:11px;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);border-left:2px solid var(--bd2);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(hasGoal?ff(goal):'-')+'</td>'
+              +'<td style="text-align:right;font-weight:700;font-size:11px;color:'+opts.actualColor+';padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(x.amt)+'</td>'
+              +'<td style="text-align:right;font-size:11px;color:var(--pu);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(avg)+'</td>'
+              +'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;color:'+(!hasGoal?'var(--mu)':(opts.goodWhenOver?(remain<=0?'var(--gn)':'var(--rd)'):(remain>=0?'var(--gn)':'var(--rd)')))+'" onclick="toggleCatSub(\''+subId+'\')">'+(hasGoal?ff(remain):'-')+'</td>'
+              +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'
+              +(hasGoal?('<div style="display:flex;align-items:center;gap:3px">'
+                +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
+                +'<div style="width:'+w+'%;height:100%;background:'+color+';border-radius:2px"></div></div>'
+                +'<span style="font-size:10px;font-weight:700;color:'+color+';min-width:28px">'+pct+'%</span>'
+                +'</div>'):'<span style="font-size:10px;color:var(--mu)">'+opts.goalLabel+' 미설정</span>')
+              +'</td>'
+              +'</tr>'
+              +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx)+'</div></td></tr>'
+              +(showMonthCols?matrixMonths.map(function(ym,yi){
+                var v=(byNameMonth[x.name]||{})[ym]||0;
+                if(!v)return'';
+                var cellId=opts.idPrefix+'-cell-'+idx+'-'+yi;
+                var monthTxs=allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&t.date.slice(0,7)===ym&&(opts.txType!=='지출'||!isInvestLossTx(t));});
+                return'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+cellId+'" style="display:none;padding:6px 8px 6px 32px;background:var(--sf2)">'
+                  +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:3px">'+ym+' '+x.name+'</div>'
+                  +renderSubBreakdownRows(opts.monthSubBreakdown(monthTxs,x.name),4)
+                  +'</div></td></tr>';
+              }).join(''):'');
+          }).join('')
+          +'</tbody>'
+          +(showMonthCols?'<tfoot><tr>'
+            +'<td colspan="2" style="padding:6px 6px;border-top:2px solid var(--bd);font-weight:800;position:sticky;left:0;background:var(--sf)">월별 합계</td>'
+            +monthTotals.map(function(v){return'<td style="text-align:right;padding:6px 6px;border-top:2px solid var(--bd);border-left:1px solid var(--bd);font-weight:800;font-size:11px">'+f(v)+'</td>';}).join('')
+            +'<td colspan="5" style="border-top:2px solid var(--bd);border-left:2px solid var(--bd2)"></td>'
+            +'</tr></tfoot>':'')
+          +'</table>'
+          +'</div>'
+          +'</div>';
+        return html;
+      }
+
+      var incRankedTbl=CATS['수입'].s.map(function(s){return{name:s,amt:incMap[s]||0};})
+        .filter(function(x){return x.amt>0;}).sort(function(a,b){return b.amt-a.amt;});
+      var savRankedTbl=CATS['저축'].s.map(function(s){return{name:s,amt:savMap[s]||0};})
+        .filter(function(x){return x.amt>0;}).sort(function(a,b){return b.amt-a.amt;});
+
+      var expTable=buildRankedMonthlyTable(expRanked,ANNUAL_BUDGET_BY_MID,{
+        txType:'지출',txField:'mid',subGroupField:'sub',idPrefix:'annualcat',
+        icon:'🏆',title:'카테고리별 지출 순위 & 예산 대비',titleColor:'var(--rd)',
+        nameColLabel:'카테고리',goalLabel:'예산',remainLabel:'잔액',
+        goodWhenOver:false,actualColor:'var(--rd)',
+        icon2:function(name){return CE[name]||'';},
+        cellColor:{strong:'rgba(220,38,38,.30)',mid:'rgba(220,38,38,.16)',weak:'rgba(220,38,38,.07)'},
+        subBreakdown:function(name){return getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),name);},
+        monthSubBreakdown:function(txs,name){return getSubBreakdown(txs,name);}
+      });
+
+      var incTable=buildRankedMonthlyTable(incRankedTbl,incGoalBySub,{
+        txType:'수입',txField:'sub',subGroupField:'mid',idPrefix:'annualinc',
+        icon:'💰',title:'항목별 수입 순위 & 목표 대비',titleColor:'var(--gn)',
+        nameColLabel:'항목',goalLabel:'목표',remainLabel:'부족분',
+        goodWhenOver:true,actualColor:'var(--gn)',
+        icon2:function(name){return SUB_ICON[name]||'';},
+        cellColor:{strong:'rgba(39,103,73,.30)',mid:'rgba(39,103,73,.16)',weak:'rgba(39,103,73,.07)'},
+        subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(t.type==='수입'&&t.sub===name)m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
+        monthSubBreakdown:function(txs,name){var m={};txs.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});}
+      });
+
+      var savTable=buildRankedMonthlyTable(savRankedTbl,savGoalBySub,{
+        txType:'저축',txField:'sub',subGroupField:'mid',idPrefix:'annualsav',
+        icon:'🏦',title:'항목별 저축 순위 & 목표 대비',titleColor:'var(--bl)',
+        nameColLabel:'항목',goalLabel:'목표',remainLabel:'부족분',
+        goodWhenOver:true,actualColor:'var(--bl)',
+        icon2:function(name){return SUB_ICON[name]||'';},
+        cellColor:{strong:'rgba(43,108,176,.30)',mid:'rgba(43,108,176,.16)',weak:'rgba(43,108,176,.07)'},
+        subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(t.type==='저축'&&t.sub===name)m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
+        monthSubBreakdown:function(txs,name){var m={};txs.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});}
+      });
+
+      return expTable+incTable+savTable;
     })()
 
     +'</div>';
