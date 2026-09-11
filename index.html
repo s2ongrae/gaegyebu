@@ -3472,7 +3472,6 @@ function renderDash(){
     renderAnomalyCard(curYM)
     +'<div class="sec-divider">🎯 목표 &amp; 다음달 전망 <span class="sec-sub">지금 챙겨야 할 것</span></div>'
     +renderGoalsCard()
-    +renderForecastCard(curYM)
     +'<div class="sec-divider">📊 자산 &amp; 수입 구조</div>'
     +(function(){try{return'<div class="card mb12">'+renderAssetComp()+'</div>';}catch(e){console.error('assetComp error',e);return'';}})()
     +'<div class="sec-divider">💰 이번달 스냅샷</div>'
@@ -3483,6 +3482,7 @@ function renderDash(){
     +'<div class="g5 mb12" style="margin-bottom:0"><div class="kpi"><div class="kl">누적 고정수입(근로)</div><div class="kv" style="color:#3b82f6">'+f(totIncomeFixed)+'</div><div class="ks">고정거래 등록분</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">누적 변동수입(사업/투자)</div><div class="kv" style="color:#f59e0b">'+f(totIncomeVar)+'</div><div class="ks">비고정 수입</div><div class="kb" style="background:#f59e0b"></div></div><div class="kpi"><div class="kl">고정수입 비중</div><div class="kv tg">'+incFixedPct+'%</div><div class="ks">전체 수입 대비</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">평균 고정 월수입</div><div class="kv" style="color:#3b82f6">'+f(sums.length?Math.round(totIncomeFixed/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">평균 변동 월수입</div><div class="kv" style="color:#f59e0b">'+f(sums.length?Math.round(totIncomeVar/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#f59e0b"></div></div></div>'
     +'<div style="font-size:10px;color:var(--mu);margin-top:4px">↓ 아래 "월별 수입·지출 &amp; 순자산 추이"의 수입 막대에서 고정/변동 구성을 확인할 수 있어요.</div>'
     +'</div>'
+    +renderForecastCard(curYM)
     +'<div class="sec-divider">📈 추이 &amp; 히스토리</div>'
     +'<div class="card mb12"><div class="card-title">📈 월별 수입·지출 &amp; 순자산 추이 <span class="sub">· 수입은 고정(파랑)+변동(주황) 구성으로 표시</span></div><div style="position:relative;height:260px"><canvas id="dC"></canvas></div></div>'
     +'<div class="card"><div class="card-title">📅 월별 상세 현황</div><div id="mon-cards-container"></div></div>'
