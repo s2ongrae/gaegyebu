@@ -54,6 +54,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bp{background:var(--bl);color:#fff}.bs{background:var(--gn);color:#fff}.brd{background:var(--rd);color:#fff}.bg2{background:var(--sf2);color:var(--tx);border:1px solid var(--bd2)}.bpu2{background:#e9d8fd;color:#553c9a;border:1px solid #b794f4}.bsm{padding:4px 9px;font-size:12px}.btn:disabled{opacity:.4;cursor:not-allowed}
 .prg{height:5px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-top:4px}.prb{height:100%;border-radius:3px;transition:width .5s}
 .al{padding:9px 13px;border-radius:var(--rs);font-size:13px;margin-bottom:10px}
+.summary-row{display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)}
 .al.inf{background:#dbeafe;border:1px solid #93c5fd;color:#1e40af}.al.wrn{background:#fef3c7;border:1px solid #fbbf24;color:#92400e}.al.suc{background:#dcfce7;border:1px solid #86efac;color:#166534}.al.pur{background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6}
 /* 캘린더 */
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
@@ -75,17 +76,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .cds-sv{background:rgba(59,130,246,.28);color:#1d4ed8}
 .cal-detail{margin-top:12px;background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
 /* 월별 카드 */
-.mon-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:8px;overflow:hidden}
-.mon-card-head{display:flex;align-items:center;padding:12px 16px;cursor:pointer;gap:12px}
-.mon-card-head:hover{background:var(--sf2)}
-.mon-card-ym{font-size:14px;font-weight:900;min-width:65px}
-.mon-card-bars{flex:1;display:flex;flex-direction:column;gap:4px}
-.mon-bar-row{display:flex;align-items:center;gap:7px}
-.mon-bar-label{width:26px;color:var(--mu);font-weight:700;font-size:10px}
-.mon-bar-bg{flex:1;height:5px;background:var(--sf3);border-radius:3px;overflow:hidden}
-.mon-bar-fill{height:100%;border-radius:3px}
-.mon-card-nums{display:flex;flex-direction:column;gap:3px;text-align:right;min-width:80px}
-.mon-card-nums span{font-size:12px;font-weight:700}
 .mon-card-body{display:none;border-top:1px solid var(--bd)}
 .sec-divider{font-size:11px;font-weight:800;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding-left:10px;border-left:3px solid var(--bl);display:flex;align-items:center;gap:8px}
 .sec-divider:first-child{margin-top:0}
@@ -599,6 +589,7 @@ function addUserCategory(mid,p,icon,color){
   return{ok:true};
 }
 // 사용자 정의 대분류 삭제 (기본 카테고리는 삭제 불가)
+// ⚠️ 현재 UI에서 호출하는 곳 없음(카테고리 "추가" 기능만 만들고 "삭제" UI는 아직 안 만든 상태) - 나중에 카테고리 관리 화면 만들 때 사용
 function removeUserCategory(mid){
   var list=readUserCatsRaw().filter(function(c){return c.mid!==mid;});
   saveUserCats(list);
@@ -3233,11 +3224,11 @@ function renderForecastCard(curYM2){
     +(expectedBalance<0?'<div style="font-size:11px;color:var(--rd);font-weight:700">⚠️ 이 페이스면 '+nextYm+'에 적자가 예상돼요. 변동지출을 좀 줄여볼 타이밍이에요.</div>':'<div style="font-size:11px;color:var(--mu)">이 페이스대로면 '+nextYm+'에 여유가 있을 것 같아요.</div>')
     +'<div class="dtl-hint">눌러서 계산 내역보기 ▾</div>'
     +'<div class="dtl-body">'
-    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 고정수입</span><span style="font-weight:700">'+ff(Math.round(avgFixedInc))+'</span></div>'
-    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 변동수입</span><span style="font-weight:700">'+ff(Math.round(avgVarInc))+'</span></div>'
-    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 고정지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgFixedExp))+'</span></div>'
-    +'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>평균 변동지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgVarExp))+'</span></div>'
-    +(insRows.length?insRows.map(function(x){return'<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between"><span>💳 '+x.name+'(할부)</span><span style="font-weight:700;color:var(--rd)">'+ff(x.amt)+'</span></div>';}).join(''):'')
+    +'<div class="summary-row"><span>평균 고정수입</span><span style="font-weight:700">'+ff(Math.round(avgFixedInc))+'</span></div>'
+    +'<div class="summary-row"><span>평균 변동수입</span><span style="font-weight:700">'+ff(Math.round(avgVarInc))+'</span></div>'
+    +'<div class="summary-row"><span>평균 고정지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgFixedExp))+'</span></div>'
+    +'<div class="summary-row"><span>평균 변동지출</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(avgVarExp))+'</span></div>'
+    +(insRows.length?insRows.map(function(x){return'<div class="summary-row"><span>💳 '+x.name+'(할부)</span><span style="font-weight:700;color:var(--rd)">'+ff(x.amt)+'</span></div>';}).join(''):'')
     +'<div style="font-size:10px;color:var(--mu);margin-top:6px">⚠️ 실제 통장 잔액이 아니라, 최근 3개월 흐름을 그대로 다음달에 적용했을 때의 "예상 잉여자금"이에요. 일시적 지출(경조사 등)은 반영 안 돼요.</div>'
     +'</div>'
     +'</div></div>';
@@ -4396,7 +4387,7 @@ function renderRealPLCard(){
       +'<div style="font-size:11px;color:var(--mu)">⚠️ 이자비용은 부채 항목에 설정해둔 <b>현재 금리</b>를 과거 잔액에도 그대로 적용한 추정치예요 (실제 계약 금리가 매달 바뀌었다면 오차가 있을 수 있어요).</div>'
       +'<div class="dtl-hint">눌러서 월별 이자비용 내역보기 ▾</div>'
       +'<div class="dtl-body">'
-      +(interestByMonth.length?interestByMonth.map(function(x){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+x.ym+'</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(x.cost))+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">이자 발생 내역 없음</div>')
+      +(interestByMonth.length?interestByMonth.map(function(x){return'<div class="summary-row"><span>'+x.ym+'</span><span style="font-weight:700;color:var(--rd)">'+ff(Math.round(x.cost))+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">이자 발생 내역 없음</div>')
       +'</div>'
       +'</div>';
   }
@@ -4417,9 +4408,9 @@ function renderRealPLCard(){
       +'<div class="dtl-hint">눌러서 납입/수령 내역보기 ▾</div>'
       +'<div class="dtl-body">'
       +'<div style="font-size:11px;font-weight:700;margin-bottom:4px">보험료 납입 내역</div>'
-      +(premiumRows.length?premiumRows.sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;}).map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
+      +(premiumRows.length?premiumRows.sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;}).map(function(t){return'<div class="summary-row"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
       +'<div style="font-size:11px;font-weight:700;margin:8px 0 4px">보험금 수령 내역</div>'
-      +(receivedRows.length?receivedRows.map(function(t){return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700;color:var(--gn)">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
+      +(receivedRows.length?receivedRows.map(function(t){return'<div class="summary-row"><span>'+t.date+' '+(t.memo||'')+'</span><span style="font-weight:700;color:var(--gn)">'+ff(t.amount)+'</span></div>';}).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
       +'</div>'
       +'</div>';
   }
@@ -4441,7 +4432,7 @@ function renderRealPLCard(){
       +'<div class="dtl-hint">눌러서 개별 내역보기 ▾</div>'
       +'<div class="dtl-body">'
       +(allInvestRows.length?allInvestRows.map(function(t){
-        return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+(t.date||'')+' '+(t.memo||(t.gain?'투자수입':'투자손실'))+'</span><span style="font-weight:700;color:'+(t.amount>=0?'var(--gn)':'var(--rd)')+'">'+(t.amount>=0?'+':'')+ff(t.amount)+'</span></div>';
+        return'<div class="summary-row"><span>'+(t.date||'')+' '+(t.memo||(t.gain?'투자수입':'투자손실'))+'</span><span style="font-weight:700;color:'+(t.amount>=0?'var(--gn)':'var(--rd)')+'">'+(t.amount>=0?'+':'')+ff(t.amount)+'</span></div>';
       }).join(''):'<div style="font-size:11px;color:var(--mu)">없음</div>')
       +'</div>'
       +'</div>';
@@ -4490,7 +4481,7 @@ function renderLiquidityCard(am,r){
 
   function itemRows(items,color){
     return items.length?items.sort(function(a,b){return b.v-a.v;}).map(function(x){
-      return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+x.n+'</span><span style="font-weight:700;color:'+color+'">'+ff(x.v)+'</span></div>';
+      return'<div class="summary-row"><span>'+x.n+'</span><span style="font-weight:700;color:'+color+'">'+ff(x.v)+'</span></div>';
     }).join(''):'<div style="font-size:11px;color:var(--mu);padding:4px 0">없음</div>';
   }
 
@@ -4519,7 +4510,7 @@ function renderLiquidityCard(am,r){
     +'</div>'
     +'<div style="margin-top:10px"><div style="font-size:11px;font-weight:700;margin-bottom:4px">📅 고정지출 월별 내역 (최근 6개월)</div>'
     +(fixedMonths.slice(-6).map(function(m){
-      return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+m+'</span><span style="font-weight:700;color:var(--rd)">'+ff(fixedExpByMonth[m])+'</span></div>';
+      return'<div class="summary-row"><span>'+m+'</span><span style="font-weight:700;color:var(--rd)">'+ff(fixedExpByMonth[m])+'</span></div>';
     }).join('')||'<div style="font-size:11px;color:var(--mu)">데이터 없음</div>')
     +'</div>'
     +'</div>'
@@ -4639,7 +4630,7 @@ function renderTaxLimitCard(ym){
   }
   function txRows(rows){
     return rows.length?rows.sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;}).map(function(t){
-      return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+(t.date||'')+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';
+      return'<div class="summary-row"><span>'+(t.date||'')+' '+(t.memo||'')+'</span><span style="font-weight:700">'+ff(t.amount)+'</span></div>';
     }).join(''):'<div style="font-size:11px;color:var(--mu)">내역 없음</div>';
   }
 
@@ -4771,12 +4762,12 @@ function renderLeverageCard(ym,am,r){
     +'<div style="font-size:11px;font-weight:700;margin-bottom:4px">📈 투자자산 항목 (스트레스 테스트 대상)</div>'
     +(AI.filter(function(a){return!a.d&&a.cat==='투자';}).map(function(a){
       var v=Number(am[a.n])||0;if(!v)return'';
-      return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+a.n+'</span><span style="font-weight:700">'+ff(v)+'</span></div>';
+      return'<div class="summary-row"><span>'+a.n+'</span><span style="font-weight:700">'+ff(v)+'</span></div>';
     }).join('')||'<div style="font-size:11px;color:var(--mu)">없음</div>')
     +'<div style="font-size:11px;font-weight:700;margin:8px 0 4px">⚠️ 부채 항목</div>'
     +(debtItems.map(function(a){
       var v=Number(am[a.n])||0;if(!v)return'';
-      return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid var(--bd)"><span>'+a.n+(a.rate?' (금리 '+a.rate+'%)':' (금리 미설정)')+'</span><span style="font-weight:700;color:var(--rd)">'+ff(v)+'</span></div>';
+      return'<div class="summary-row"><span>'+a.n+(a.rate?' (금리 '+a.rate+'%)':' (금리 미설정)')+'</span><span style="font-weight:700;color:var(--rd)">'+ff(v)+'</span></div>';
     }).join('')||'<div style="font-size:11px;color:var(--mu)">없음</div>')
     +'</div>'
     +'</div>';
