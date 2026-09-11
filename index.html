@@ -3366,6 +3366,42 @@ function renderDash(){
     +'</tr></thead><tbody></tbody>';
   var monTbody=monTable.querySelector('tbody');
   var sumsByYm={};sums.forEach(function(s){sumsByYm[s.ym]=s;});
+  // 각 지표(수입/지출/순저축/저축률)별로 평균·표준편차를 구해서, 평소보다 눈에 띄게 튄 달을 자동으로 감지한다.
+  // 기준: 평균에서 표준편차의 1.3배 이상 벗어나면 "특이"로 표시 (그리고 저축률은 마이너스면 항상 경고로 잡는다).
+  function stats(arr){
+    var n=arr.length;if(!n)return{avg:0,sd:0};
+    var avg=arr.reduce(function(s,v){return s+v;},0)/n;
+    var variance=arr.reduce(function(s,v){return s+Math.pow(v-avg,2);},0)/n;
+    return{avg:avg,sd:Math.sqrt(variance)};
+  }
+  var incomeVals=monMonths.map(function(ym){return sumsByYm[ym].income;});
+  var expenseVals=monMonths.map(function(ym){return sumsByYm[ym].expense;});
+  var rateVals=monMonths.map(function(ym){var s=sumsByYm[ym];return s.income>0?((s.income-s.expense)/s.income*100):0;});
+  var incomeStat=stats(incomeVals),expenseStat=stats(expenseVals),rateStat=stats(rateVals);
+  var FLAG_THRESHOLD=1.3;
+  function flagFor(metricKey,ym){
+    var s=sumsByYm[ym];
+    if(metricKey==='income'&&incomeStat.sd>0){
+      var z=(s.income-incomeStat.avg)/incomeStat.sd;
+      if(z>=FLAG_THRESHOLD)return{icon:'🔺',bg:'rgba(39,103,73,.14)',title:'평소보다 수입이 눈에 띄게 많아요 (평균 '+ff(Math.round(incomeStat.avg))+')'};
+      if(z<=-FLAG_THRESHOLD)return{icon:'🔻',bg:'rgba(197,48,48,.10)',title:'평소보다 수입이 눈에 띄게 적어요 (평균 '+ff(Math.round(incomeStat.avg))+')'};
+    }
+    if(metricKey==='expense'&&expenseStat.sd>0){
+      var s0=s.income-s.expense;
+      var ez=(s.expense-expenseStat.avg)/expenseStat.sd;
+      if(ez>=FLAG_THRESHOLD)return{icon:'⚠️',bg:'rgba(197,48,48,.14)',title:'평소보다 지출이 눈에 띄게 많아요 (평균 '+ff(Math.round(expenseStat.avg))+')'};
+    }
+    if(metricKey==='rate'){
+      var ns=s.income-s.expense;
+      var sr=s.income>0?(ns/s.income*100):0;
+      if(sr<0)return{icon:'🆘',bg:'rgba(197,48,48,.16)',title:'이 달은 적자예요(지출이 수입보다 많음)'};
+      if(rateStat.sd>0){
+        var rz=(sr-rateStat.avg)/rateStat.sd;
+        if(rz<=-FLAG_THRESHOLD)return{icon:'⚠️',bg:'rgba(183,121,31,.14)',title:'평소보다 저축률이 눈에 띄게 낮아요 (평균 '+rateStat.avg.toFixed(1)+'%)'};
+      }
+    }
+    return null;
+  }
   METRIC_ROWS.forEach(function(metric){
     var row=document.createElement('tr');
     var cellsHtml=monMonths.map(function(ym,yi){
@@ -3380,7 +3416,10 @@ function renderDash(){
       else if(metric.key==='net'){display=(ns>=0?'+':'')+f(ns);color=ns>=0?'var(--gn)':'var(--rd)';}
       else if(metric.key==='rate'){display=sr2+'%';color=Number(sr2)>=30?'var(--gn)':Number(sr2)>=0?'var(--yw)':'var(--rd)';}
       else{display=nwv?f(nwv):'-';color=metric.color;}
-      return'<td style="text-align:right;font-size:12px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);color:'+color+';cursor:pointer" onclick="toggleCatSub(\''+cellId+'\')">'+display+'</td>';
+      var flag=(metric.key==='income'||metric.key==='expense'||metric.key==='rate')?flagFor(metric.key,ym):null;
+      var bg=flag?flag.bg:'';
+      var flagIcon=flag?'<span title="'+flag.title+'" style="margin-right:3px">'+flag.icon+'</span>':'';
+      return'<td style="text-align:right;font-size:12px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);color:'+color+';cursor:pointer;background:'+bg+'" onclick="toggleCatSub(\''+cellId+'\')">'+flagIcon+display+'</td>';
     }).join('');
     row.innerHTML='<td style="font-size:12px;font-weight:700;padding:6px 8px;border-bottom:1px solid var(--bd);position:sticky;left:0;background:var(--sf)">'+metric.label+'</td>'+cellsHtml;
     monTbody.appendChild(row);
