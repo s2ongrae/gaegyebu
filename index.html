@@ -6573,69 +6573,24 @@ function renderAnnual(months){
     }).join(''))
     +'</div></div>'
 
-    // 지출순위 + 예산 통합 테이블
-    +'<div style="margin-top:14px">'
-    +'<div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:8px">🏆 카테고리별 지출 순위 &amp; 예산 대비 <span style="font-weight:400;font-size:10px;color:var(--mu)">(행 클릭하면 소분류 보기)</span></div>'
-    +'<table style="width:100%;border-collapse:collapse"><thead><tr>'
-    +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:28px">순위</th>'
-    +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">카테고리</th>'
-    +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">예산</th>'
-    +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
-    +'<th style="text-align:right;font-size:11px;color:var(--pu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">월평균</th>'
-    +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">잔액</th>'
-    +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:90px">예산사용률</th>'
-    +'</tr></thead><tbody>'
-    +expRanked.map(function(x,idx){
-      var avg=months.length?Math.round(x.amt/months.length):0;
-      var budget=ANNUAL_BUDGET_BY_MID[x.name]||0;
-      var hasBudget=budget>0;
-      var pct=hasBudget?Math.min(Math.round(x.amt/budget*100),999):0;
-      var remain=budget-x.amt;
-      var color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
-      var w=Math.min(pct,100);
-      var subId='annualcat-sub-'+idx;
-      return'<tr style="cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'
-        +'<td style="font-size:11px;font-weight:700;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd)">'+(idx+1)+'</td>'
-        +'<td style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd)">'+(CE[x.name]||'')+' '+x.name+'</td>'
-        +'<td style="text-align:right;font-size:11px;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd)">'+(hasBudget?ff(budget):'-')+'</td>'
-        +'<td style="text-align:right;font-weight:700;font-size:11px;color:var(--rd);padding:5px 6px;border-bottom:1px solid var(--bd)">'+ff(x.amt)+'</td>'
-        +'<td style="text-align:right;font-size:11px;color:var(--pu);padding:5px 6px;border-bottom:1px solid var(--bd)">'+ff(avg)+'</td>'
-        +'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);color:'+(!hasBudget?'var(--mu)':(remain>=0?'var(--gn)':'var(--rd)'))+'">'+(hasBudget?ff(remain):'-')+'</td>'
-        +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd)">'
-        +(hasBudget?('<div style="display:flex;align-items:center;gap:3px">'
-          +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
-          +'<div style="width:'+w+'%;height:100%;background:'+color+';border-radius:2px"></div></div>'
-          +'<span style="font-size:10px;font-weight:700;color:'+color+';min-width:28px">'+pct+'%</span>'
-          +'</div>'):'<span style="font-size:10px;color:var(--mu)">예산 미설정</span>')
-        +'</td>'
-        +'</tr>'
-        +'<tr><td colspan="7" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type==='지출'&&t.mid===x.name&&!isInvestLossTx(t);}),'sub','annualcat-detail-'+idx)+'</div></td></tr>';
-    }).join('')
-    +'</tbody></table>'
-    +'</div>'
-
-    // 카테고리 × 월 매트릭스: 어느 달에 어느 카테고리가 튀었는지 한눈에 비교하는 표.
-    // "전체" 기간처럼 달이 아주 많을 때는 표가 과도하게 옆으로 늘어나니 최근 12개월로 제한한다.
+    // 지출순위 + 예산 + 월별 매트릭스 통합 테이블
+    // (예전엔 "카테고리별 지출 순위" 표와 "카테고리 × 월별 매트릭스" 표가 따로 있었는데,
+    //  둘 다 "행 = 카테고리"라 같은 표 오른쪽에 월별 열을 이어붙여 하나로 합쳤다.)
     +(function(){
       var matrixMonths=months.slice(-12);
-      if(matrixMonths.length<2)return'';
-      var matrixMids=Object.keys(CATS).filter(function(m){return CATS[m].p==='지출';});
-      // 실제로 이 기간에 한 번이라도 쓴 카테고리만 행으로 보여준다(0원짜리 행이 계속 나오면 표가 지저분해짐)
       var byMidMonth={}; // mid -> ym -> amount
-      var midTotal={};
       allTxs.forEach(function(t){
         if(t.type!=='지출'||isInvestLossTx(t))return;
         var ym=t.date.slice(0,7);
         if(matrixMonths.indexOf(ym)<0)return;
         if(!byMidMonth[t.mid])byMidMonth[t.mid]={};
         byMidMonth[t.mid][ym]=(byMidMonth[t.mid][ym]||0)+(Number(t.amount)||0);
-        midTotal[t.mid]=(midTotal[t.mid]||0)+(Number(t.amount)||0);
       });
-      var activeMids=matrixMids.filter(function(m){return midTotal[m]>0;})
-        .sort(function(a,b){return(midTotal[b]||0)-(midTotal[a]||0);});
-      if(!activeMids.length)return'';
+      var showMonthCols=matrixMonths.length>=2;
       var maxCell=0;
-      activeMids.forEach(function(m){matrixMonths.forEach(function(ym){var v=(byMidMonth[m]||{})[ym]||0;if(v>maxCell)maxCell=v;});});
+      if(showMonthCols){
+        expRanked.forEach(function(x){matrixMonths.forEach(function(ym){var v=(byMidMonth[x.name]||{})[ym]||0;if(v>maxCell)maxCell=v;});});
+      }
       function cellBg(v){
         if(!v||maxCell<=0)return'';
         var ratio=v/maxCell;
@@ -6643,48 +6598,72 @@ function renderAnnual(months){
         if(ratio>=0.33)return'rgba(220,38,38,.16)';
         return'rgba(220,38,38,.07)';
       }
-      var monthTotals=matrixMonths.map(function(ym){
-        return activeMids.reduce(function(s,m){return s+((byMidMonth[m]||{})[ym]||0);},0);
-      });
-      var grandTotal=monthTotals.reduce(function(s,v){return s+v;},0);
-      var html='<div class="card mt12"><div class="card-title">🗓️ 카테고리 × 월별 지출 매트릭스 <span class="sub">· 최근 '+matrixMonths.length+'개월 · 눌러서 그 달 소분류 보기</span></div>'
+      var monthTotals=showMonthCols?matrixMonths.map(function(ym){
+        return expRanked.reduce(function(s,x){return s+((byMidMonth[x.name]||{})[ym]||0);},0);
+      }):[];
+
+      var html='<div style="margin-top:14px">'
+        +'<div style="font-size:12px;font-weight:700;color:var(--rd);margin-bottom:8px">🏆 카테고리별 지출 순위 &amp; 예산 대비 <span style="font-weight:400;font-size:10px;color:var(--mu)">(카테고리 클릭 시 소분류, 월별 금액 클릭 시 그 달 소분류 보기)</span></div>'
         +'<div style="overflow-x:auto">'
-        +'<table style="width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap">'
-        +'<thead><tr>'
-        +'<th style="text-align:left;padding:5px 8px;border-bottom:2px solid var(--bd);position:sticky;left:0;background:var(--sf);z-index:1">카테고리</th>'
-        +matrixMonths.map(function(ym){return'<th style="text-align:right;padding:5px 6px;border-bottom:2px solid var(--bd);color:var(--mu2)">'+ym.slice(2).replace('-','/')+'</th>';}).join('')
-        +'<th style="text-align:right;padding:5px 8px;border-bottom:2px solid var(--bd);font-weight:800">합계</th>'
+        +'<table style="width:100%;border-collapse:collapse;white-space:nowrap"><thead><tr>'
+        +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:28px">순위</th>'
+        +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);position:sticky;left:0;background:var(--sf)">카테고리</th>'
+        +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">예산</th>'
+        +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
+        +'<th style="text-align:right;font-size:11px;color:var(--pu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">월평균</th>'
+        +'<th style="text-align:right;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">잔액</th>'
+        +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:90px">예산사용률</th>'
+        +(showMonthCols?matrixMonths.map(function(ym){return'<th style="text-align:right;font-size:11px;color:var(--mu2);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd)">'+ym.slice(2).replace('-','/')+'</th>';}).join(''):'')
         +'</tr></thead><tbody>'
-        +activeMids.map(function(m,mi){
+        +expRanked.map(function(x,idx){
+          var avg=months.length?Math.round(x.amt/months.length):0;
+          var budget=ANNUAL_BUDGET_BY_MID[x.name]||0;
+          var hasBudget=budget>0;
+          var pct=hasBudget?Math.min(Math.round(x.amt/budget*100),999):0;
+          var remain=budget-x.amt;
+          var color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
+          var w=Math.min(pct,100);
+          var subId='annualcat-sub-'+idx;
+          var colCount=7+(showMonthCols?matrixMonths.length:0);
           return'<tr>'
-            +'<td style="padding:5px 8px;border-bottom:1px solid var(--bd);font-weight:700;position:sticky;left:0;background:var(--sf)">'+(CE[m]||'')+' '+m+'</td>'
-            +matrixMonths.map(function(ym,yi){
-              var v=(byMidMonth[m]||{})[ym]||0;
+            +'<td style="font-size:11px;font-weight:700;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(idx+1)+'</td>'
+            +'<td style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;position:sticky;left:0;background:var(--sf)" onclick="toggleCatSub(\''+subId+'\')">'+(CE[x.name]||'')+' '+x.name+'</td>'
+            +'<td style="text-align:right;font-size:11px;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(hasBudget?ff(budget):'-')+'</td>'
+            +'<td style="text-align:right;font-weight:700;font-size:11px;color:var(--rd);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(x.amt)+'</td>'
+            +'<td style="text-align:right;font-size:11px;color:var(--pu);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(avg)+'</td>'
+            +'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;color:'+(!hasBudget?'var(--mu)':(remain>=0?'var(--gn)':'var(--rd)'))+'" onclick="toggleCatSub(\''+subId+'\')">'+(hasBudget?ff(remain):'-')+'</td>'
+            +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'
+            +(hasBudget?('<div style="display:flex;align-items:center;gap:3px">'
+              +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
+              +'<div style="width:'+w+'%;height:100%;background:'+color+';border-radius:2px"></div></div>'
+              +'<span style="font-size:10px;font-weight:700;color:'+color+';min-width:28px">'+pct+'%</span>'
+              +'</div>'):'<span style="font-size:10px;color:var(--mu)">예산 미설정</span>')
+            +'</td>'
+            +(showMonthCols?matrixMonths.map(function(ym,yi){
+              var v=(byMidMonth[x.name]||{})[ym]||0;
               var bg=cellBg(v);
-              var cellId='matrix-cell-'+mi+'-'+yi;
-              if(!v)return'<td style="text-align:right;padding:5px 6px;border-bottom:1px solid var(--bd);color:var(--mu)">-</td>';
-              return'<td style="text-align:right;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;background:'+bg+'" onclick="toggleCatSub(\''+cellId+'\')" title="눌러서 소분류 보기">'+f(v)+'</td>';
-            }).join('')
-            +'<td style="text-align:right;padding:5px 8px;border-bottom:1px solid var(--bd);font-weight:800">'+f(midTotal[m])+'</td>'
+              var cellId='matrix-cell-'+idx+'-'+yi;
+              if(!v)return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);color:var(--mu)">-</td>';
+              return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);cursor:pointer;background:'+bg+'" onclick="toggleCatSub(\''+cellId+'\')" title="눌러서 그 달 소분류 보기">'+f(v)+'</td>';
+            }).join(''):'')
             +'</tr>'
-            +'<tr><td colspan="'+(matrixMonths.length+2)+'" style="padding:0;border-bottom:1px solid var(--bd)">'
-            +matrixMonths.map(function(ym,yi){
-              var v=(byMidMonth[m]||{})[ym]||0;
+            +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type==='지출'&&t.mid===x.name&&!isInvestLossTx(t);}),'sub','annualcat-detail-'+idx)+'</div></td></tr>'
+            +(showMonthCols?matrixMonths.map(function(ym,yi){
+              var v=(byMidMonth[x.name]||{})[ym]||0;
               if(!v)return'';
-              var cellId='matrix-cell-'+mi+'-'+yi;
-              var monthTxs=allTxs.filter(function(t){return t.type==='지출'&&t.mid===m&&t.date.slice(0,7)===ym&&!isInvestLossTx(t);});
-              return'<div id="'+cellId+'" style="display:none;padding:6px 8px;border-top:1px dashed var(--bd)">'
-                +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:3px">'+ym+' '+m+'</div>'
-                +renderSubBreakdownRows(getSubBreakdown(monthTxs,m),4)
-                +'</div>';
-            }).join('')
-            +'</td></tr>';
+              var cellId='matrix-cell-'+idx+'-'+yi;
+              var monthTxs=allTxs.filter(function(t){return t.type==='지출'&&t.mid===x.name&&t.date.slice(0,7)===ym&&!isInvestLossTx(t);});
+              return'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+cellId+'" style="display:none;padding:6px 8px 6px 32px;background:var(--sf2)">'
+                +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:3px">'+ym+' '+x.name+'</div>'
+                +renderSubBreakdownRows(getSubBreakdown(monthTxs,x.name),4)
+                +'</div></td></tr>';
+            }).join(''):'');
         }).join('')
-        +'</tbody><tfoot><tr>'
-        +'<td style="padding:6px 8px;border-top:2px solid var(--bd);font-weight:800;position:sticky;left:0;background:var(--sf)">합계</td>'
-        +monthTotals.map(function(v){return'<td style="text-align:right;padding:6px 6px;border-top:2px solid var(--bd);font-weight:800">'+f(v)+'</td>';}).join('')
-        +'<td style="text-align:right;padding:6px 8px;border-top:2px solid var(--bd);font-weight:800;color:var(--rd)">'+f(grandTotal)+'</td>'
-        +'</tr></tfoot>'
+        +'</tbody>'
+        +(showMonthCols?'<tfoot><tr>'
+          +'<td colspan="7" style="padding:6px 6px;border-top:2px solid var(--bd);font-weight:800;position:sticky;left:0;background:var(--sf)">월별 합계</td>'
+          +monthTotals.map(function(v){return'<td style="text-align:right;padding:6px 6px;border-top:2px solid var(--bd);border-left:1px solid var(--bd);font-weight:800;font-size:11px">'+f(v)+'</td>';}).join('')
+          +'</tr></tfoot>':'')
         +'</table>'
         +'</div>'
         +'</div>';
