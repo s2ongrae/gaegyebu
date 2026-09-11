@@ -357,11 +357,16 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
           </div>
         </div>
         <div class="search-bar">
-          <input type="text" class="search-input" id="s-kw" placeholder="🔍 검색..." oninput="renderHis()">
+          <input type="text" class="search-input" id="s-kw" placeholder="🔍 검색... (AI검색 체크 시 Enter로 자연어 검색)" oninput="onSearchKwInput()" onkeydown="onSearchKwKeydown(event)">
           <select class="search-sel" id="s-type" onchange="renderHis()"><option value="">전체</option><option value="수입">수입</option><option value="지출">지출</option><option value="저축">저축</option></select>
           <select class="search-sel" id="s-mid" onchange="renderHis()"><option value="">전 카테고리</option></select>
           <select class="search-sel" id="s-eval" onchange="renderHis()"><option value="">전체평가</option><option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option><option value="저축">저축</option></select>
           <select class="search-sel" id="s-fixed" onchange="renderHis()"><option value="">고정+변동</option><option value="fixed">고정</option><option value="variable">변동</option></select>
+        </div>
+        <div class="fx fxc g8 mb8" style="font-size:11px">
+          <input type="checkbox" id="s-ai-mode" style="cursor:pointer;accent-color:var(--pu);width:14px;height:14px">
+          <label for="s-ai-mode" style="cursor:pointer;color:var(--pu);font-weight:700">🤖 AI검색</label>
+          <span id="s-ai-status" style="color:var(--mu)"></span>
         </div>
 
         <div class="fx fxc g8 mb8" id="his-bulk-bar">
@@ -2370,6 +2375,59 @@ function getPrevYM(ym){
 
 function toggleFxi(idOrBtn){var id=typeof idOrBtn==='string'?idOrBtn:(idOrBtn.dataset&&idOrBtn.dataset.fxi?idOrBtn.dataset.fxi:idOrBtn);if(typeof id==='string'){var el=document.getElementById(id);if(el)el.classList.toggle('open');}}
 function onFxMid(i){var m=document.getElementById('fx-mid-'+i).value;var ss=document.getElementById('fx-sub-'+i);if(!ss||!CATS[m])return;ss.innerHTML=CATS[m].s.map(function(s){return'<option value="'+s+'">'+s+'</option>';}).join('');}
+// ── 🤖 AI검색: "AI검색" 체크박스가 켜져 있으면, 검색창 텍스트를 실시간 필터가 아니라
+// 자연어 질의로 취급해서 Enter 입력 시에만 서버(Gemini)에 보내 필터 조건으로 변환한다.
+// (평소엔 기존 키워드 검색 그대로 쓰고, 체크박스 켰을 때만 API를 호출해서 사용량을 가볍게 유지)
+function onSearchKwInput(){
+  var aiMode=document.getElementById('s-ai-mode').checked;
+  if(aiMode)return; // AI모드에서는 타이핑할 때마다 검색하지 않고 Enter를 기다린다
+  renderHis();
+}
+function onSearchKwKeydown(ev){
+  var aiMode=document.getElementById('s-ai-mode').checked;
+  if(!aiMode)return; // 일반 모드는 oninput만으로 충분(엔터 특별 처리 없음)
+  if(ev.key!=='Enter')return;
+  ev.preventDefault();
+  runAiSearch();
+}
+function runAiSearch(){
+  var query=document.getElementById('s-kw').value.trim();
+  if(!query){showToast('⚠️ 검색할 내용을 입력해주세요.');return;}
+  var statusEl=document.getElementById('s-ai-status');
+  statusEl.textContent='🤖 해석 중...';
+  var url=getServerURL();
+  if(!url){statusEl.textContent='';showToast('⚠️ 서버가 연결돼 있지 않아요.');return;}
+  // 서버(Google Apps Script)에 자연어 질의를 보내고, {type, mid, eval, fixed, dateFrom, dateTo, keyword} 형태의
+  // 필터 조건 JSON을 돌려받는다고 가정한다. 실제 서버 쪽 액션 이름/응답 스키마는 서버 코드에 맞춰 조정 필요.
+  var todayStr=new Date().toISOString().slice(0,10);
+  fetch(url,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain'},
+    body:JSON.stringify({action:'aiSearchParse',query:query,today:todayStr,categories:Object.keys(CATS)})
+  }).then(function(r){return r.json();})
+    .then(function(res){
+      statusEl.textContent='';
+      if(!res||!res.ok){showToast('❌ AI 검색 실패: '+(res&&res.error||'서버에 aiSearchParse 액션이 아직 없어요.'));return;}
+      applyAiSearchFilters(res.filters||{});
+    })
+    .catch(function(e){statusEl.textContent='';showToast('❌ AI 검색 실패: '+e.message);});
+}
+// 서버가 돌려준 필터 조건을 실제 검색 UI(select/input)에 반영하고 renderHis()를 호출한다.
+function applyAiSearchFilters(filters){
+  if(filters.type)document.getElementById('s-type').value=filters.type;
+  if(filters.mid){
+    var midSel=document.getElementById('s-mid');
+    if([].some.call(midSel.options,function(o){return o.value===filters.mid;}))midSel.value=filters.mid;
+  }
+  if(filters.eval)document.getElementById('s-eval').value=filters.eval;
+  if(filters.fixed)document.getElementById('s-fixed').value=filters.fixed;
+  if(filters.dateFrom)document.getElementById('s-date-from').value=filters.dateFrom;
+  if(filters.dateTo)document.getElementById('s-date-to').value=filters.dateTo;
+  // AI가 이해 못한 나머지 키워드가 있으면 검색창엔 그 키워드만 남기고, 없으면 비운다(필터만으로 충분하므로)
+  document.getElementById('s-kw').value=filters.keyword||'';
+  renderHis();
+  showToast('✅ AI가 조건을 적용했어요.');
+}
 function clearHisDateRange(){
   document.getElementById('s-date-from').value='';
   document.getElementById('s-date-to').value='';
