@@ -54,7 +54,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bp{background:var(--bl);color:#fff}.bs{background:var(--gn);color:#fff}.brd{background:var(--rd);color:#fff}.bg2{background:var(--sf2);color:var(--tx);border:1px solid var(--bd2)}.bpu2{background:#e9d8fd;color:#553c9a;border:1px solid #b794f4}.bsm{padding:4px 9px;font-size:12px}.btn:disabled{opacity:.4;cursor:not-allowed}
 .prg{height:5px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-top:4px}.prb{height:100%;border-radius:3px;transition:width .5s}
 .al{padding:9px 13px;border-radius:var(--rs);font-size:13px;margin-bottom:10px}
-.al.inf{background:#0f172a;border:1px solid #1e40af33;color:#93c5fd}.al.wrn{background:#1c1200;border:1px solid #f59e0b33;color:#fbbf24}.al.suc{background:#052e1a;border:1px solid #10b98133;color:#34d399}.al.pur{background:#0f0a2e;border:1px solid #6d28d933;color:#c4b5fd}
+.al.inf{background:#dbeafe;border:1px solid #93c5fd;color:#1e40af}.al.wrn{background:#fef3c7;border:1px solid #fbbf24;color:#92400e}.al.suc{background:#dcfce7;border:1px solid #86efac;color:#166534}.al.pur{background:#ede9fe;border:1px solid #c4b5fd;color:#5b21b6}
 /* 캘린더 */
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .cal-nav{background:none;border:1px solid var(--bd2);color:var(--tx);cursor:pointer;padding:5px 12px;border-radius:var(--rs);font-size:14px;font-weight:700;font-family:inherit}
@@ -763,7 +763,7 @@ function updateAssetItem(i,item){
 }
 function removeAssetItem(i){AI.splice(i,1);saveAI();}
 var curPage='dash',curYM='',calYM='';
-var dC=null,rC=null,nwC=null,incFxC=null,levC=null,editId=null,syncTimer=null;
+var dC=null,rC=null,nwC=null,levC=null,editId=null,syncTimer=null;
 var SERVER_URL_KEY='gaegyebu_server_url';
 var DB_KEY='gaegyebu';
 var DEFAULT_SERVER_URL='https://script.google.com/macros/s/AKfycbwqGsImpdwXuJpRha0ICCqF1YCnxERJSxZ6jIIyqkwVflK2Qxpp_Ep70_4IX1R0xQU/exec';
@@ -3344,12 +3344,6 @@ function renderDash(){
   var tot=sums.reduce(function(a,s){return{income:a.income+s.income,expense:a.expense+s.expense};},{income:0,expense:0});
   var ai=sums.length?Math.round(tot.income/sums.length):0;var ae=sums.length?Math.round(tot.expense/sums.length):0;
   var sv=tot.income-tot.expense;var sr=tot.income>0?(sv/tot.income*100).toFixed(1):'0';
-  // 고정수입(근로) vs 변동수입(사업/투자) 누적 흐름
-  var incFixedCum=0,incVarCum=0;
-  var incCumData=sums.map(function(s){
-    incFixedCum+=s.incomeFixed;incVarCum+=s.incomeVar;
-    return{ym:s.ym,fixedCum:incFixedCum,varCum:incVarCum};
-  });
   var totIncomeFixed=sums.reduce(function(a,s){return a+s.incomeFixed;},0);
   var totIncomeVar=sums.reduce(function(a,s){return a+s.incomeVar;},0);
   var incFixedPct=tot.income>0?Math.round(totIncomeFixed/tot.income*100):0;
@@ -3411,11 +3405,12 @@ function renderDash(){
     +renderSubscriptionCard(curYM)
     +'<div class="sec-divider">📊 자산 &amp; 수입 구조</div>'
     +(function(){try{return'<div class="card mb12">'+renderAssetComp()+'</div>';}catch(e){console.error('assetComp error',e);return'';}})()
-    +'<div class="card mb12"><div class="card-title">💰 수입 구조: 고정수입(근로) vs 변동수입(사업/투자) 누적 흐름 <span class="sub">· 고정수입 비중 '+incFixedPct+'%</span></div>'
-    +'<div class="g5 mb12" style="margin-bottom:10px"><div class="kpi"><div class="kl">누적 고정수입(근로)</div><div class="kv" style="color:#3b82f6">'+f(totIncomeFixed)+'</div><div class="ks">고정거래 등록분</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">누적 변동수입(사업/투자)</div><div class="kv" style="color:#f59e0b">'+f(totIncomeVar)+'</div><div class="ks">비고정 수입</div><div class="kb" style="background:#f59e0b"></div></div><div class="kpi"><div class="kl">고정수입 비중</div><div class="kv tg">'+incFixedPct+'%</div><div class="ks">전체 수입 대비</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">평균 고정 월수입</div><div class="kv" style="color:#3b82f6">'+f(sums.length?Math.round(totIncomeFixed/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">평균 변동 월수입</div><div class="kv" style="color:#f59e0b">'+f(sums.length?Math.round(totIncomeVar/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#f59e0b"></div></div></div>'
-    +'<div style="position:relative;height:220px"><canvas id="incFxC"></canvas></div></div>'
+    +'<div class="card mb12"><div class="card-title">💰 수입 구조: 고정수입(근로) vs 변동수입(사업/투자) <span class="sub">· 고정수입 비중 '+incFixedPct+'%</span></div>'
+    +'<div class="g5 mb12" style="margin-bottom:0"><div class="kpi"><div class="kl">누적 고정수입(근로)</div><div class="kv" style="color:#3b82f6">'+f(totIncomeFixed)+'</div><div class="ks">고정거래 등록분</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">누적 변동수입(사업/투자)</div><div class="kv" style="color:#f59e0b">'+f(totIncomeVar)+'</div><div class="ks">비고정 수입</div><div class="kb" style="background:#f59e0b"></div></div><div class="kpi"><div class="kl">고정수입 비중</div><div class="kv tg">'+incFixedPct+'%</div><div class="ks">전체 수입 대비</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">평균 고정 월수입</div><div class="kv" style="color:#3b82f6">'+f(sums.length?Math.round(totIncomeFixed/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">평균 변동 월수입</div><div class="kv" style="color:#f59e0b">'+f(sums.length?Math.round(totIncomeVar/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#f59e0b"></div></div></div>'
+    +'<div style="font-size:10px;color:var(--mu);margin-top:4px">↓ 아래 "월별 수입·지출 &amp; 순자산 추이"의 수입 막대에서 고정/변동 구성을 확인할 수 있어요.</div>'
+    +'</div>'
     +'<div class="sec-divider">📈 추이 &amp; 히스토리</div>'
-    +'<div class="card mb12"><div class="card-title">📈 월별 수입·지출 &amp; 순자산 추이</div><div style="position:relative;height:260px"><canvas id="dC"></canvas></div></div>'
+    +'<div class="card mb12"><div class="card-title">📈 월별 수입·지출 &amp; 순자산 추이 <span class="sub">· 수입은 고정(파랑)+변동(주황) 구성으로 표시</span></div><div style="position:relative;height:260px"><canvas id="dC"></canvas></div></div>'
     +'<div class="card"><div class="card-title">📅 월별 상세 현황</div><div id="mon-cards-container"></div></div>'
     +'<div class="sec-divider">📋 연간 결산 <span class="sec-sub">자세히 들여다보기</span></div>'
     +(function(){try{return renderAnnual(months);}catch(e){console.error('annual:',e);return '';}})()
@@ -3428,22 +3423,18 @@ function renderDash(){
     var nwByYm={};nwData.forEach(function(d){nwByYm[d.ym]=d.nw;});
     var nwAligned=sums.map(function(s){return nwByYm.hasOwnProperty(s.ym)?nwByYm[s.ym]:null;});
     var hasNw=nwData.length>1;
+    // 수입 막대를 고정(파랑)/변동(주황) 두 색으로 쌓아서, 별도의 "수입 구조 누적" 그래프 없이도
+    // 이 그래프 하나에서 수입의 구성(고정 vs 변동)과 지출·순자산 추이를 한 번에 볼 수 있게 한다.
     dC=new Chart(document.getElementById('dC'),{type:'bar',data:{labels:lb,datasets:[
-      {label:'수입',data:sums.map(function(s){return s.income;}),backgroundColor:'rgba(16,185,129,.65)',borderRadius:5,borderSkipped:false,yAxisID:'y'},
-      {label:'지출',data:sums.map(function(s){return s.expense;}),backgroundColor:'rgba(239,68,68,.65)',borderRadius:5,borderSkipped:false,yAxisID:'y'}
-    ].concat(hasNw?[{label:'순자산',data:nwAligned,type:'line',borderColor:'#8b5cf6',backgroundColor:'rgba(139,92,246,.08)',fill:false,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#8b5cf6',tension:0.35,spanGaps:true,yAxisID:'y1'}]:[])},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#2b6cb0',font:{size:11},boxRadius:3}}},
-        scales:{x:{ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},
-          y:{position:'left',ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.08)'}},
-          y1:{position:'right',display:hasNw,ticks:{color:'#8b5cf6',callback:function(v){return f(v);}},grid:{drawOnChartArea:false}}
+      {label:'고정수입(근로)',data:sums.map(function(s){return s.incomeFixed;}),backgroundColor:'rgba(43,108,176,.85)',stack:'inc',borderRadius:0,yAxisID:'y'},
+      {label:'변동수입(사업/투자)',data:sums.map(function(s){return s.incomeVar;}),backgroundColor:'rgba(43,108,176,.4)',stack:'inc',borderRadius:5,borderSkipped:false,yAxisID:'y'},
+      {label:'지출',data:sums.map(function(s){return s.expense;}),backgroundColor:'rgba(197,48,48,.55)',stack:'exp',borderRadius:5,borderSkipped:false,yAxisID:'y'}
+    ].concat(hasNw?[{label:'순자산',data:nwAligned,type:'line',borderColor:'#553c9a',backgroundColor:'rgba(85,60,154,.08)',fill:false,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#553c9a',tension:0.35,spanGaps:true,yAxisID:'y1'}]:[])},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#2b6cb0',font:{size:11},boxRadius:3}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},
+        scales:{x:{stacked:true,ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},
+          y:{stacked:true,position:'left',ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.08)'}},
+          y1:{position:'right',display:hasNw,ticks:{color:'#553c9a',callback:function(v){return f(v);}},grid:{drawOnChartArea:false}}
         }}});
-    if(incFxC)incFxC.destroy();
-    if(document.getElementById('incFxC')){
-      incFxC=new Chart(document.getElementById('incFxC'),{type:'line',data:{labels:lb,datasets:[
-        {label:'고정수입(근로) 누적',data:incCumData.map(function(d){return d.fixedCum;}),borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,.25)',fill:true,borderWidth:2,pointRadius:2,tension:0.35,stack:'inc'},
-        {label:'변동수입(사업/투자) 누적',data:incCumData.map(function(d){return d.varCum;}),borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.25)',fill:true,borderWidth:2,pointRadius:2,tension:0.35,stack:'inc'}
-      ]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},y:{stacked:true,ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.08)'}}},plugins:{legend:{labels:{color:'#2b6cb0',font:{size:11},boxRadius:3}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}}}});
-    }
   },100);
 }
 function renderMonDetail(ym){
@@ -6001,12 +5992,12 @@ function renderStock(){
         labels:stockHist.map(function(x){return x.ym.slice(5)+'월';}),
         datasets:(hasPrincipalData?[
           {label:'원금 - 내 돈',data:myMoneySeries,
-          borderColor:'#10b981',backgroundColor:'rgba(16,185,129,.25)',fill:'origin',tension:.3,pointRadius:0,spanGaps:true,order:3},
+          borderColor:'#276749',backgroundColor:'rgba(39,103,73,.22)',fill:'origin',tension:.3,pointRadius:0,spanGaps:true,order:3},
           {label:'원금 - 빌린 돈(레버리지)',data:principalTotalSeries,
-          borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.2)',fill:'-1',tension:.3,pointRadius:0,spanGaps:true,order:2}
+          borderColor:'#c53030',backgroundColor:'rgba(197,48,48,.18)',fill:'-1',tension:.3,pointRadius:0,spanGaps:true,order:2}
         ]:[]).concat([
           {label:'평가금액',data:stockHist.map(function(x){return x.val;}),
-          borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,0)',fill:false,borderWidth:2.5,tension:.3,pointRadius:3,order:1}
+          borderColor:'#553c9a',backgroundColor:'rgba(85,60,154,0)',fill:false,borderWidth:2.5,tension:.3,pointRadius:3,order:1}
         ])
       },options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:hasPrincipalData,position:'top',labels:{boxWidth:10,font:{size:11}}}},
