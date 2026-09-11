@@ -43,7 +43,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .tbl th.tr{text-align:right}
 .tbl td{padding:8px 9px;border-bottom:1px solid var(--bd);font-size:13px;vertical-align:middle}
 .tbl tr:last-child td{border-bottom:none}.tbl tr:hover td{background:var(--sf2)}
-.bk{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px;font-weight:700}
+.bk{display:inline-block;font-size:11px;padding:2px 7px;border-radius:20px;font-weight:700;white-space:nowrap}
 .bg{background:#c6f6d5;color:#276749}.br{background:#fed7d7;color:#c53030}.bb{background:#bee3f8;color:#2b6cb0}.bgy{background:var(--sf3);color:var(--mu2)}.byw{background:#fefcbf;color:#b7791f}.bpu{background:#e9d8fd;color:#553c9a}.bcy{background:#c4f1f9;color:#0987a0}
 .fg{display:grid;gap:8px;margin-bottom:10px}
 .fg.c2{grid-template-columns:1fr 1fr}.fg.c3{grid-template-columns:1fr 1fr 1fr}.fg.c4{grid-template-columns:repeat(4,1fr)}
@@ -106,8 +106,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   .stock-2col-grid{grid-template-columns:1fr}
   .goal-progress-grid{grid-template-columns:1fr!important}
 }
-.his-row-grid{display:grid;grid-template-columns:16px 34px 34px 34px 68px 78px 1fr 66px 92px 30px 30px;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid var(--bd);overflow-x:auto}
-@media(max-width:900px){.his-row-grid{grid-template-columns:16px 30px 30px 30px 55px 65px 1fr 55px 78px 26px 26px;font-size:11px}}
+.his-row-grid{display:grid;grid-template-columns:34px 34px 34px 68px 78px 1fr 66px 92px 44px 30px;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid var(--bd);overflow-x:auto}
+@media(max-width:900px){.his-row-grid{grid-template-columns:30px 30px 30px 55px 65px 1fr 55px 78px 40px 26px;font-size:11px}}
 .anom-detail{display:none;margin-top:6px}
 .anom-row.open .anom-detail{display:block}
 .dtl-card{cursor:pointer}
@@ -369,12 +369,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
           <span id="s-ai-status" style="color:var(--mu)"></span>
         </div>
 
-        <div class="fx fxc g8 mb8" id="his-bulk-bar">
-          <input type="checkbox" id="his-all-cb" onclick="toggleSelectAll()" style="cursor:pointer;accent-color:var(--bl);width:15px;height:15px">
-          <span style="font-size:12px;color:var(--mu2)">전체선택</span>
-          <button class="btn brd bsm" onclick="deleteSelected()">🗑️ 선택 삭제</button>
-          <span id="his-sel-count" style="font-size:12px;color:var(--mu2)"></span>
-        </div>
         <div id="d-his-sum" class="mb8"></div>
         <div id="d-his"></div>
       </div>
@@ -2561,13 +2555,6 @@ function renderHis(){
       row.className='his-row-grid';
       row.style.cursor='pointer';
 
-      // 체크박스
-      var cb=document.createElement('input');
-      cb.type='checkbox';cb.className='his-cb';cb.dataset.id=t.id;
-      cb.style.cssText='cursor:pointer;accent-color:var(--bl);width:14px;height:14px';
-      cb.onchange=updateSelCount;
-      row.appendChild(cb);
-
       // 타입 뱃지
       var badge=document.createElement('span');
       badge.className='bk '+(TC[t.type]||'bgy');
@@ -2625,7 +2612,7 @@ function renderHis(){
       var ev=document.createElement('span');
       if(t.eval){
         ev.className='bk '+(EC[t.eval]||'bgy');
-        ev.style.cssText='font-size:10px;text-align:center;justify-self:center';
+        ev.style.cssText='font-size:10px;text-align:center;justify-self:center;white-space:nowrap';
         ev.textContent=t.eval;
       }
       row.appendChild(ev);
@@ -2641,35 +2628,6 @@ function renderHis(){
       w.appendChild(row);
     });
   });
-}
-
-function updateSelCount(){
-  var cbs=document.querySelectorAll('.his-cb:checked');
-  var el=document.getElementById('his-sel-count');
-  if(el)el.textContent=cbs.length?cbs.length+'건 선택됨':'';
-}
-function toggleSelectAll(){
-  var allCb=document.getElementById('his-all-cb');
-  var cbs=document.querySelectorAll('.his-cb');
-  var checked=allCb?allCb.checked:false;
-  if(!allCb){
-    var allChecked=Array.from(cbs).every(function(cb){return cb.checked;});
-    checked=!allChecked;
-  }
-  cbs.forEach(function(cb){cb.checked=checked;});
-  if(allCb)allCb.checked=checked;
-  updateSelCount();
-}
-function deleteSelected(){
-  var cbs=document.querySelectorAll('.his-cb:checked');
-  if(!cbs.length){showToast('⚠️ 선택된 항목이 없어요.');return;}
-  if(!confirm(cbs.length+'건을 삭제할까요?'))return;
-  var db=loadDB();
-  var ids=Array.from(cbs).map(function(cb){return cb.dataset.id;});
-  db.txs=(db.txs||[]).filter(function(t){return ids.indexOf(t.id)===-1;});
-  saveDB(db);
-  showToast('🗑️ '+ids.length+'건 삭제 완료!');
-  renderHis();
 }
 
 function calMove(d){var p=calYM.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);m+=d;if(m>12){m=1;y++;}if(m<1){m=12;y--;}calYM=y+'-'+String(m).padStart(2,'0');renderCal();}
