@@ -2415,8 +2415,24 @@ function applyAiSearchFilters(filters){
   }
   if(filters.eval)document.getElementById('s-eval').value=filters.eval;
   if(filters.fixed)document.getElementById('s-fixed').value=filters.fixed;
-  if(filters.dateFrom)document.getElementById('s-date-from').value=filters.dateFrom;
-  if(filters.dateTo)document.getElementById('s-date-to').value=filters.dateTo;
+  // dateScope로 기간 의도를 구분해서 처리한다:
+  // - "all": "전체"라고 명시했으니 날짜 필터를 아예 비워서 전체 기간을 검색하게 함
+  // - "range": 구체적 기간을 말했으니 그 날짜로 채움
+  // - "unspecified"(또는 값 자체가 없을 때): 기간 언급이 없었단 뜻이니, 지금 화면에 이미 설정된 기간을 그대로 둠
+  //   (예전엔 이 구분이 없어서, "전체 기간"이라고 말해도 화면에 남아있던 "이번달" 필터가 안 지워지는 문제가 있었음)
+  if(filters.dateScope==='all'){
+    // 그냥 비워두면 renderHis()의 "빈 값이면 이번달로 자동 채움" 로직에 걸려 도로 이번달로 돌아가 버리므로,
+    // "전체" 버튼(setHisDateRangeAll)과 동일하게 실제 최초 거래일~오늘 날짜를 채워서 진짜 전체 기간이 유지되게 한다.
+    // setHisDateRangeAll이 이미 renderHis()까지 내부에서 호출하니, 여기선 키워드 세팅만 마저 하고 중복 호출은 피한다.
+    setHisDateRangeAll();
+    document.getElementById('s-kw').value=filters.keyword||'';
+    if(filters.keyword)renderHis();
+    showToast('✅ AI가 조건을 적용했어요.');
+    return;
+  }else if(filters.dateScope==='range'){
+    if(filters.dateFrom)document.getElementById('s-date-from').value=filters.dateFrom;
+    if(filters.dateTo)document.getElementById('s-date-to').value=filters.dateTo;
+  }
   // AI가 이해 못한 나머지 키워드가 있으면 검색창엔 그 키워드만 남기고, 없으면 비운다(필터만으로 충분하므로)
   document.getElementById('s-kw').value=filters.keyword||'';
   renderHis();
