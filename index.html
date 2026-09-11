@@ -28,6 +28,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .pg{display:none}.pg.on{display:block}
 .card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;margin-bottom:12px}
 .card-title{font-size:12px;font-weight:700;color:var(--mu2);letter-spacing:.05em;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-title .sub{font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0}
+.md-input{width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit}
+.md-input:focus,.md-input-sm:focus{border-color:var(--bl);outline:none}
+.md-input-sm{width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
@@ -332,11 +336,11 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
         <div id="ti-res" class="mt8"></div>
       </div>
       <div class="card">
-        <div class="card-title">📌 고정 거래 입력 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">항목별 날짜 선택 후 저장</span><button onclick="openAddFx()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 추가</button></div>
+        <div class="card-title">📌 고정 거래 입력 <span class="sub">항목별 날짜 선택 후 저장</span><button onclick="openAddFx()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 추가</button></div>
         <div id="fi-list"></div>
       </div>
       <div class="card">
-        <div class="card-title">💳 할부 관리 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">원금/개월수로 자동 계산돼요</span><button onclick="openAddIns()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 할부 추가</button></div>
+        <div class="card-title">💳 할부 관리 <span class="sub">원금/개월수로 자동 계산돼요</span><button onclick="openAddIns()" class="btn bpu2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">＋ 할부 추가</button></div>
         <div id="ins-list"></div>
       </div>
     </div>
@@ -345,10 +349,11 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
         <div class="fx fxb fxc mb8">
           <div class="card-title" style="margin-bottom:0">📋 거래 내역</div>
           <div class="fx fxc g4" id="his-range-wrap" style="font-size:11px">
-            <input type="date" id="s-date-from" onchange="renderHis()" style="font-size:11px;padding:2px 4px;border:1px solid var(--bd2);border-radius:4px;background:var(--sf2);color:var(--mu);width:118px">
-            <span style="color:var(--mu)">~</span>
-            <input type="date" id="s-date-to" onchange="renderHis()" style="font-size:11px;padding:2px 4px;border:1px solid var(--bd2);border-radius:4px;background:var(--sf2);color:var(--mu);width:118px">
-            <button onclick="clearHisDateRange()" title="이번달만 보기" style="font-size:11px;color:var(--mu);background:none;border:none;cursor:pointer;padding:2px 4px">✕</button>
+            <input type="date" id="s-date-from" onchange="renderHis()" style="font-size:11px;padding:3px 5px;border:1px solid var(--bd2);border-radius:5px;background:var(--sf2);color:var(--mu2);width:120px">
+            <span style="color:var(--mu);font-size:10px">~</span>
+            <input type="date" id="s-date-to" onchange="renderHis()" style="font-size:11px;padding:3px 5px;border:1px solid var(--bd2);border-radius:5px;background:var(--sf2);color:var(--mu2);width:120px">
+            <button onclick="setHisDateRangeAll()" title="가장 오래된 거래부터 오늘까지 전부 검색" style="font-size:10px;font-weight:700;color:var(--bl);background:rgba(43,108,176,.1);border:1px solid rgba(43,108,176,.25);border-radius:5px;cursor:pointer;padding:3px 7px">전체</button>
+            <button onclick="clearHisDateRange()" title="이번달만 보기" style="font-size:12px;color:var(--mu);background:none;border:none;cursor:pointer;padding:3px 5px;line-height:1">✕</button>
           </div>
         </div>
         <div class="search-bar">
@@ -375,7 +380,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div id="d-bud-summary"></div>
   <div id="d-bud-warn"></div>
   <div class="card">
-    <div class="card-title">🎯 예산 설정 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="fillMissingBudgetTemplatesManual()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="데이트처럼 새로 생겼거나 예산이 아예 없는 카테고리에, 최근 6개월 평균 지출로 예산 초안을 채워요">📊 미설정 카테고리 채우기</button><button onclick="openBulkVarBudget()" class="btn bg2 bsm" style="padding:3px 9px;font-size:11px">🪄 전월 변동지출 95%</button><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
+    <div class="card-title">🎯 예산 설정 <span class="sub">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="fillMissingBudgetTemplatesManual()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="데이트처럼 새로 생겼거나 예산이 아예 없는 카테고리에, 최근 6개월 평균 지출로 예산 초안을 채워요">📊 미설정 카테고리 채우기</button><button onclick="openBulkVarBudget()" class="btn bg2 bsm" style="padding:3px 9px;font-size:11px">🪄 전월 변동지출 95%</button><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
     <div class="bud-grid" id="d-bud"></div>
   </div>
 </div>
@@ -405,7 +410,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
     <div class="sec-divider">🏦 자산 현황</div>
     <div id="d-ast-kpi" class="g3 mb12"></div>
     <div class="card">
-      <div class="card-title">🏦 자산 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 포커스 이동 시 자동 저장</span><button onclick="openOrphanFix()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="이름이 바뀌어서 지금 목록엔 없는 예전 자산 이름을 찾아서 연결해요">🔍 옛날 이름 찾기</button><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
+      <div class="card-title">🏦 자산 현황 <span class="sub">· 포커스 이동 시 자동 저장</span><button onclick="openOrphanFix()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="이름이 바뀌어서 지금 목록엔 없는 예전 자산 이름을 찾아서 연결해요">🔍 옛날 이름 찾기</button><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
       <div id="d-ast"></div>
     </div>
   </div>
@@ -1001,19 +1006,19 @@ function openAddGoal(){
   var md=document.createElement('div');md.className='mdbg on';md.id='add-goal-md';
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>➕ 목표 추가</h3><button class="mdc" onclick="document.getElementById(\'add-goal-md\').remove()">✕</button></div>'
-    +'<div><label>목표 이름</label><input type="text" id="agoal-label" placeholder="예: 순자산 1억 모으기" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8"><label>목표 종류</label><select id="agoal-type" onchange="onGoalTypeChange(\'agoal\')" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div><label>목표 이름</label><input type="text" id="agoal-label" placeholder="예: 순자산 1억 모으기" class="md-input"></div>'
+    +'<div class="mt8"><label>목표 종류</label><select id="agoal-type" onchange="onGoalTypeChange(\'agoal\')" class="md-input">'
     +'<option value="networth">순자산 목표 (예: 순자산 1억 모으기)</option>'
     +'<option value="debt">부채 상환 목표 (예: 마통 다 갚기)</option>'
     +'<option value="asset">자산 모으기 목표 (예: 비상금 3천만원 모으기)</option>'
     +'<option value="maturity">만기 보험/적금 목표 (예: 라이나종신 만기 시 수령액)</option>'
     +'<option value="duration">기간형 목표 (예: 종신보험 10년납 완료)</option>'
     +'</select></div>'
-    +'<div class="mt8" id="agoal-link-wrap" style="display:none"><label>연결할 항목</label><select id="agoal-link" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+goalLinkOptions('debt')+'</select></div>'
-    +'<div class="mt8" id="agoal-target-wrap"><label>목표 금액(원)</label><input type="number" id="agoal-target" placeholder="예: 100000000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8" id="agoal-maturity-wrap" style="display:none"><label>만기일(예상)</label><input type="date" id="agoal-maturity" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8" id="agoal-startdate-wrap" style="display:none"><label>시작일(가입일)</label><input type="date" id="agoal-startdate" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8" id="agoal-years-wrap" style="display:none"><label>목표 기간(년)</label><input type="number" id="agoal-years" placeholder="예: 10" step="0.5" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="mt8" id="agoal-link-wrap" style="display:none"><label>연결할 항목</label><select id="agoal-link" class="md-input">'+goalLinkOptions('debt')+'</select></div>'
+    +'<div class="mt8" id="agoal-target-wrap"><label>목표 금액(원)</label><input type="number" id="agoal-target" placeholder="예: 100000000" class="md-input"></div>'
+    +'<div class="mt8" id="agoal-maturity-wrap" style="display:none"><label>만기일(예상)</label><input type="date" id="agoal-maturity" class="md-input"></div>'
+    +'<div class="mt8" id="agoal-startdate-wrap" style="display:none"><label>시작일(가입일)</label><input type="date" id="agoal-startdate" class="md-input"></div>'
+    +'<div class="mt8" id="agoal-years-wrap" style="display:none"><label>목표 기간(년)</label><input type="number" id="agoal-years" placeholder="예: 10" step="0.5" class="md-input"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmAddGoal()">💾 추가</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'add-goal-md\').remove()">취소</button>'
@@ -1057,19 +1062,19 @@ function openEditGoal(i){
   var md=document.createElement('div');md.className='mdbg on';md.id='edit-goal-md';
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>⚙️ 목표 수정</h3><button class="mdc" onclick="document.getElementById(\'edit-goal-md\').remove()">✕</button></div>'
-    +'<div><label>목표 이름</label><input type="text" id="egoal-label" value="'+g.label.replace(/"/g,'&quot;')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8"><label>목표 종류</label><select id="egoal-type" onchange="onGoalTypeChange(\'egoal\')" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div><label>목표 이름</label><input type="text" id="egoal-label" value="'+g.label.replace(/"/g,'&quot;')+'" class="md-input"></div>'
+    +'<div class="mt8"><label>목표 종류</label><select id="egoal-type" onchange="onGoalTypeChange(\'egoal\')" class="md-input">'
     +'<option value="networth"'+(g.type==='networth'?' selected':'')+'>순자산 목표</option>'
     +'<option value="debt"'+(g.type==='debt'?' selected':'')+'>부채 상환 목표</option>'
     +'<option value="asset"'+(g.type==='asset'?' selected':'')+'>자산 모으기 목표</option>'
     +'<option value="maturity"'+(g.type==='maturity'?' selected':'')+'>만기 보험/적금 목표</option>'
     +'<option value="duration"'+(g.type==='duration'?' selected':'')+'>기간형 목표</option>'
     +'</select></div>'
-    +'<div class="mt8" id="egoal-link-wrap" style="display:'+((g.type==='networth'||g.type==='duration')?'none':'')+'"><label>연결할 항목</label><select id="egoal-link" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+goalLinkOptions(g.type==='maturity'?'asset':((g.type==='networth'||g.type==='duration')?'debt':g.type),g.linkedName)+'</select></div>'
-    +'<div class="mt8" id="egoal-target-wrap" style="display:'+((g.type==='debt'||g.type==='duration')?'none':'')+'"><label>'+(g.type==='maturity'?'만기 시 예상 수령액(원)':'목표 금액(원)')+'</label><input type="number" id="egoal-target" value="'+(g.target||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8" id="egoal-maturity-wrap" style="display:'+(g.type==='maturity'?'':'none')+'"><label>만기일(예상)</label><input type="date" id="egoal-maturity" value="'+(g.maturityDate||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8" id="egoal-startdate-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>시작일(가입일)</label><input type="date" id="egoal-startdate" value="'+(g.startDate||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8" id="egoal-years-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>목표 기간(년)</label><input type="number" id="egoal-years" value="'+(g.targetYears||'')+'" step="0.5" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="mt8" id="egoal-link-wrap" style="display:'+((g.type==='networth'||g.type==='duration')?'none':'')+'"><label>연결할 항목</label><select id="egoal-link" class="md-input">'+goalLinkOptions(g.type==='maturity'?'asset':((g.type==='networth'||g.type==='duration')?'debt':g.type),g.linkedName)+'</select></div>'
+    +'<div class="mt8" id="egoal-target-wrap" style="display:'+((g.type==='debt'||g.type==='duration')?'none':'')+'"><label>'+(g.type==='maturity'?'만기 시 예상 수령액(원)':'목표 금액(원)')+'</label><input type="number" id="egoal-target" value="'+(g.target||'')+'" class="md-input"></div>'
+    +'<div class="mt8" id="egoal-maturity-wrap" style="display:'+(g.type==='maturity'?'':'none')+'"><label>만기일(예상)</label><input type="date" id="egoal-maturity" value="'+(g.maturityDate||'')+'" class="md-input"></div>'
+    +'<div class="mt8" id="egoal-startdate-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>시작일(가입일)</label><input type="date" id="egoal-startdate" value="'+(g.startDate||'')+'" class="md-input"></div>'
+    +'<div class="mt8" id="egoal-years-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>목표 기간(년)</label><input type="number" id="egoal-years" value="'+(g.targetYears||'')+'" step="0.5" class="md-input"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmEditGoal('+i+')">💾 저장</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'edit-goal-md\').remove()">취소</button>'
@@ -2026,19 +2031,19 @@ function openAddIns(){
   var md=document.createElement('div');md.className='mdbg on';md.id='add-ins-md';
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>➕ 할부 추가</h3><button class="mdc" onclick="document.getElementById(\'add-ins-md\').remove()">✕</button></div>'
-    +'<div><label>상품명</label><input type="text" id="ains-name" placeholder="예: 노트북" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>상품명</label><input type="text" id="ains-name" placeholder="예: 노트북" class="md-input"></div>'
     +'<div class="fg c2 mt8">'
-    +'<div><label>대분류</label><select id="ains-mid" onchange="fillBudgetSubOptions(\'ains-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+insMidOptions(defMid)+'</select></div>'
-    +'<div><label>소분류</label><select id="ains-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'<div><label>대분류</label><select id="ains-mid" onchange="fillBudgetSubOptions(\'ains-sub\',this.value)" class="md-input">'+insMidOptions(defMid)+'</select></div>'
+    +'<div><label>소분류</label><select id="ains-sub" class="md-input"></select></div>'
     +'</div>'
-    +'<div><label>결제수단</label><select id="ains-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+PAYS.map(function(p){return'<option value="'+p+'">'+p+'</option>';}).join('')+'</select></div>'
+    +'<div><label>결제수단</label><select id="ains-pay" class="md-input">'+PAYS.map(function(p){return'<option value="'+p+'">'+p+'</option>';}).join('')+'</select></div>'
     +'<div class="fg c4 mt8">'
-    +'<div><label>총 원금(원)</label><input type="number" id="ains-principal" placeholder="예: 1200000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>총 할부 개월</label><input type="number" id="ains-months" placeholder="예: 12" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>연 이자율(%)</label><input type="number" step="0.01" id="ains-rate" placeholder="무이자면 0" value="0" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>현재 회차</label><input type="number" id="ains-current" placeholder="예: 1" value="1" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>총 원금(원)</label><input type="number" id="ains-principal" placeholder="예: 1200000" class="md-input"></div>'
+    +'<div><label>총 할부 개월</label><input type="number" id="ains-months" placeholder="예: 12" class="md-input"></div>'
+    +'<div><label>연 이자율(%)</label><input type="number" step="0.01" id="ains-rate" placeholder="무이자면 0" value="0" class="md-input"></div>'
+    +'<div><label>현재 회차</label><input type="number" id="ains-current" placeholder="예: 1" value="1" class="md-input"></div>'
     +'</div>'
-    +'<div class="mt8"><label>매달 결제일(1~28)</label><input type="number" id="ains-billday" placeholder="예: 15" min="1" max="28" value="1" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="mt8"><label>매달 결제일(1~28)</label><input type="number" id="ains-billday" placeholder="예: 15" min="1" max="28" value="1" class="md-input"></div>'
     +'<div style="font-size:11px;color:var(--mu);margin-top:6px">"현재 회차"는 이번달 기준 몇 번째 납부인지예요. 예: 이번이 3번째 결제면 3 입력.</div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmAddIns()">💾 추가</button>'
@@ -2073,19 +2078,19 @@ function openEditIns(i){
   var md=document.createElement('div');md.className='mdbg on';md.id='edit-ins-md';
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>⚙️ 할부 수정</h3><button class="mdc" onclick="document.getElementById(\'edit-ins-md\').remove()">✕</button></div>'
-    +'<div><label>상품명</label><input type="text" id="eins-name" value="'+item.name.replace(/"/g,'&quot;')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>상품명</label><input type="text" id="eins-name" value="'+item.name.replace(/"/g,'&quot;')+'" class="md-input"></div>'
     +'<div class="fg c2 mt8">'
-    +'<div><label>대분류</label><select id="eins-mid" onchange="fillBudgetSubOptions(\'eins-sub\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+insMidOptions(item.mid)+'</select></div>'
-    +'<div><label>소분류</label><select id="eins-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'<div><label>대분류</label><select id="eins-mid" onchange="fillBudgetSubOptions(\'eins-sub\',this.value)" class="md-input">'+insMidOptions(item.mid)+'</select></div>'
+    +'<div><label>소분류</label><select id="eins-sub" class="md-input"></select></div>'
     +'</div>'
-    +'<div><label>결제수단</label><select id="eins-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+PAYS.map(function(p){return'<option value="'+p+'"'+(p===item.payment?' selected':'')+'>'+p+'</option>';}).join('')+(item.payment&&PAYS.indexOf(item.payment)<0?'<option value="'+item.payment+'" selected>'+item.payment+' (더 이상 안 씀)</option>':'')+'</select></div>'
+    +'<div><label>결제수단</label><select id="eins-pay" class="md-input">'+PAYS.map(function(p){return'<option value="'+p+'"'+(p===item.payment?' selected':'')+'>'+p+'</option>';}).join('')+(item.payment&&PAYS.indexOf(item.payment)<0?'<option value="'+item.payment+'" selected>'+item.payment+' (더 이상 안 씀)</option>':'')+'</select></div>'
     +'<div class="fg c4 mt8">'
-    +'<div><label>총 원금(원)</label><input type="number" id="eins-principal" value="'+item.principal+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>총 할부 개월</label><input type="number" id="eins-months" value="'+item.totalMonths+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>연 이자율(%)</label><input type="number" step="0.01" id="eins-rate" value="'+(item.rate||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>현재 회차</label><input type="number" id="eins-current" value="'+st.num+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>총 원금(원)</label><input type="number" id="eins-principal" value="'+item.principal+'" class="md-input"></div>'
+    +'<div><label>총 할부 개월</label><input type="number" id="eins-months" value="'+item.totalMonths+'" class="md-input"></div>'
+    +'<div><label>연 이자율(%)</label><input type="number" step="0.01" id="eins-rate" value="'+(item.rate||0)+'" class="md-input"></div>'
+    +'<div><label>현재 회차</label><input type="number" id="eins-current" value="'+st.num+'" class="md-input"></div>'
     +'</div>'
-    +'<div class="mt8"><label>매달 결제일(1~28)</label><input type="number" id="eins-billday" value="'+(item.billingDay||1)+'" min="1" max="28" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="mt8"><label>매달 결제일(1~28)</label><input type="number" id="eins-billday" value="'+(item.billingDay||1)+'" min="1" max="28" class="md-input"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmEditIns('+i+')">💾 저장</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'edit-ins-md\').remove()">취소</button>'
@@ -2370,6 +2375,18 @@ function clearHisDateRange(){
   document.getElementById('s-date-to').value='';
   renderHis();
 }
+// "전체 기간" 버튼: 가장 오래된 거래일부터 오늘까지 전부 검색 범위로 잡는다.
+function setHisDateRangeAll(){
+  var months=getAllMonths();
+  if(!months.length){showToast('거래 내역이 없어요.');return;}
+  var db=loadDB();
+  var allTxs=db.txs||[];
+  var earliestDate=allTxs.reduce(function(min,t){return(t.date&&(!min||t.date<min))?t.date:min;},null);
+  var todayStr=new Date().toISOString().slice(0,10);
+  document.getElementById('s-date-from').value=earliestDate||(months[0]+'-01');
+  document.getElementById('s-date-to').value=todayStr;
+  renderHis();
+}
 function renderHis(){
   var ym=gYM();
   var dateFrom=document.getElementById('s-date-from').value;
@@ -2633,7 +2650,7 @@ function renderCardPerf(ym){
   var txs=getTxs(ym).filter(function(t){return t.type==='지출';});
   var cardKeys=Object.keys(CARD_BENEFIT_INFO);
   var hasAny=false;
-  var html='<div class="card"><div class="card-title">💳 카드 실적 관리 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 전월실적 기준(2026-08 조사) · 정확한 조건은 카드사 앱에서 다시 확인하세요</span></div>';
+  var html='<div class="card"><div class="card-title">💳 카드 실적 관리 <span class="sub">· 전월실적 기준(2026-08 조사) · 정확한 조건은 카드사 앱에서 다시 확인하세요</span></div>';
   cardKeys.forEach(function(pay,ci){
     var info=CARD_BENEFIT_INFO[pay];
     var spent=txs.filter(function(t){return t.payment===pay;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
@@ -2706,7 +2723,7 @@ function renderFixedExpenseCard(ym){
   var total=rows.reduce(function(s,r){return s+r.amt;},0);
   var doneCount=rows.filter(function(r){return r.done;}).length;
 
-  var html='<div class="card"><div class="card-title">🔁 이번달 고정지출 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 구독료·통신비·보험료·월세 등 매달 나가는 지출 · '+doneCount+'/'+rows.length+'건 결제 확인됨</span></div>'
+  var html='<div class="card"><div class="card-title">🔁 이번달 고정지출 <span class="sub">· 구독료·통신비·보험료·월세 등 매달 나가는 지출 · '+doneCount+'/'+rows.length+'건 결제 확인됨</span></div>'
     +'<div class="g2 mb8">'
     +'<div class="kpi"><div class="kl">월 고정지출 총액</div><div class="kv" style="font-size:18px;color:var(--pu)">'+f(total)+'</div><div class="kb" style="background:var(--pu)"></div></div>'
     +'<div class="kpi"><div class="kl">항목 개수</div><div class="kv" style="font-size:18px">'+rows.length+'개</div><div class="kb" style="background:var(--mu2)"></div></div>'
@@ -3157,7 +3174,7 @@ function renderForecastCard(curYM2){
   var expectedExpense=avgFixedExp+avgVarExp+insDue;
   var expectedBalance=expectedIncome-expectedExpense;
   var color=expectedBalance>=0?'var(--gn)':'var(--rd)';
-  var html='<div class="card mb12"><div class="card-title">📅 '+nextYm+' 예상 수지 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 평균 기준 전망</span></div>'
+  var html='<div class="card mb12"><div class="card-title">📅 '+nextYm+' 예상 수지 <span class="sub">· 최근 3개월 평균 기준 전망</span></div>'
     +'<div class="dtl-card" id="dtl-forecast" onclick="toggleDtl(\'dtl-forecast\')">'
     +'<div class="g3 mb8">'
     +'<div class="kpi"><div class="kl">예상 수입</div><div class="kv" style="font-size:16px;color:var(--gn)">'+f(Math.round(expectedIncome))+'</div><div class="kb" style="background:var(--gn)"></div></div>'
@@ -3193,7 +3210,7 @@ function renderSubscriptionCard(curYM2){
   if(!active.length)return'';
   var total=active.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   active.sort(function(a,b){return b.amount-a.amount;});
-  var html='<div class="card mb12"><div class="card-title">🔁 구독료 총합 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 3개월 내 결제 기록 기준</span></div>'
+  var html='<div class="card mb12"><div class="card-title">🔁 구독료 총합 <span class="sub">· 최근 3개월 내 결제 기록 기준</span></div>'
     +'<div class="dtl-card" id="dtl-subs" onclick="toggleDtl(\'dtl-subs\')">'
     +'<div class="g2 mb8">'
     +'<div class="kpi"><div class="kl">월 구독료 총액</div><div class="kv" style="font-size:18px;color:var(--pu)">'+f(total)+'</div><div class="kb" style="background:var(--pu)"></div></div>'
@@ -3216,7 +3233,7 @@ function renderAnomalyCard(curYM2){
   res.high=res.high.filter(function(a){return dismissed.indexOf(curYM2+'|'+a.mid+'|'+a.sub)<0;});
   if(!res.high.length&&!res.low.length)return'';
   var html='<div class="card mb12" style="border:1px solid rgba(239,68,68,.3)">'
-    +'<div class="card-title">🚨 이번달 지출 이상 신호 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 최근 '+getAllMonths().filter(function(m){return m<curYM2;}).length+'개월 평균과 비교 · 클릭하면 내역이 보여요</span></div>';
+    +'<div class="card-title">🚨 이번달 지출 이상 신호 <span class="sub">· 최근 '+getAllMonths().filter(function(m){return m<curYM2;}).length+'개월 평균과 비교 · 클릭하면 내역이 보여요</span></div>';
   if(res.high.length){
     html+=res.high.map(function(a,idx){
       var rowId='anom-row-'+idx;
@@ -3377,7 +3394,7 @@ function renderDash(){
     +renderSubscriptionCard(curYM)
     +'<div class="sec-divider">📊 자산 &amp; 수입 구조</div>'
     +(function(){try{return'<div class="card mb12">'+renderAssetComp()+'</div>';}catch(e){console.error('assetComp error',e);return'';}})()
-    +'<div class="card mb12"><div class="card-title">💰 수입 구조: 고정수입(근로) vs 변동수입(사업/투자) 누적 흐름 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 고정수입 비중 '+incFixedPct+'%</span></div>'
+    +'<div class="card mb12"><div class="card-title">💰 수입 구조: 고정수입(근로) vs 변동수입(사업/투자) 누적 흐름 <span class="sub">· 고정수입 비중 '+incFixedPct+'%</span></div>'
     +'<div class="g5 mb12" style="margin-bottom:10px"><div class="kpi"><div class="kl">누적 고정수입(근로)</div><div class="kv" style="color:#3b82f6">'+f(totIncomeFixed)+'</div><div class="ks">고정거래 등록분</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">누적 변동수입(사업/투자)</div><div class="kv" style="color:#f59e0b">'+f(totIncomeVar)+'</div><div class="ks">비고정 수입</div><div class="kb" style="background:#f59e0b"></div></div><div class="kpi"><div class="kl">고정수입 비중</div><div class="kv tg">'+incFixedPct+'%</div><div class="ks">전체 수입 대비</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">평균 고정 월수입</div><div class="kv" style="color:#3b82f6">'+f(sums.length?Math.round(totIncomeFixed/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">평균 변동 월수입</div><div class="kv" style="color:#f59e0b">'+f(sums.length?Math.round(totIncomeVar/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#f59e0b"></div></div></div>'
     +'<div style="position:relative;height:220px"><canvas id="incFxC"></canvas></div></div>'
     +'<div class="sec-divider">📈 추이 &amp; 히스토리</div>'
@@ -3873,22 +3890,22 @@ function openAddBudgetItem(){
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>➕ 예산 항목 추가</h3><button class="mdc" onclick="document.getElementById(\'add-bud-md\').remove()">✕</button></div>'
     +'<div class="fg c2">'
-    +'<div><label>대분류</label><select id="abud-mid" onchange="fillBudgetSubOptions(\'abud-sub-dl\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
-    +'<div><label>소분류 <span style="font-weight:400;color:var(--mu);font-size:10px">(직접 입력 가능)</span></label><input type="text" id="abud-sub" list="abud-sub-dl" placeholder="예: 세차" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"><datalist id="abud-sub-dl"></datalist></div>'
+    +'<div><label>대분류</label><select id="abud-mid" onchange="fillBudgetSubOptions(\'abud-sub-dl\',this.value)" class="md-input">'+budgetMidOptions(defMid)+'</select></div>'
+    +'<div><label>소분류 <span style="font-weight:400;color:var(--mu);font-size:10px">(직접 입력 가능)</span></label><input type="text" id="abud-sub" list="abud-sub-dl" placeholder="예: 세차" class="md-input"><datalist id="abud-sub-dl"></datalist></div>'
     +'</div>'
     +'<div style="margin-top:4px"><a href="javascript:void(0)" onclick="toggleNewCatForm(\'abud\')" style="font-size:11px;color:var(--bl)">➕ 새 대분류 만들기</a></div>'
     +'<div id="abud-newcat-form" style="display:none;background:var(--sf2);border-radius:var(--rs);padding:10px;margin-top:8px">'
     +'<div class="fg c2">'
-    +'<div><label style="font-size:11px">카테고리 이름</label><input type="text" id="abud-newcat-name" placeholder="예: 자기계발" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
-    +'<div><label style="font-size:11px">종류</label><select id="abud-newcat-type" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"><option value="지출">지출</option><option value="수입">수입</option><option value="저축">저축</option></select></div>'
+    +'<div><label style="font-size:11px">카테고리 이름</label><input type="text" id="abud-newcat-name" placeholder="예: 자기계발" class="md-input-sm"></div>'
+    +'<div><label style="font-size:11px">종류</label><select id="abud-newcat-type" class="md-input-sm"><option value="지출">지출</option><option value="수입">수입</option><option value="저축">저축</option></select></div>'
     +'</div>'
     +'<div class="fg c2" style="margin-top:6px">'
-    +'<div><label style="font-size:11px">아이콘(이모지)</label><input type="text" id="abud-newcat-icon" placeholder="📌" maxlength="4" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
+    +'<div><label style="font-size:11px">아이콘(이모지)</label><input type="text" id="abud-newcat-icon" placeholder="📌" maxlength="4" class="md-input-sm"></div>'
     +'<div><label style="font-size:11px">색상</label><input type="color" id="abud-newcat-color" value="#64748b" style="width:100%;height:32px;background:var(--sf);border:1px solid var(--bd2);border-radius:var(--rs);cursor:pointer"></div>'
     +'</div>'
     +'<button class="btn bpu2 bsm" style="width:100%;margin-top:8px" onclick="confirmNewCategory(\'abud\',\'abud-mid\',\'abud-sub-dl\')">＋ 카테고리 만들기</button>'
     +'</div>'
-    +'<div style="margin-top:10px"><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="abud-amt" placeholder="예: 100000" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div style="margin-top:10px"><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="abud-amt" placeholder="예: 100000" class="md-input"></div>'
     +'<div style="font-size:11px;color:var(--mu);margin-top:6px">매달 이 금액이 기본으로 적용돼요. 특정 달만 다르게 하고 싶으면 예산탭에서 그 달 값만 수정하면 돼요.</div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmAddBudgetItem()">💾 추가</button>'
@@ -3926,22 +3943,22 @@ function openEditBudgetItem(i){
     +'<div class="mdh"><h3>⚙️ 예산 항목 수정</h3><button class="mdc" onclick="document.getElementById(\'edit-bud-md\').remove()">✕</button></div>'
     +(valid?'':'<div class="al inf mb8" style="font-size:11px;color:var(--rd)">이전 카테고리("'+item.mid+' &gt; '+item.sub+'")가 더 이상 없어서, 새 대분류/소분류를 다시 선택해주세요.</div>')
     +'<div class="fg c2">'
-    +'<div><label>대분류</label><select id="ebud-mid" onchange="fillBudgetSubOptions(\'ebud-sub-dl\',this.value)" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'+budgetMidOptions(defMid)+'</select></div>'
-    +'<div><label>소분류 <span style="font-weight:400;color:var(--mu);font-size:10px">(직접 입력 가능)</span></label><input type="text" id="ebud-sub" list="ebud-sub-dl" value="'+(valid?item.sub:'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"><datalist id="ebud-sub-dl"></datalist></div>'
+    +'<div><label>대분류</label><select id="ebud-mid" onchange="fillBudgetSubOptions(\'ebud-sub-dl\',this.value)" class="md-input">'+budgetMidOptions(defMid)+'</select></div>'
+    +'<div><label>소분류 <span style="font-weight:400;color:var(--mu);font-size:10px">(직접 입력 가능)</span></label><input type="text" id="ebud-sub" list="ebud-sub-dl" value="'+(valid?item.sub:'')+'" class="md-input"><datalist id="ebud-sub-dl"></datalist></div>'
     +'</div>'
     +'<div style="margin-top:4px"><a href="javascript:void(0)" onclick="toggleNewCatForm(\'ebud\')" style="font-size:11px;color:var(--bl)">➕ 새 대분류 만들기</a></div>'
     +'<div id="ebud-newcat-form" style="display:none;background:var(--sf2);border-radius:var(--rs);padding:10px;margin-top:8px">'
     +'<div class="fg c2">'
-    +'<div><label style="font-size:11px">카테고리 이름</label><input type="text" id="ebud-newcat-name" placeholder="예: 자기계발" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
-    +'<div><label style="font-size:11px">종류</label><select id="ebud-newcat-type" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"><option value="지출">지출</option><option value="수입">수입</option><option value="저축">저축</option></select></div>'
+    +'<div><label style="font-size:11px">카테고리 이름</label><input type="text" id="ebud-newcat-name" placeholder="예: 자기계발" class="md-input-sm"></div>'
+    +'<div><label style="font-size:11px">종류</label><select id="ebud-newcat-type" class="md-input-sm"><option value="지출">지출</option><option value="수입">수입</option><option value="저축">저축</option></select></div>'
     +'</div>'
     +'<div class="fg c2" style="margin-top:6px">'
-    +'<div><label style="font-size:11px">아이콘(이모지)</label><input type="text" id="ebud-newcat-icon" placeholder="📌" maxlength="4" style="width:100%;background:var(--sf);border:1px solid var(--bd2);color:var(--tx);padding:7px;border-radius:var(--rs);font-family:inherit;font-size:12px"></div>'
+    +'<div><label style="font-size:11px">아이콘(이모지)</label><input type="text" id="ebud-newcat-icon" placeholder="📌" maxlength="4" class="md-input-sm"></div>'
     +'<div><label style="font-size:11px">색상</label><input type="color" id="ebud-newcat-color" value="#64748b" style="width:100%;height:32px;background:var(--sf);border:1px solid var(--bd2);border-radius:var(--rs);cursor:pointer"></div>'
     +'</div>'
     +'<button class="btn bpu2 bsm" style="width:100%;margin-top:8px" onclick="confirmNewCategory(\'ebud\',\'ebud-mid\',\'ebud-sub-dl\')">＋ 카테고리 만들기</button>'
     +'</div>'
-    +'<div style="margin-top:10px"><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="ebud-amt" value="'+(item.amount||0)+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div style="margin-top:10px"><label>기본 금액(원) · 지출=예산 / 수입·저축=목표</label><input type="number" id="ebud-amt" value="'+(item.amount||0)+'" class="md-input"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmEditBudgetItem('+i+')">💾 저장</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'edit-bud-md\').remove()">취소</button>'
@@ -4244,7 +4261,7 @@ function renderRealPLCard(){
 
   if(!hasInvest&&!hasInsurance&&!hasNetInvest){wrap.innerHTML='';return;}
 
-  var html='<div class="card"><div class="card-title">💡 실질 자산 손익 분석 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 표면 숫자가 아닌 진짜 손익</span></div>';
+  var html='<div class="card"><div class="card-title">💡 실질 자산 손익 분석 <span class="sub">· 표면 숫자가 아닌 진짜 손익</span></div>';
 
   if(hasInvest){
     var principal2=getStockPrincipal(months[months.length-1]);
@@ -4451,7 +4468,7 @@ function renderDsrCard(ym){
   var dsrFixed=avgFixedInc>0?Math.round(totalBurden/avgFixedInc*100):0;
   function dsrColor(v){return v>=40?'var(--rd)':v>=25?'var(--yw)':'var(--gn)';}
 
-  var html='<div class="card"><div class="card-title">💳 상환부담률 (DSR 유사) <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· '+ym+' 기준</span></div>'
+  var html='<div class="card"><div class="card-title">💳 상환부담률 (DSR 유사) <span class="sub">· '+ym+' 기준</span></div>'
     +'<div class="dtl-card" id="dtl-dsr" onclick="toggleDtl(\'dtl-dsr\')">'
     +'<div class="g4 mb12">'
     +'<div class="kpi"><div class="kl">할부 납입</div><div class="kv" style="font-size:16px">'+f(insDue)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
@@ -4551,9 +4568,9 @@ function openTaxLimitSetup(){
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>⚙️ 절세계좌 한도 수정</h3><button class="mdc" onclick="document.getElementById(\'taxlimit-md\').remove()">✕</button></div>'
     +'<div style="font-size:11px;color:var(--mu);margin-bottom:8px">세법 개정으로 한도가 바뀌면 여기서 직접 수정하세요.</div>'
-    +'<div><label>ISA 연간 납입한도(원)</label><input type="number" id="tl-isa" value="'+limits.isa+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8"><label>연금저축 세액공제 한도(원)</label><input type="number" id="tl-pension" value="'+limits.pension+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div class="mt8"><label>연금저축+IRP 합산 세액공제 한도(원)</label><input type="number" id="tl-combined" value="'+limits.combined+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>ISA 연간 납입한도(원)</label><input type="number" id="tl-isa" value="'+limits.isa+'" class="md-input"></div>'
+    +'<div class="mt8"><label>연금저축 세액공제 한도(원)</label><input type="number" id="tl-pension" value="'+limits.pension+'" class="md-input"></div>'
+    +'<div class="mt8"><label>연금저축+IRP 합산 세액공제 한도(원)</label><input type="number" id="tl-combined" value="'+limits.combined+'" class="md-input"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmTaxLimitSetup()">💾 저장</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'taxlimit-md\').remove()">취소</button>'
@@ -4617,7 +4634,7 @@ function renderLeverageCard(ym,am,r){
   var hist=getLeverageHistory();
 
   var card=document.createElement('div');card.className='card';
-  var html='<div class="card-title">⚠️ 레버리지 리스크 대시보드 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 부채로 투자자산을 키우고 있는 정도</span></div>';
+  var html='<div class="card-title">⚠️ 레버리지 리스크 대시보드 <span class="sub">· 부채로 투자자산을 키우고 있는 정도</span></div>';
   html+='<div class="dtl-card" id="dtl-lev" onclick="toggleDtl(\'dtl-lev\')">';
 
   // 1) 레버리지 비율 게이지
@@ -4708,7 +4725,7 @@ function renderRefiCard(){
   var debtItems=AI.map(function(a,i){return{a:a,i:i};}).filter(function(o){return o.a.d;});
   var rated=debtItems.filter(function(o){return Number(o.a.rate)>0&&(Number(am[o.a.n])||0)>0;});
 
-  var html='<div class="card"><div class="card-title">💰 선납(중도상환) 시 예상 이자 절감액 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· 미리 갚을 금액을 입력해보세요</span></div>';
+  var html='<div class="card"><div class="card-title">💰 선납(중도상환) 시 예상 이자 절감액 <span class="sub">· 미리 갚을 금액을 입력해보세요</span></div>';
 
   if(!debtItems.length){
     html+='<div class="em">등록된 부채 항목이 없어요. "＋ 항목추가"로 부채 항목을 만들어보세요.</div></div>';
@@ -4763,16 +4780,16 @@ function openAddAsset(){
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>➕ 자산 항목 추가</h3><button class="mdc" onclick="document.getElementById(\'add-asset-md\').remove()">✕</button></div>'
     +'<div class="fg c2">'
-    +'<div><label>이름</label><input type="text" id="aast-name" placeholder="예: 청년도약계좌" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>이모지</label><input type="text" id="aast-emoji" placeholder="💰" value="💰" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>이름</label><input type="text" id="aast-name" placeholder="예: 청년도약계좌" class="md-input"></div>'
+    +'<div><label>이모지</label><input type="text" id="aast-emoji" placeholder="💰" value="💰" class="md-input"></div>'
     +'</div>'
     +'<div class="fg c2">'
-    +'<div><label>카테고리</label><select id="aast-cat" onchange="onAastCat()" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div><label>카테고리</label><select id="aast-cat" onchange="onAastCat()" class="md-input">'
     +AST_CATS.map(function(c){return'<option value="'+c+'">'+c+'</option>';}).join('')
     +'</select></div>'
-    +'<div id="aast-rate-wrap" style="display:none"><label>현재 금리(%)</label><input type="number" step="0.01" id="aast-rate" placeholder="예: 6.5" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div id="aast-rate-wrap" style="display:none"><label>현재 금리(%)</label><input type="number" step="0.01" id="aast-rate" placeholder="예: 6.5" class="md-input"></div>'
     +'</div>'
-    +'<div id="aast-auto-wrap" class="mt8"><label>저축 거래 자동연동 (선택)</label><select id="aast-auto" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div id="aast-auto-wrap" class="mt8"><label>저축 거래 자동연동 (선택)</label><select id="aast-auto" class="md-input">'
     +'<option value="">직접 입력(수동)</option>'
     +CATS['저축'].s.map(function(s){return'<option value="'+s+'">'+s+' 거래 누적으로 자동계산</option>';}).join('')
     +'</select><div style="font-size:11px;color:var(--mu);margin-top:4px">연동하면 매달 잔액을 직접 안 넣어도, 해당 저축 거래를 기록할 때마다 자동으로 쌓여요 (이자 없이 원금만 쌓이는 항목에 적합해요).</div></div>'
@@ -4811,16 +4828,16 @@ function openEditAsset(i){
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>⚙️ 자산 항목 수정</h3><button class="mdc" onclick="document.getElementById(\'edit-asset-md\').remove()">✕</button></div>'
     +'<div class="fg c2">'
-    +'<div><label>이름</label><input type="text" id="east-name" value="'+a.n.replace(/"/g,'&quot;')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
-    +'<div><label>이모지</label><input type="text" id="east-emoji" value="'+a.emoji+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>이름</label><input type="text" id="east-name" value="'+a.n.replace(/"/g,'&quot;')+'" class="md-input"></div>'
+    +'<div><label>이모지</label><input type="text" id="east-emoji" value="'+a.emoji+'" class="md-input"></div>'
     +'</div>'
     +'<div class="fg c2">'
-    +'<div><label>카테고리</label><select id="east-cat" onchange="onEastCat()" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div><label>카테고리</label><select id="east-cat" onchange="onEastCat()" class="md-input">'
     +AST_CATS.map(function(c){return'<option value="'+c+'"'+(c===a.cat?' selected':'')+'>'+c+'</option>';}).join('')
     +'</select></div>'
-    +'<div id="east-rate-wrap" style="display:'+(a.d?'':'none')+'"><label>현재 금리(%)</label><input type="number" step="0.01" id="east-rate" value="'+(a.rate||'')+'" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div id="east-rate-wrap" style="display:'+(a.d?'':'none')+'"><label>현재 금리(%)</label><input type="number" step="0.01" id="east-rate" value="'+(a.rate||'')+'" class="md-input"></div>'
     +'</div>'
-    +'<div id="east-auto-wrap" class="mt8" style="display:'+(a.d?'none':'')+'"><label>저축 거래 자동연동 (선택)</label><select id="east-auto" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div id="east-auto-wrap" class="mt8" style="display:'+(a.d?'none':'')+'"><label>저축 거래 자동연동 (선택)</label><select id="east-auto" class="md-input">'
     +'<option value="">직접 입력(수동)</option>'
     +CATS['저축'].s.map(function(s){return'<option value="'+s+'"'+(a.autoSub===s?' selected':'')+'>'+s+' 거래 누적으로 자동계산</option>';}).join('')
     +'</select><div style="font-size:11px;color:var(--mu);margin-top:4px">연동하면 매달 잔액을 직접 안 넣어도, 해당 저축 거래를 기록할 때마다 자동으로 쌓여요.</div></div>'
@@ -5674,7 +5691,7 @@ function renderMonExtra(){
     if(!ranked.length){
       return '<div class="card"><div class="card-title">'+title+'</div><div class="em" style="padding:12px;font-size:12px">'+emptyMsg+'</div></div>';
     }
-    var h='<div class="card"><div class="card-title">'+title+' <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">총 '+ff(total)+'</span></div>';
+    var h='<div class="card"><div class="card-title">'+title+' <span class="sub">총 '+ff(total)+'</span></div>';
     h+='<div style="display:flex;align-items:center;gap:14px">';
     h+='<div style="position:relative;width:110px;height:110px;flex-shrink:0"><canvas id="'+cid+'" width="110" height="110"></canvas></div>';
     h+='<div style="flex:1;min-width:0">';
@@ -5866,7 +5883,7 @@ function renderStock(){
   var stockPL=stockVal-principal;
   var stockPLPct=principal>0?((stockPL/principal)*100).toFixed(1):null;
   var plColor=stockPL>=0?'var(--gn)':'var(--rd)';
-  html+='<div class="card mb12"><div class="card-title">💰 원금 대비 손익 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">· '+latestYM+' 기준 · 실제로 넣은 돈 기준 손익률</span></div>'
+  html+='<div class="card mb12"><div class="card-title">💰 원금 대비 손익 <span class="sub">· '+latestYM+' 기준 · 실제로 넣은 돈 기준 손익률</span></div>'
     +'<div class="g3">'
     +'<div class="kpi"><div class="kl">내가 넣은 원금(직접입력)</div><input type="number" value="'+(principal||'')+'" placeholder="예: 50000000" onblur="onStockPrincipalChange(this,\''+latestYM+'\')" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:6px 8px;border-radius:var(--rs);font-size:14px;font-weight:700;font-family:inherit;margin-top:2px"><div class="kb" style="background:var(--mu2)"></div></div>'
     +'<div class="kpi"><div class="kl">현재 평가금액</div><div class="kv" style="font-size:16px">'+f(stockVal)+'</div><div class="kb" style="background:var(--mu2)"></div></div>'
@@ -6211,7 +6228,7 @@ function renderAssetComp(){
   var title=document.createElement('div');
   title.className='card-title';
   title.style.marginBottom='16px';
-  title.innerHTML='🏦 자산 구성 현황 <span style="font-size:11px;color:var(--mu);font-weight:400;text-transform:none;letter-spacing:0">'+latestYM+' 기준</span>';
+  title.innerHTML='🏦 자산 구성 현황 <span class="sub">'+latestYM+' 기준</span>';
   wrap.appendChild(title);
 
   var grid=document.createElement('div');
@@ -6599,24 +6616,24 @@ function openAddFx(){
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>➕ 고정 거래 추가</h3><button class="mdc" onclick="document.getElementById(\'add-fx-md\').remove()">✕</button></div>'
     +'<div class="fg c2">'
-    +'<div><label>대분류</label><select id="afx-type" onchange="onAfxType()" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div><label>대분류</label><select id="afx-type" onchange="onAfxType()" class="md-input">'
     +'<option value="수입">수입</option><option value="저축">저축</option><option value="지출" selected>지출</option>'
     +'</select></div>'
-    +'<div><label>중분류</label><select id="afx-mid" onchange="onAfxMid()" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
+    +'<div><label>중분류</label><select id="afx-mid" onchange="onAfxMid()" class="md-input"></select></div>'
     +'</div>'
     +'<div class="fg c2">'
-    +'<div><label>소분류</label><select id="afx-sub" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></select></div>'
-    +'<div><label>기본금액</label><input type="number" id="afx-amt" min="0" placeholder="0" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div><label>소분류</label><select id="afx-sub" class="md-input"></select></div>'
+    +'<div><label>기본금액</label><input type="number" id="afx-amt" min="0" placeholder="0" class="md-input"></div>'
     +'</div>'
     +'<div class="fg c2">'
-    +'<div><label>결제수단</label><select id="afx-pay" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div><label>결제수단</label><select id="afx-pay" class="md-input">'
     +['현금','하나카드(신)','신한카드(신)','롯데카드(신)','현대카드(신)','토스카드(체)'].map(function(p){return'<option>'+p+'</option>';}).join('')
     +'</select></div>'
-    +'<div><label>지출유형</label><select id="afx-eval" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit">'
+    +'<div><label>지출유형</label><select id="afx-eval" class="md-input">'
     +'<option value="소비">소비</option><option value="낭비">낭비</option><option value="투자">투자</option><option value="저축">저축</option>'
     +'</select></div>'
     +'</div>'
-    +'<div class="fg"><label>메모</label><input type="text" id="afx-memo" placeholder="메모" style="width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px;border-radius:var(--rs);font-family:inherit"></div>'
+    +'<div class="fg"><label>메모</label><input type="text" id="afx-memo" placeholder="메모" class="md-input"></div>'
     +'<div class="fx g8 mt8">'
     +'<button class="btn bp" onclick="confirmAddFx()">💾 추가</button>'
     +'<button class="btn bg2" onclick="document.getElementById(\'add-fx-md\').remove()">취소</button>'
