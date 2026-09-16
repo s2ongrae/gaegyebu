@@ -121,7 +121,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bud-card-total{font-size:12px;color:var(--mu2)}
 .bud-sub-row{display:flex;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd)}
 .bud-sub-row:last-child{border-bottom:none}
-.bud-sub-name{font-size:12px;color:var(--mu2);flex:1;min-width:64px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bud-sub-name{font-size:12px;color:var(--mu2);flex:1;min-width:64px}
 .bud-sub-actual{font-size:12px;color:var(--bl);margin:0 6px;min-width:50px;text-align:right;font-weight:700;white-space:nowrap}
 .bud-sub-input{width:88px;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:4px 7px;border-radius:var(--rs);font-size:12px;font-weight:700;outline:none;text-align:right;font-family:inherit}
 .bud-sub-input:focus{border-color:var(--bl)}
@@ -3791,10 +3791,10 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
       inp.onblur=function(){onBud(this,ym2,m2,s2);};
     })(ym,m,r.sub);
     row.appendChild(inp);
-    var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:4px 7px;margin-left:4px';
+    var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
     (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
     row.appendChild(editBtn);
-    var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:4px 7px;margin-left:4px';
+    var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
     (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
     row.appendChild(delBtn);
     card.appendChild(row);
