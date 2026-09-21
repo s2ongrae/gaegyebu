@@ -1317,8 +1317,36 @@ function getMonthSummary(ym){
 function getServerURL(){return localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;}
 function setSyncStatus(s,msg){var dot=document.getElementById('sync-dot');var txt=document.getElementById('sync-status');dot.className='sync-dot '+(s==='ok'?'ok':s==='err'?'err':s==='syn'?'syn':'');txt.textContent=msg;}
 function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,3000);}
-function syncNow(){var url=getServerURL();if(!url)return;setSyncStatus('syn','동기화 중...');fetch(url,{method:'POST',body:JSON.stringify(loadDB())}).then(function(r){return r.json();}).then(function(res){if(res.success)setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});}
-function loadFromServer(){var url=getServerURL();if(!url)return;setSyncStatus('syn','불러오는 중...');fetch(url).then(function(r){return r.json();}).then(function(data){if(data&&data.txs!==undefined&&data.txs.length>0){localStorage.setItem(DB_KEY,JSON.stringify(data));setSyncStatus('ok','로드 완료');go(curPage);showToast('✅ 서버에서 데이터 불러옴!');}else setSyncStatus('ok','서버 연결됨');}).catch(function(){setSyncStatus('err','서버 연결 실패');});}
+function syncNow(){
+  var url=getServerURL();if(!url)return;
+  setSyncStatus('syn','동기화 중...');
+  // BT(예산 항목)는 원래 별도 localStorage 키라 서버 백업 대상에서 완전히 빠져있었다.
+  // (이 때문에 BT가 로컬에서만 손상돼도 복구할 방법이 서버엔 전혀 없었던 사고가 있었음)
+  // 이제 loadDB() 결과에 bt를 얹어서 보내, 서버 백업(구글드라이브)에도 항상 같이 남게 한다.
+  var payload=loadDB();
+  payload.bt=BT;
+  fetch(url,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(res){if(res.success)setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});
+}
+function loadFromServer(){
+  var url=getServerURL();if(!url)return;
+  setSyncStatus('syn','불러오는 중...');
+  fetch(url).then(function(r){return r.json();}).then(function(data){
+    if(data&&data.txs!==undefined&&data.txs.length>0){
+      localStorage.setItem(DB_KEY,JSON.stringify(data));
+      // 서버의 bt와 로컬 BT를 "병합"한다(한쪽을 통째로 덮어쓰지 않음).
+      // 이렇게 하면 서버가 비어있는 상태(bt 없음)로 로컬의 정상 데이터를 지워버리는 사고,
+      // 또는 반대로 로컬이 손상된 상태로 서버의 정상 데이터를 지워버리는 사고를 둘 다 막을 수 있다.
+      if(data.bt&&data.bt.length){
+        var merged={};
+        BT.forEach(function(b){merged[b.mid+'|'+b.sub]=b;});
+        data.bt.forEach(function(b){var k=b.mid+'|'+b.sub;if(!merged[k])merged[k]=b;});
+        BT=Object.values(merged);
+        saveBT();
+      }
+      setSyncStatus('ok','로드 완료');go(curPage);showToast('✅ 서버에서 데이터 불러옴!');
+    }else setSyncStatus('ok','서버 연결됨');
+  }).catch(function(){setSyncStatus('err','서버 연결 실패');});
+}
 function saveServerURL(){
   var url=document.getElementById('server-url').value.trim();
   if(!url){alert('URL을 입력해주세요.');return;}
@@ -1651,6 +1679,14 @@ function initApp(){
       clearTimeout(timer);
       if(data&&data.txs!==undefined&&data.txs.length>0){
         localStorage.setItem(DB_KEY,JSON.stringify(data));
+        // BT도 서버 백업분과 병합(둘 중 한쪽만 비어있거나 손상됐을 때 서로 안전망이 되도록).
+        if(data.bt&&data.bt.length){
+          var merged={};
+          BT.forEach(function(b){merged[b.mid+'|'+b.sub]=b;});
+          data.bt.forEach(function(b){var k=b.mid+'|'+b.sub;if(!merged[k])merged[k]=b;});
+          BT=Object.values(merged);
+          saveBT();
+        }
         setSyncStatus('ok','서버 연결됨 · '+new Date().toLocaleTimeString());
         renderDash();
       }else setSyncStatus('ok','서버 연결됨');
