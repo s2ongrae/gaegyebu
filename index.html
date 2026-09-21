@@ -3063,16 +3063,30 @@ function getSubBreakdownByMid(txList){
 // 각 행을 클릭했을 때 그 소분류에 해당하는 "개별 거래 내역"(날짜/메모/결제수단/금액)까지 한 번 더 펼쳐볼 수 있다.
 // - groupKeyField: 'sub'(소분류 breakdown일 때) 또는 'mid'(대분류 breakdown일 때) — subRanked의 각 항목을 txList와 매칭할 필드명
 // - rowIdPrefix: 펼침 상태를 저장할 DOM id 접두사 (같은 화면에 여러 breakdown이 있을 때 id 충돌 방지용)
-function renderSubBreakdownRows(subRanked,indent,iconMap,txList,groupKeyField,rowIdPrefix){
+// - budgetInfo: {mid: 대분류명, bySub: getEffectiveBudget().bySub} 선택적으로 넘기면, 각 소분류 옆에 "예산 대비 실적"을 같이 보여준다.
+//   (groupKeyField가 'sub'일 때만 의미가 있음 - 대분류 breakdown에는 소분류별 예산 개념이 없으므로 무시됨)
+function renderSubBreakdownRows(subRanked,indent,iconMap,txList,groupKeyField,rowIdPrefix,budgetInfo){
   indent=indent||36;
   iconMap=iconMap||SUB_ICON;
   if(!subRanked.length)return'<div style="font-size:11px;color:var(--mu);padding:4px '+indent+'px">세부 내역 없음</div>';
   var total=subRanked.reduce(function(s,x){return s+x.amt;},0);
   var clickable=!!(txList&&groupKeyField);
+  var showBudget=!!(budgetInfo&&budgetInfo.mid&&budgetInfo.bySub&&groupKeyField==='sub');
   return subRanked.map(function(s,si){
     var rowId=clickable?(rowIdPrefix||'subbrk')+'-'+si:null;
+    var budgetHtml='';
+    if(showBudget){
+      var budget=budgetInfo.bySub[budgetInfo.mid+'|'+s.sub];
+      if(budget!==undefined&&budget>0){
+        var pct=Math.min(Math.round(s.amt/budget*100),999);
+        var color=pct>100?'var(--rd)':pct>80?'var(--yw)':'var(--gn)';
+        budgetHtml='<span style="font-size:9px;color:var(--mu);margin-left:6px">예산 '+ff(budget)+' <span style="color:'+color+';font-weight:700">('+pct+'%)</span></span>';
+      }else{
+        budgetHtml='<span style="font-size:9px;color:var(--mu);margin-left:6px">예산 미설정</span>';
+      }
+    }
     var row='<div'+(clickable?' style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+rowId+'\')"':' style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd)"')+'>'
-      +'<span>'+(iconMap[s.sub]||'')+' '+s.sub+'</span>'
+      +'<span>'+(iconMap[s.sub]||'')+' '+s.sub+budgetHtml+'</span>'
       +'<span><b style="color:var(--tx)">'+ff(s.amt)+'</b> <span style="color:var(--mu)">('+(total?Math.round(s.amt/total*100):0)+'%)</span></span>'
       +'</div>';
     if(!clickable)return row;
@@ -6470,11 +6484,13 @@ function renderAnnual(months){
   }
   var ANNUAL_BUDGET_TOTAL=0;
   var ANNUAL_BUDGET_BY_MID={};
+  var ANNUAL_BUDGET_BY_SUB={}; // 'mid|sub' -> 연간 누적 예산 (카테고리 클릭 시 펼쳐지는 소분류별 예산 대비 실적 표시에 사용)
   var incGoalBySub={},savGoalBySub={};
   goalMonths.forEach(function(monthYm){
     var eb=getEffectiveBudget(monthYm,'지출');
     ANNUAL_BUDGET_TOTAL+=eb.total;
     Object.keys(eb.byMid).forEach(function(m){ANNUAL_BUDGET_BY_MID[m]=(ANNUAL_BUDGET_BY_MID[m]||0)+eb.byMid[m];});
+    Object.keys(eb.bySub).forEach(function(key){ANNUAL_BUDGET_BY_SUB[key]=(ANNUAL_BUDGET_BY_SUB[key]||0)+eb.bySub[key];});
     var ebInc=getEffectiveBudget(monthYm,'수입');
     Object.keys(ebInc.bySub).forEach(function(key){
       var sub=key.split('|')[1];
@@ -6745,7 +6761,7 @@ function renderAnnual(months){
                 +'</div>'):'<span style="font-size:10px;color:var(--mu)">'+opts.goalLabel+' 미설정</span>')
               +'</td>'
               +'</tr>'
-              +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx)+'</div></td></tr>'
+              +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx,opts.budgetBySub?{mid:x.name,bySub:opts.budgetBySub}:null)+'</div></td></tr>'
               +(showMonthCols?matrixMonths.map(function(ym,yi){
                 var v=(byNameMonth[x.name]||{})[ym]||0;
                 if(!v)return'';
@@ -6782,7 +6798,8 @@ function renderAnnual(months){
         icon2:function(name){return CE[name]||'';},
         cellColor:{strong:'rgba(220,38,38,.30)',mid:'rgba(220,38,38,.16)',weak:'rgba(220,38,38,.07)'},
         subBreakdown:function(name){return getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),name);},
-        monthSubBreakdown:function(txs,name){return getSubBreakdown(txs,name);}
+        monthSubBreakdown:function(txs,name){return getSubBreakdown(txs,name);},
+        budgetBySub:ANNUAL_BUDGET_BY_SUB
       });
 
       var incTable=buildRankedMonthlyTable(incRankedTbl,incGoalBySub,{
