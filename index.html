@@ -1139,6 +1139,53 @@ function recoverOrphanedBTCategories(){
   });
   if(recovered)console.log('[가계부] 예산 항목에만 있던 카테고리를 자동 복구했어요.');
 }
+// 일회성 응급 복구: 2026-09-21에 AI/GOALS/INSTALLMENTS가 원인 불명으로 로컬에서 완전히 삭제되는 사고가 있었다.
+// 그때 대화 기록(메모리)에서 확인된 마지막 정상 값으로 딱 한 번만 복구하고, 재실행 방지 플래그를 남긴다.
+// (사용자가 이후 직접 목표를 지우거나 자산항목을 바꿔도 이 복구 로직이 다시 끼어들지 않도록)
+var RECOVERY_2026_09_21_FLAG='gaegyebu_recovery_20260921_v1';
+function recoverKnownGoalsAiInstallments(){
+  if(localStorage.getItem(RECOVERY_2026_09_21_FLAG))return;
+  localStorage.setItem(RECOVERY_2026_09_21_FLAG,'1');
+  var recoveredAny=false;
+  if(!AI.length){
+    AI=[
+      {n:'주식계좌',emoji:'📈',cat:'투자',d:false},
+      {n:'ISA',emoji:'📊',cat:'절세계좌',d:false},
+      {n:'퇴직연금IRP',emoji:'🔐',cat:'연금',d:false},
+      {n:'퇴직연금DC',emoji:'🏢',cat:'연금',d:false},
+      {n:'연금저축펀드',emoji:'💎',cat:'연금',d:false},
+      {n:'KDB종신',emoji:'🛡️',cat:'보험저축',d:false},
+      {n:'라이나종신',emoji:'🛡️',cat:'보험저축',d:false},
+      {n:'주택청약',emoji:'🏠',cat:'저축',d:false},
+      {n:'자동차(G80)',emoji:'🚗',cat:'부동산',d:false},
+      {n:'전세보증금',emoji:'🏡',cat:'부동산',d:false},
+      {n:'비트코인',emoji:'₿',cat:'투자',d:false},
+      {n:'현금/예금',emoji:'💵',cat:'기타',d:false},
+      {n:'마통(우리은행)',emoji:'⚠️',cat:'부채',d:true,rate:5.18},
+      {n:'마통(카카오뱅크)',emoji:'⚠️',cat:'부채',d:true,rate:5.22},
+      {n:'KDB보험대출',emoji:'⚠️',cat:'부채',d:true,rate:3.55},
+      {n:'하나카드 결제금액',emoji:'💳',cat:'부채',d:true,rate:0},
+      {n:'신한카드 결제금액',emoji:'💳',cat:'부채',d:true,rate:0},
+      {n:'롯데카드 결제금액',emoji:'💳',cat:'부채',d:true,rate:0}
+    ];
+    saveAI();recoveredAny=true;
+  }
+  if(!GOALS.length){
+    GOALS=[
+      {label:'순자산 1억 모으기',type:'networth',target:100000000},
+      {label:'KDB생명 종신',type:'duration',startDate:'2017-03-01',targetYears:20},
+      {label:'라이나생명 종신',type:'maturity',linkedName:'라이나종신',target:21150298,maturityDate:'2034-12-25'}
+    ];
+    saveGoals();recoveredAny=true;
+  }
+  if(!INSTALLMENTS.length){
+    INSTALLMENTS=[
+      {id:'g80-loan-1',name:'G80 자동차 할부',mid:'자동차',sub:'자동차 할부',payment:'현금',principal:25174900,totalMonths:48,firstYm:'2026-05',rate:5.9}
+    ];
+    saveIns();recoveredAny=true;
+  }
+  if(recoveredAny)console.log('[가계부] 9월 사고로 사라졌던 AI/GOALS/INSTALLMENTS 중 비어있던 항목을 마지막 확인값으로 복구했어요.');
+}
 // 데이터 정정: "투자손실/투자수입" 거래인데 fixed:true(고정거래)로 잘못 표시된 것이 있었음(수동 입력 실수로 추정).
 // 투자손익은 매달 금액이 다른 비정기 거래라 고정거래일 수가 없는데, 이게 fixed=true면
 // - 지출타입(금융지출>투자손실)인 경우 isFixed(t)가 true를 반환해서, 비상금 커버리지의 "평균 고정지출" 계산에 잘못 합산됨
@@ -1320,16 +1367,18 @@ function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,300
 function syncNow(){
   var url=getServerURL();if(!url)return;
   setSyncStatus('syn','동기화 중...');
-  // BT(예산 항목), AI(자산 항목 정의), GOALS(목표)는 원래 별도 localStorage 키라 서버 백업 대상에서 완전히 빠져있었다.
-  // (이 때문에 이 셋이 로컬에서만 손상돼도 복구할 방법이 서버엔 전혀 없었던 사고가 있었음)
+  // BT(예산 항목), AI(자산 항목 정의), GOALS(목표), INSTALLMENTS(할부 관리)는
+  // 원래 별도 localStorage 키라 서버 백업 대상에서 완전히 빠져있었다.
+  // (이 넷이 로컬에서만 손상돼도 복구할 방법이 서버엔 전혀 없었던 사고가 반복됐음)
   // 이제 loadDB() 결과에 얹어서 보내, 서버 백업(구글드라이브)에도 항상 같이 남게 한다.
   var payload=loadDB();
   payload.bt=BT;
   payload.ai=AI;
   payload.goals=GOALS;
+  payload.installments=INSTALLMENTS;
   fetch(url,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(res){if(res.success)setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});
 }
-// 서버 백업분과 로컬을 병합한다(한쪽을 통째로 덮어쓰지 않음) - BT/AI/GOALS 공용 헬퍼.
+// 서버 백업분과 로컬을 병합한다(한쪽을 통째로 덮어쓰지 않음) - BT/AI/GOALS/INSTALLMENTS 공용 헬퍼.
 // keyFn으로 각 항목의 고유키를 뽑아서, 로컬에 이미 있는 키는 그대로 두고 서버에만 있는 키만 추가한다.
 // 이렇게 하면 서버가 비어있는 상태로 로컬의 정상 데이터를 지워버리는 사고,
 // 또는 반대로 로컬이 손상된 상태로 서버의 정상 데이터를 지워버리는 사고를 둘 다 막을 수 있다.
@@ -1348,6 +1397,7 @@ function loadFromServer(){
       if(data.bt&&data.bt.length){BT=mergeByKey(BT,data.bt,function(b){return b.mid+'|'+b.sub;});saveBT();}
       if(data.ai&&data.ai.length){AI=mergeByKey(AI,data.ai,function(a){return a.n;});saveAI();}
       if(data.goals&&data.goals.length){GOALS=mergeByKey(GOALS,data.goals,function(g){return g.label;});saveGoals();}
+      if(data.installments&&data.installments.length){INSTALLMENTS=mergeByKey(INSTALLMENTS,data.installments,function(i){return i.id;});saveIns();}
       setSyncStatus('ok','로드 완료');go(curPage);showToast('✅ 서버에서 데이터 불러옴!');
     }else setSyncStatus('ok','서버 연결됨');
   }).catch(function(){setSyncStatus('err','서버 연결 실패');});
@@ -1614,6 +1664,10 @@ function initApp(){
   fixMisflaggedInvestTxFixed();
   loadGoals();
   loadIns();
+  // 일회성 응급 복구: AI(자산항목 정의)/GOALS(목표)/INSTALLMENTS(할부)가
+  // 알 수 없는 이유로 로컬에서 완전히 비워지는 사고가 반복돼서, 마지막으로 확인된 값으로 딱 한 번만 복구한다.
+  // (이후엔 사용자가 직접 지워도 다시 채워넣지 않도록 플래그로 막는다)
+  recoverKnownGoalsAiInstallments();
   maybeSaveDailyCheckpoint();
   backfillIncomeSavingsGoals();
   // 카테고리 개편 마이그레이션: 식비>식비→외식, 생활>생필품→생활용품, 꾸밈>잡화→기타꾸밈비, 주거>전기세→전기요금
@@ -1684,10 +1738,11 @@ function initApp(){
       clearTimeout(timer);
       if(data&&data.txs!==undefined&&data.txs.length>0){
         localStorage.setItem(DB_KEY,JSON.stringify(data));
-        // BT/AI/GOALS도 서버 백업분과 병합(둘 중 한쪽만 비어있거나 손상됐을 때 서로 안전망이 되도록).
+        // BT/AI/GOALS/INSTALLMENTS도 서버 백업분과 병합(둘 중 한쪽만 비어있거나 손상됐을 때 서로 안전망이 되도록).
         if(data.bt&&data.bt.length){BT=mergeByKey(BT,data.bt,function(b){return b.mid+'|'+b.sub;});saveBT();}
         if(data.ai&&data.ai.length){AI=mergeByKey(AI,data.ai,function(a){return a.n;});saveAI();}
         if(data.goals&&data.goals.length){GOALS=mergeByKey(GOALS,data.goals,function(g){return g.label;});saveGoals();}
+        if(data.installments&&data.installments.length){INSTALLMENTS=mergeByKey(INSTALLMENTS,data.installments,function(i){return i.id;});saveIns();}
         setSyncStatus('ok','서버 연결됨 · '+new Date().toLocaleTimeString());
         renderDash();
       }else setSyncStatus('ok','서버 연결됨');
@@ -3770,7 +3825,7 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
           +'<span style="font-size:10px;color:'+c+';font-weight:700;min-width:28px;text-align:right">'+pct2+'%</span>'
           +'</div></td>'
           +'</tr>'
-          +'<tr id="'+rowId+'" style="display:none"><td colspan="5" style="padding:0;border-bottom:1px solid var(--bd)">'+renderSubBreakdownRows(breakdown,20)+'</td></tr>';
+          +'<tr id="'+rowId+'" style="display:none"><td colspan="5" style="padding:0;border-bottom:1px solid var(--bd)">'+renderSubBreakdownRows(breakdown,20,SUB_ICON,monthTxsForBreakdown,'sub','budsum-detail-'+ri,{mid:r.name,bySub:ebExp.bySub})+'</td></tr>';
       }).join('')
       +'</tbody></table>';
   }
