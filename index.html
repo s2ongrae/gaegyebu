@@ -3200,6 +3200,14 @@ function toggleCatSub(id){
   var showVal=el.tagName==='TR'?'table-row':'block';
   el.style.display=(el.style.display==='none'||!el.style.display)?showVal:'none';
 }
+// toggleCatSub와 달리, 같은 groupClass를 가진 여러 <tr>(소분류 행 + 그 아래 상세행들)을 한꺼번에 토글한다.
+// (대분류 하나를 클릭하면 그 밑에 소분류가 여러 줄로 나오는 예산탭 요약표에서 사용)
+function toggleSubGroup(groupClass){
+  var rows=document.querySelectorAll('.'+groupClass);
+  if(!rows.length)return;
+  var isHidden=rows[0].style.display==='none'||!rows[0].style.display;
+  rows.forEach(function(r){r.style.display=isHidden?'table-row':'none';});
+}
 function toggleAnomalyRow(rowId){
   var el=document.getElementById(rowId);
   if(el)el.classList.toggle('open');
@@ -3813,8 +3821,50 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
         var c=pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)';
         var w=Math.min(pct2,100);
         var rowId='budsum-sub-'+ri;
-        var breakdown=getSubBreakdown(monthTxsForBreakdown,r.name);
-        return'<tr style="cursor:pointer" onclick="toggleCatSub(\''+rowId+'\')">'
+        var groupClass='budsum-group-'+ri;
+        // 소분류 목록: "이번달에 실제로 쓴 소분류"뿐 아니라 "예산이 설정된 소분류"도 합쳐서 보여준다.
+        // (예전엔 실적 있는 소분류만 나와서, 아직 이번달에 안 쓴 예산 항목이 통째로 안 보이던 문제가 있었음)
+        var actualBySub={};
+        monthTxsForBreakdown.forEach(function(t){if(t.mid===r.name)actualBySub[t.sub]=(actualBySub[t.sub]||0)+(Number(t.amount)||0);});
+        var subNames={};
+        Object.keys(actualBySub).forEach(function(s){subNames[s]=true;});
+        Object.keys(ebExp.bySub).forEach(function(key){
+          if(key.indexOf(r.name+'|')===0)subNames[key.slice(r.name.length+1)]=true;
+        });
+        var subRows=Object.keys(subNames).map(function(sub){
+          var subBudget=ebExp.bySub[r.name+'|'+sub]||0;
+          var subActual=actualBySub[sub]||0;
+          return{sub:sub,budget:subBudget,actual:subActual};
+        }).sort(function(a,b){return b.actual-a.actual;});
+        var subHtml=subRows.map(function(s,si){
+          var spct=s.budget>0?Math.min(Math.round(s.actual/s.budget*100),999):0;
+          var sremain=s.budget-s.actual;
+          var scolor=s.budget>0?(spct>100?'var(--rd)':spct>80?'var(--yw)':'var(--gn)'):'var(--mu)';
+          var sw=Math.min(spct,100);
+          var subDetailId=rowId+'-item-'+si;
+          var itemTxs=monthTxsForBreakdown.filter(function(t){return t.mid===r.name&&t.sub===s.sub;})
+            .slice().sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;});
+          var detailHtml=itemTxs.length?itemTxs.map(function(t){
+            return'<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 36px;color:var(--mu);border-bottom:1px dashed var(--bd)">'
+              +'<span>'+t.date+' '+(t.memo||'(메모 없음)')+'</span>'
+              +'<span>'+ff(Number(t.amount)||0)+(t.payment?' · '+t.payment:'')+'</span>'
+              +'</div>';
+          }).join(''):'<div style="font-size:10px;color:var(--mu);padding:3px 36px">거래 내역 없음</div>';
+          return'<tr class="'+groupClass+'" style="display:none;cursor:pointer;background:var(--sf2)" onclick="toggleCatSub(\''+subDetailId+'\')">'
+            +'<td style="font-size:11px;color:var(--mu2);padding:5px 6px 5px 24px;border-bottom:1px solid var(--bd)">'+(SUB_ICON[s.sub]||'')+' '+s.sub+'</td>'
+            +'<td class="tr" style="font-size:11px;color:var(--mu);padding:5px 6px;border-bottom:1px solid var(--bd)">'+(s.budget>0?ff(s.budget):'-')+'</td>'
+            +'<td class="tr" style="font-size:11px;font-weight:700;color:var(--rd);padding:5px 6px;border-bottom:1px solid var(--bd)">'+ff(s.actual)+'</td>'
+            +'<td class="tr" style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);color:'+(s.budget>0?(sremain>=0?'var(--gn)':'var(--rd)'):'var(--mu)')+'">'+(s.budget>0?ff(sremain):'-')+'</td>'
+            +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd)">'
+            +(s.budget>0?('<div style="display:flex;align-items:center;gap:4px">'
+              +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden"><div style="width:'+sw+'%;height:100%;background:'+scolor+';border-radius:2px"></div></div>'
+              +'<span style="font-size:10px;color:'+scolor+';font-weight:700;min-width:28px;text-align:right">'+spct+'%</span>'
+              +'</div>'):'<span style="font-size:10px;color:var(--mu)">예산 미설정</span>')
+            +'</td>'
+            +'</tr>'
+            +'<tr id="'+subDetailId+'" class="'+groupClass+'" style="display:none"><td colspan="5" style="padding:0;background:var(--sf2);border-bottom:1px solid var(--bd)">'+detailHtml+'</td></tr>';
+        }).join('');
+        return'<tr style="cursor:pointer" onclick="toggleSubGroup(\''+groupClass+'\')">'
           +'<td style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd)">'+(CE[r.name]||'')+' '+r.name+'</td>'
           +'<td class="tr" style="font-size:12px;color:var(--mu2);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.budget)+'</td>'
           +'<td class="tr" style="font-weight:700;font-size:12px;color:var(--rd);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.actual)+'</td>'
@@ -3825,7 +3875,7 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
           +'<span style="font-size:10px;color:'+c+';font-weight:700;min-width:28px;text-align:right">'+pct2+'%</span>'
           +'</div></td>'
           +'</tr>'
-          +'<tr id="'+rowId+'" style="display:none"><td colspan="5" style="padding:0;border-bottom:1px solid var(--bd)">'+renderSubBreakdownRows(breakdown,20,SUB_ICON,monthTxsForBreakdown,'sub','budsum-detail-'+ri,{mid:r.name,bySub:ebExp.bySub})+'</td></tr>';
+          +subHtml;
       }).join('')
       +'</tbody></table>';
   }
