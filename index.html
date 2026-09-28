@@ -235,7 +235,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   <div class="sm">
     <button class="btn bpu2 bsm" onclick="openSetup()">⚙️</button>
     <button class="btn bg2 bsm" onclick="openPinSetup()" title="비밀번호 설정">🔒</button>
-    <button class="btn bg2 bsm" onclick="syncNow()">🔄 동기화</button>
+    <button class="btn bg2 bsm" onclick="manualSyncNow()">🔄 동기화</button>
     <button class="btn bg2 bsm" onclick="openVersionLog()" title="가져오기·중복정리 등 큰 작업 전 자동 저장된 체크포인트로 되돌리기">🕐 이전 기록</button>
     <button class="btn bg2 bsm" onclick="exportJSON()">📤</button>
     <button class="btn bg2 bsm" onclick="document.getElementById('importFile').click()">📥</button>
@@ -574,7 +574,7 @@ function loadUserCats(){
   });
   return list;
 }
-function saveUserCats(list){localStorage.setItem(USER_CATS_KEY,JSON.stringify(list));}
+function saveUserCats(list){localStorage.setItem(USER_CATS_KEY,JSON.stringify(list));scheduleSync();}
 // 새 대분류 추가. 이름 중복(기본 카테고리 포함) 방지.
 function addUserCategory(mid,p,icon,color){
   mid=(mid||'').trim();
@@ -604,7 +604,7 @@ var EXTRA_SUBS_KEY='gaegyebu_extra_subs';
 function readExtraSubsRaw(){
   try{return JSON.parse(localStorage.getItem(EXTRA_SUBS_KEY)||'{}');}catch(e){return{};}
 }
-function saveExtraSubs(map){localStorage.setItem(EXTRA_SUBS_KEY,JSON.stringify(map));}
+function saveExtraSubs(map){localStorage.setItem(EXTRA_SUBS_KEY,JSON.stringify(map));scheduleSync();}
 // 앱 시작 시 1회 호출: 기본 카테고리에 저장돼 있던 추가 소분류를 CATS에 병합한다. (loadUserCats와 함께 initApp에서 호출)
 function loadExtraSubs(){
   var map=readExtraSubsRaw();
@@ -709,6 +709,7 @@ function loadFX(){
 function saveFX(){
   localStorage.setItem('gaegyebu_fx2', JSON.stringify(FX));
   FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
+  scheduleSync();
 }
 
 function addFxItem(item){FX.push(item);saveFX();}
@@ -732,7 +733,7 @@ function loadAI(){
     AI=saved?JSON.parse(saved):JSON.parse(JSON.stringify(DEFAULT_AI));
   }catch(e){AI=JSON.parse(JSON.stringify(DEFAULT_AI));}
 }
-function saveAI(){localStorage.setItem(AI_KEY,JSON.stringify(AI));}
+function saveAI(){localStorage.setItem(AI_KEY,JSON.stringify(AI));scheduleSync();}
 function addAssetItem(item){AI.push(item);saveAI();}
 function updateAssetItem(i,item){
   var oldName=AI[i]?AI[i].n:null;
@@ -779,7 +780,7 @@ var GOALS=[];
 function loadGoals(){
   try{var s=localStorage.getItem(GOALS_KEY);GOALS=s?JSON.parse(s):[];}catch(e){GOALS=[];}
 }
-function saveGoals(){localStorage.setItem(GOALS_KEY,JSON.stringify(GOALS));}
+function saveGoals(){localStorage.setItem(GOALS_KEY,JSON.stringify(GOALS));scheduleSync();}
 function addGoal(g){GOALS.push(g);saveGoals();}
 function updateGoal(i,g){GOALS[i]=g;saveGoals();}
 function removeGoal(i){GOALS.splice(i,1);saveGoals();}
@@ -1263,7 +1264,7 @@ function migrateBTFromExistingBudgets(){
   });
   return Object.keys(items).map(function(k){return items[k];});
 }
-function saveBT(){localStorage.setItem(BT_KEY,JSON.stringify(BT));}
+function saveBT(){localStorage.setItem(BT_KEY,JSON.stringify(BT));scheduleSync();}
 function addBudgetTemplateItem(item){BT.push(item);saveBT();}
 function updateBudgetTemplateItem(i,item){BT[i]=item;saveBT();}
 function removeBudgetTemplateItem(i){BT.splice(i,1);saveBT();}
@@ -1418,6 +1419,13 @@ function syncNow(){
   // 이제 loadDB() 결과에 다 얹어서 보내, 서버 백업(구글드라이브)에도 항상 같이 남게 한다.
   var payload=buildFullBackupPayload();
   fetch(url,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(res){if(res.success)setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});
+}
+// "🔄 동기화" 버튼을 직접 눌렀을 때만 호출되는 함수 - 그 시점을 "이전 기록"(체크포인트)에도 남긴다.
+// (자동 동기화(scheduleSync→syncNow)는 입력할 때마다 수시로 일어나니 매번 체크포인트를 찍으면 목록이 금방 꽉 차버림.
+//  사용자가 명시적으로 버튼을 눌러 "지금 상태를 확실히 남기고 싶다"고 한 순간에만 스냅샷을 남긴다.)
+function manualSyncNow(){
+  saveCheckpoint('수동 동기화 시점');
+  syncNow();
 }
 // syncNow/initApp 공용: 지금 이 브라우저에 있는 모든 로컬 전용 데이터를 서버로 보낼 payload 하나로 모은다.
 function buildFullBackupPayload(){
@@ -2071,7 +2079,7 @@ var INSTALLMENTS=[];
 function loadIns(){
   try{var s=localStorage.getItem(INS_KEY);INSTALLMENTS=s?JSON.parse(s):[];}catch(e){INSTALLMENTS=[];}
 }
-function saveIns(){localStorage.setItem(INS_KEY,JSON.stringify(INSTALLMENTS));}
+function saveIns(){localStorage.setItem(INS_KEY,JSON.stringify(INSTALLMENTS));scheduleSync();}
 function addIns(item){INSTALLMENTS.push(item);saveIns();}
 function updateIns(i,item){INSTALLMENTS[i]=item;saveIns();}
 function removeIns(i){INSTALLMENTS.splice(i,1);saveIns();}
@@ -4820,7 +4828,7 @@ var DEFAULT_TAX_LIMITS={isa:40000000,pension:6000000,combined:9000000};
 function loadTaxLimits(){
   try{var s=localStorage.getItem(TAXLIMIT_KEY);return s?JSON.parse(s):Object.assign({},DEFAULT_TAX_LIMITS);}catch(e){return Object.assign({},DEFAULT_TAX_LIMITS);}
 }
-function saveTaxLimits(t){localStorage.setItem(TAXLIMIT_KEY,JSON.stringify(t));}
+function saveTaxLimits(t){localStorage.setItem(TAXLIMIT_KEY,JSON.stringify(t));scheduleSync();}
 function renderTaxLimitCard(ym){
   var wrap=document.getElementById('d-taxlimit');
   if(!wrap)return;
@@ -5033,6 +5041,7 @@ function setPrepayAmount(name,amt){
   var m=getPrepayAmounts();
   if(amt>0)m[name]=amt;else delete m[name];
   localStorage.setItem(PREPAY_KEY,JSON.stringify(m));
+  scheduleSync();
 }
 function onPrepayInput(el){
   setPrepayAmount(el.dataset.name,Number(el.value)||0);
@@ -5717,7 +5726,9 @@ function loadVersionLog(){try{return JSON.parse(localStorage.getItem(VERSION_LOG
 function saveCheckpoint(label){
   try{
     var log=loadVersionLog();
-    var snapshot={ts:new Date().toISOString(),label:label,data:JSON.stringify(loadDB())};
+    // 체크포인트도 이제 거래/자산/예산(budgets)뿐 아니라 BT/AI/GOALS/INSTALLMENTS 등 전체를 스냅샷 찍는다.
+    // (예전엔 loadDB()만 찍어서, "이전 기록"으로 되돌려도 예산 항목/목표/자산정의는 안 돌아가는 반쪽 복구였음)
+    var snapshot={ts:new Date().toISOString(),label:label,data:JSON.stringify(buildFullBackupPayload())};
     log.push(snapshot);
     while(log.length>VERSION_LOG_MAX)log.shift();
     localStorage.setItem(VERSION_LOG_KEY,JSON.stringify(log));
@@ -5772,6 +5783,15 @@ function restoreCheckpoint(i){
   try{
     var data=JSON.parse(snap.data);
     localStorage.setItem(DB_KEY,JSON.stringify(data));
+    // 체크포인트에 BT/AI/GOALS/INSTALLMENTS 등이 같이 들어있으면(새 형식), 그것도 각자 원래 자리로 되돌린다.
+    // applyServerBackup은 원래 "병합"용이지만, 되돌리기는 이 스냅샷을 절대 기준으로 삼아야 하므로
+    // 먼저 현재 값을 비워서 스냅샷 내용이 그대로 이기도록 한다(스냅샷에 없는 값은 건드리지 않음).
+    if(data.bt){BT=[];}
+    if(data.ai){AI=[];}
+    if(data.goals){GOALS=[];}
+    if(data.installments){INSTALLMENTS=[];}
+    if(data.fx){FX=[];}
+    applyServerBackup(data);
     scheduleSync();
     showToast('↩️ 이전 상태로 되돌렸어요.');
     var md=document.getElementById('versionlog-md');if(md)md.remove();
@@ -6104,7 +6124,7 @@ function renderMonExtra(){
 var STOCK_PRINCIPAL_KEY='gaegyebu_stock_principal'; // 구버전(단일값) - 마이그레이션 용도로만 참조
 var STOCK_PRINCIPAL_HIST_KEY='gaegyebu_stock_principal_hist';
 function loadStockPrincipalHist(){try{return JSON.parse(localStorage.getItem(STOCK_PRINCIPAL_HIST_KEY)||'{}');}catch(e){return{};}}
-function saveStockPrincipalHist(h){localStorage.setItem(STOCK_PRINCIPAL_HIST_KEY,JSON.stringify(h));}
+function saveStockPrincipalHist(h){localStorage.setItem(STOCK_PRINCIPAL_HIST_KEY,JSON.stringify(h));scheduleSync();}
 // 해당 월에 직접 입력한 값이 있으면 그 값, 없으면 "그 이전 달 중 가장 최근에 입력된 값"을 그대로 이어서 보여준다(안 건드리면 원금은 그대로라는 뜻).
 // 그보다 이전에 입력된 값이 하나도 없으면(즉 아직 원금을 넣기 전 시점) 0(=값 없음)을 반환한다.
 function getRealTodayYM(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
