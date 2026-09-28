@@ -983,11 +983,20 @@ function onGoalTypeChange(prefix){
   var yearsWrap=document.getElementById(prefix+'-years-wrap');
   var maturityWrap=document.getElementById(prefix+'-maturity-wrap');
   if(linkWrap)linkWrap.style.display=(type==='networth'||type==='duration')?'none':'';
-  if(targetWrap)targetWrap.style.display=(type==='debt'||type==='duration')?'none':'';
+  // 부채 상환 목표(debt)도 이제 "목표 금액" 칸을 원금 입력용으로 그대로 쓴다(라벨만 바꿈).
+  // 예전엔 debt 타입일 때 이 칸 자체를 숨기고 최신 자산 스냅샷 값을 자동으로 원금으로 써버려서,
+  // 사용자가 원금을 직접 지정할 방법이 없었던 문제가 있었음.
+  if(targetWrap)targetWrap.style.display=type==='duration'?'none':'';
   if(startWrap)startWrap.style.display=type==='duration'?'':'none';
   if(yearsWrap)yearsWrap.style.display=type==='duration'?'':'none';
   if(maturityWrap)maturityWrap.style.display=type==='maturity'?'':'none';
-  if(targetWrap)targetWrap.querySelector('label').textContent=type==='maturity'?'만기 시 예상 수령액(원)':'목표 금액(원)';
+  if(targetWrap){
+    var lbl=targetWrap.querySelector('label');
+    var inp=targetWrap.querySelector('input');
+    if(type==='debt'){lbl.textContent='원금(대출 시작 시 금액, 원) - 비워두면 지금 잔액을 원금으로 사용';inp.placeholder='예: 34800000 (비우면 자동)';}
+    else if(type==='maturity'){lbl.textContent='만기 시 예상 수령액(원)';inp.placeholder='예: 100000000';}
+    else{lbl.textContent='목표 금액(원)';inp.placeholder='예: 100000000';}
+  }
   var linkSel=document.getElementById(prefix+'-link');
   if(linkSel)linkSel.innerHTML=goalLinkOptions(type==='maturity'?'asset':type);
 }
@@ -1031,15 +1040,21 @@ function confirmAddGoal(){
     return;
   }
   var linkedName=type!=='networth'?document.getElementById('agoal-link').value:null;
-  var target=type!=='debt'?(Number(document.getElementById('agoal-target').value)||0):0;
+  var targetInputVal=Number(document.getElementById('agoal-target').value)||0;
+  var target=type!=='debt'?targetInputVal:0;
   if(type!=='debt'&&target<=0){showToast('⚠️ 목표 금액을 입력해주세요.');return;}
   var goal={label:label,type:type,linkedName:linkedName,target:target};
   if(type==='maturity'){
     goal.maturityDate=document.getElementById('agoal-maturity').value||'';
   }
   if(type==='debt'){
-    var snap=getLatestAssetSnapshot();
-    goal.startBalance=snap?(Number(snap.am[linkedName])||0):0;
+    // 원금을 직접 입력했으면 그 값을 쓰고, 비워두면 예전처럼 지금 자산 스냅샷 값을 원금으로 자동 사용.
+    if(targetInputVal>0){
+      goal.startBalance=targetInputVal;
+    }else{
+      var snap=getLatestAssetSnapshot();
+      goal.startBalance=snap?(Number(snap.am[linkedName])||0):0;
+    }
   }
   addGoal(goal);
   document.getElementById('add-goal-md').remove();
@@ -1050,6 +1065,9 @@ function openEditGoal(i){
   var g=GOALS[i];if(!g)return;
   var existing=document.getElementById('edit-goal-md');if(existing)existing.remove();
   var md=document.createElement('div');md.className='mdbg on';md.id='edit-goal-md';
+  // 부채 상환 목표는 "목표 금액" 칸을 원금(startBalance) 입력용으로 재사용한다.
+  var targetFieldValue=g.type==='debt'?(g.startBalance||''):(g.target||'');
+  var targetFieldLabel=g.type==='maturity'?'만기 시 예상 수령액(원)':(g.type==='debt'?'원금(대출 시작 시 금액, 원)':'목표 금액(원)');
   md.innerHTML='<div class="md">'
     +'<div class="mdh"><h3>⚙️ 목표 수정</h3><button class="mdc" onclick="document.getElementById(\'edit-goal-md\').remove()">✕</button></div>'
     +'<div><label>목표 이름</label><input type="text" id="egoal-label" value="'+g.label.replace(/"/g,'&quot;')+'" class="md-input"></div>'
@@ -1061,7 +1079,7 @@ function openEditGoal(i){
     +'<option value="duration"'+(g.type==='duration'?' selected':'')+'>기간형 목표</option>'
     +'</select></div>'
     +'<div class="mt8" id="egoal-link-wrap" style="display:'+((g.type==='networth'||g.type==='duration')?'none':'')+'"><label>연결할 항목</label><select id="egoal-link" class="md-input">'+goalLinkOptions(g.type==='maturity'?'asset':((g.type==='networth'||g.type==='duration')?'debt':g.type),g.linkedName)+'</select></div>'
-    +'<div class="mt8" id="egoal-target-wrap" style="display:'+((g.type==='debt'||g.type==='duration')?'none':'')+'"><label>'+(g.type==='maturity'?'만기 시 예상 수령액(원)':'목표 금액(원)')+'</label><input type="number" id="egoal-target" value="'+(g.target||'')+'" class="md-input"></div>'
+    +'<div class="mt8" id="egoal-target-wrap" style="display:'+(g.type==='duration'?'none':'')+'"><label>'+targetFieldLabel+'</label><input type="number" id="egoal-target" value="'+targetFieldValue+'" placeholder="'+(g.type==='debt'?'비우면 지금 잔액 사용':'')+'" class="md-input"></div>'
     +'<div class="mt8" id="egoal-maturity-wrap" style="display:'+(g.type==='maturity'?'':'none')+'"><label>만기일(예상)</label><input type="date" id="egoal-maturity" value="'+(g.maturityDate||'')+'" class="md-input"></div>'
     +'<div class="mt8" id="egoal-startdate-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>시작일(가입일)</label><input type="date" id="egoal-startdate" value="'+(g.startDate||'')+'" class="md-input"></div>'
     +'<div class="mt8" id="egoal-years-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>목표 기간(년)</label><input type="number" id="egoal-years" value="'+(g.targetYears||'')+'" step="0.5" class="md-input"></div>'
@@ -1088,13 +1106,21 @@ function confirmEditGoal(i){
     return;
   }
   var linkedName=type!=='networth'?document.getElementById('egoal-link').value:null;
-  var target=type!=='debt'?(Number(document.getElementById('egoal-target').value)||0):0;
+  var targetInputVal=Number(document.getElementById('egoal-target').value)||0;
+  var target=type!=='debt'?targetInputVal:0;
   var goal={label:label,type:type,linkedName:linkedName,target:target};
   if(type==='maturity'){
     goal.maturityDate=document.getElementById('egoal-maturity').value||'';
   }
   if(type==='debt'){
-    goal.startBalance=(old&&old.type==='debt'&&old.linkedName===linkedName&&old.startBalance>0)?old.startBalance:(function(){var snap=getLatestAssetSnapshot();return snap?(Number(snap.am[linkedName])||0):0;})();
+    // 원금을 직접 입력했으면 그 값을 그대로 쓰고(0을 입력해도 "직접 지정"으로 인정),
+    // 입력칸을 완전히 비워둔 경우에만 예전처럼 기존값 유지 또는 자동값 사용.
+    var rawTargetStr=document.getElementById('egoal-target').value.trim();
+    if(rawTargetStr!==''){
+      goal.startBalance=targetInputVal;
+    }else{
+      goal.startBalance=(old&&old.type==='debt'&&old.linkedName===linkedName&&old.startBalance>0)?old.startBalance:(function(){var snap=getLatestAssetSnapshot();return snap?(Number(snap.am[linkedName])||0):0;})();
+    }
   }
   updateGoal(i,goal);
   document.getElementById('edit-goal-md').remove();
@@ -1185,6 +1211,24 @@ function recoverKnownGoalsAiInstallments(){
     saveIns();recoveredAny=true;
   }
   if(recoveredAny)console.log('[가계부] 9월 사고로 사라졌던 AI/GOALS/INSTALLMENTS 중 비어있던 항목을 마지막 확인값으로 복구했어요.');
+}
+// 일회성 마이그레이션: 마통(우리은행)/마통(카카오뱅크) 부채 상환 목표를, 사용자가 알려준 정확한 원금으로 추가한다.
+// (예전엔 부채 상환 목표의 "원금"을 직접 입력할 UI 자체가 없어서, 목표를 만든 시점의 자산 스냅샷 값이 자동으로 원금이 돼버렸음.
+//  이제 openAddGoal/openEditGoal에서 원금을 직접 입력할 수 있게 고쳤고, 기존에 요청받은 두 마통 목표를 여기서 한 번만 만들어준다.)
+var GOALS_DEBT_MIGRATION_FLAG='gaegyebu_goals_debt_migration_v1';
+function addKnownDebtGoals(){
+  if(localStorage.getItem(GOALS_DEBT_MIGRATION_FLAG))return;
+  localStorage.setItem(GOALS_DEBT_MIGRATION_FLAG,'1');
+  var toAdd=[
+    {label:'마통(우리은행) 제로 만들기',type:'debt',linkedName:'마통(우리은행)',target:0,startBalance:34800000},
+    {label:'마통(카카오뱅크) 제로 만들기',type:'debt',linkedName:'마통(카카오뱅크)',target:0,startBalance:20000000}
+  ];
+  var added=false;
+  toAdd.forEach(function(g){
+    var exists=GOALS.some(function(x){return x.type==='debt'&&x.linkedName===g.linkedName;});
+    if(!exists){GOALS.push(g);added=true;}
+  });
+  if(added){saveGoals();console.log('[가계부] 마통 우리은행/카카오뱅크 부채상환 목표를 원금과 함께 추가했어요.');}
 }
 // 데이터 정정: "투자손실/투자수입" 거래인데 fixed:true(고정거래)로 잘못 표시된 것이 있었음(수동 입력 실수로 추정).
 // 투자손익은 매달 금액이 다른 비정기 거래라 고정거래일 수가 없는데, 이게 fixed=true면
@@ -1367,18 +1411,30 @@ function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,300
 function syncNow(){
   var url=getServerURL();if(!url)return;
   setSyncStatus('syn','동기화 중...');
-  // BT(예산 항목), AI(자산 항목 정의), GOALS(목표), INSTALLMENTS(할부 관리)는
-  // 원래 별도 localStorage 키라 서버 백업 대상에서 완전히 빠져있었다.
-  // (이 넷이 로컬에서만 손상돼도 복구할 방법이 서버엔 전혀 없었던 사고가 반복됐음)
-  // 이제 loadDB() 결과에 얹어서 보내, 서버 백업(구글드라이브)에도 항상 같이 남게 한다.
+  // 서버 백업 대상: BT/AI/GOALS/INSTALLMENTS/FX/USER_CATS(배열, 고유키로 병합) +
+  // EXTRA_SUBS/TAXLIMIT/PREPAY/STOCK_PRINCIPAL_HIST(객체, 키 단위로 병합).
+  // 전부 원래 별도 localStorage 키라 서버 백업 대상에서 완전히 빠져있었다.
+  // (레이가 입력하는 모든 데이터가 이 브라우저에서만 손상돼도 복구할 방법이 서버엔 전혀 없었던 사고가 반복됐음)
+  // 이제 loadDB() 결과에 다 얹어서 보내, 서버 백업(구글드라이브)에도 항상 같이 남게 한다.
+  var payload=buildFullBackupPayload();
+  fetch(url,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(res){if(res.success)setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});
+}
+// syncNow/initApp 공용: 지금 이 브라우저에 있는 모든 로컬 전용 데이터를 서버로 보낼 payload 하나로 모은다.
+function buildFullBackupPayload(){
   var payload=loadDB();
   payload.bt=BT;
   payload.ai=AI;
   payload.goals=GOALS;
   payload.installments=INSTALLMENTS;
-  fetch(url,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(res){if(res.success)setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});
+  payload.fx=FX;
+  payload.userCats=readUserCatsRaw();
+  payload.extraSubs=readExtraSubsRaw();
+  payload.taxLimits=loadTaxLimits();
+  payload.prepay=getPrepayAmounts();
+  payload.stockPrincipalHist=loadStockPrincipalHist();
+  return payload;
 }
-// 서버 백업분과 로컬을 병합한다(한쪽을 통째로 덮어쓰지 않음) - BT/AI/GOALS/INSTALLMENTS 공용 헬퍼.
+// 서버 백업분과 로컬을 병합한다(한쪽을 통째로 덮어쓰지 않음) - 배열형(BT/AI/GOALS/INSTALLMENTS/FX/USER_CATS) 공용 헬퍼.
 // keyFn으로 각 항목의 고유키를 뽑아서, 로컬에 이미 있는 키는 그대로 두고 서버에만 있는 키만 추가한다.
 // 이렇게 하면 서버가 비어있는 상태로 로컬의 정상 데이터를 지워버리는 사고,
 // 또는 반대로 로컬이 손상된 상태로 서버의 정상 데이터를 지워버리는 사고를 둘 다 막을 수 있다.
@@ -1388,16 +1444,33 @@ function mergeByKey(localArr,serverArr,keyFn){
   serverArr.forEach(function(x){var k=keyFn(x);if(!merged[k])merged[k]=x;});
   return Object.values(merged);
 }
+// 객체(키-값 맵)형 데이터(EXTRA_SUBS/TAXLIMIT/PREPAY/STOCK_PRINCIPAL_HIST) 공용 병합 헬퍼.
+// 서버에 있는 키 중 로컬에 없는 것만 채워 넣는다(로컬에 이미 있는 값은 절대 덮어쓰지 않음).
+function mergeObjShallow(localObj,serverObj){
+  var merged=Object.assign({},localObj||{});
+  Object.keys(serverObj||{}).forEach(function(k){if(!(k in merged))merged[k]=serverObj[k];});
+  return merged;
+}
+// syncNow/initApp 공용: 서버에서 받은 데이터(data)를 로컬 전역 변수들에 병합 적용한다.
+function applyServerBackup(data){
+  if(data.bt&&data.bt.length){BT=mergeByKey(BT,data.bt,function(b){return b.mid+'|'+b.sub;});saveBT();}
+  if(data.ai&&data.ai.length){AI=mergeByKey(AI,data.ai,function(a){return a.n;});saveAI();}
+  if(data.goals&&data.goals.length){GOALS=mergeByKey(GOALS,data.goals,function(g){return g.label;});saveGoals();}
+  if(data.installments&&data.installments.length){INSTALLMENTS=mergeByKey(INSTALLMENTS,data.installments,function(i){return i.id;});saveIns();}
+  if(data.fx&&data.fx.length){FX=mergeByKey(FX,data.fx,function(f){return f.mid+'|'+f.sub+'|'+f.memo;});saveFX();}
+  if(data.userCats&&data.userCats.length){saveUserCats(mergeByKey(readUserCatsRaw(),data.userCats,function(c){return c.mid;}));}
+  if(data.extraSubs)saveExtraSubs(mergeObjShallow(readExtraSubsRaw(),data.extraSubs));
+  if(data.taxLimits)saveTaxLimits(mergeObjShallow(loadTaxLimits(),data.taxLimits));
+  if(data.prepay){var pm=mergeObjShallow(getPrepayAmounts(),data.prepay);localStorage.setItem(PREPAY_KEY,JSON.stringify(pm));}
+  if(data.stockPrincipalHist)saveStockPrincipalHist(mergeObjShallow(loadStockPrincipalHist(),data.stockPrincipalHist));
+}
 function loadFromServer(){
   var url=getServerURL();if(!url)return;
   setSyncStatus('syn','불러오는 중...');
   fetch(url).then(function(r){return r.json();}).then(function(data){
     if(data&&data.txs!==undefined&&data.txs.length>0){
       localStorage.setItem(DB_KEY,JSON.stringify(data));
-      if(data.bt&&data.bt.length){BT=mergeByKey(BT,data.bt,function(b){return b.mid+'|'+b.sub;});saveBT();}
-      if(data.ai&&data.ai.length){AI=mergeByKey(AI,data.ai,function(a){return a.n;});saveAI();}
-      if(data.goals&&data.goals.length){GOALS=mergeByKey(GOALS,data.goals,function(g){return g.label;});saveGoals();}
-      if(data.installments&&data.installments.length){INSTALLMENTS=mergeByKey(INSTALLMENTS,data.installments,function(i){return i.id;});saveIns();}
+      applyServerBackup(data);
       setSyncStatus('ok','로드 완료');go(curPage);showToast('✅ 서버에서 데이터 불러옴!');
     }else setSyncStatus('ok','서버 연결됨');
   }).catch(function(){setSyncStatus('err','서버 연결 실패');});
@@ -1668,6 +1741,7 @@ function initApp(){
   // 알 수 없는 이유로 로컬에서 완전히 비워지는 사고가 반복돼서, 마지막으로 확인된 값으로 딱 한 번만 복구한다.
   // (이후엔 사용자가 직접 지워도 다시 채워넣지 않도록 플래그로 막는다)
   recoverKnownGoalsAiInstallments();
+  addKnownDebtGoals();
   maybeSaveDailyCheckpoint();
   backfillIncomeSavingsGoals();
   // 카테고리 개편 마이그레이션: 식비>식비→외식, 생활>생필품→생활용품, 꾸밈>잡화→기타꾸밈비, 주거>전기세→전기요금
@@ -1738,11 +1812,9 @@ function initApp(){
       clearTimeout(timer);
       if(data&&data.txs!==undefined&&data.txs.length>0){
         localStorage.setItem(DB_KEY,JSON.stringify(data));
-        // BT/AI/GOALS/INSTALLMENTS도 서버 백업분과 병합(둘 중 한쪽만 비어있거나 손상됐을 때 서로 안전망이 되도록).
-        if(data.bt&&data.bt.length){BT=mergeByKey(BT,data.bt,function(b){return b.mid+'|'+b.sub;});saveBT();}
-        if(data.ai&&data.ai.length){AI=mergeByKey(AI,data.ai,function(a){return a.n;});saveAI();}
-        if(data.goals&&data.goals.length){GOALS=mergeByKey(GOALS,data.goals,function(g){return g.label;});saveGoals();}
-        if(data.installments&&data.installments.length){INSTALLMENTS=mergeByKey(INSTALLMENTS,data.installments,function(i){return i.id;});saveIns();}
+        // 모든 로컬 전용 데이터(BT/AI/GOALS/INSTALLMENTS/FX/USER_CATS/EXTRA_SUBS/TAXLIMIT/PREPAY/STOCK_PRINCIPAL_HIST)를
+        // 서버 백업분과 병합(둘 중 한쪽만 비어있거나 손상됐을 때 서로 안전망이 되도록).
+        applyServerBackup(data);
         setSyncStatus('ok','서버 연결됨 · '+new Date().toLocaleTimeString());
         renderDash();
       }else setSyncStatus('ok','서버 연결됨');
