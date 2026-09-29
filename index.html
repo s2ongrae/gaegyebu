@@ -1602,7 +1602,17 @@ function onYM(){
   calYM=curYM;
   if(curPage==='dash')renderDash();
   else if(curPage==='mon'){calYM=curYM;renderCal();}
-  else if(curPage==='inp'){renderInpDash();renderHis();buildFixed();renderInsList();}
+  else if(curPage==='inp'){
+    renderInpDash();
+    // 상단 연/월 선택기(또는 ‹›로 월 이동)로 넘어온 경우, "이 달을 보고 싶다"는 의도가 명확하므로
+    // 거래 내역의 날짜 범위 필터도 새로 선택된 달 기준으로 리셋한다.
+    // (예전엔 날짜 필드에 이전 달 범위가 그대로 남아있어서, 월을 옮겨도 거래 목록이 그 이전 달에 머물러 있는 문제가 있었음)
+    var fromEl=document.getElementById('s-date-from'),toEl=document.getElementById('s-date-to');
+    if(fromEl)fromEl.value='';
+    if(toEl)toEl.value='';
+    renderHis();
+    buildFixed();renderInsList();
+  }
   else if(curPage==='bud')renderBud();
   else if(curPage==='ast')renderAst();
   else if(curPage==='stk')renderStock();
