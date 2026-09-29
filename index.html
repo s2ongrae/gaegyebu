@@ -4092,17 +4092,36 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
       inp.onblur=function(){onBud(this,ym2,m2,s2);};
     })(ym,m,r.sub);
     row.appendChild(inp);
-    // BT에 아직 등록 안 된 소분류(r.i===-1)는 수정/삭제할 "예산 항목" 자체가 없으니 두 버튼을 숨긴다.
-    // (예산을 입력하는 순간 onBud가 알아서 db.budgets에 값을 만들어주지만, 그렇다고 BT 항목이 자동 생성되진 않음 -
-    //  BT 항목 자체를 만들려면 기존처럼 "➕ 항목추가"로 명시적으로 등록해야 함)
-    if(r.i>=0){
-      var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
-      (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
-      row.appendChild(editBtn);
-      var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
-      (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
-      row.appendChild(delBtn);
-    }
+    // BT에 아직 등록 안 된 소분류(r.i===-1)여도, 이제 다른 항목들과 똑같이 수정/삭제 버튼을 항상 보여준다.
+    // (예전엔 "지울 항목 자체가 없다"는 이유로 숨겼는데, 사용자 입장에선 카드마다 버튼이 있다 없다 하는 게 더 헷갈렸음)
+    // 클릭하는 순간, 아직 BT 항목이 없으면 그 자리에서 하나 만들어서(지금 입력값 또는 0원) 정상적인 수정/삭제 흐름을 타게 한다.
+    var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
+    (function(ii,mid2,sub2,curAmt){
+      editBtn.onclick=function(){
+        var realIdx=ii;
+        if(realIdx<0){
+          realIdx=BT.length;
+          addBudgetTemplateItem({mid:mid2,sub:sub2,amount:curAmt||0});
+        }
+        openEditBudgetItem(realIdx);
+      };
+    })(r.i,m,r.sub,r.amount);
+    row.appendChild(editBtn);
+    var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
+    (function(ii,mid2,sub2){
+      delBtn.onclick=function(){
+        if(ii<0){
+          // BT 항목 자체가 없으면 지울 게 없으니, "이번달 명시 예산값"만 지워서 원상태(미설정)로 되돌린다.
+          if(!confirm('"'+mid2+' > '+sub2+'"의 이번달 예산 입력값을 지울까요?'))return;
+          clearBudgetItem(ym,mid2,sub2);
+          renderBud();
+          showToast('🗑️ 삭제됐어요.');
+        }else{
+          deleteBudgetTemplateItem(ii);
+        }
+      };
+    })(r.i,m,r.sub);
+    row.appendChild(delBtn);
     card.appendChild(row);
   });
   return card;
