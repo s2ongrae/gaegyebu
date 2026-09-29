@@ -1256,13 +1256,32 @@ function addKnownDebtGoals(){
   });
   if(added){saveGoals();console.log('[가계부] 마통 우리은행/카카오뱅크 부채상환 목표를 원금과 함께 추가했어요.');}
 }
-// 일회성 정정: "커피"를 "커피/음료"로 이름을 바꿨는데, 예전 코드가 예전 이름을 카테고리 목록에서
-// 지워주지 않아서 "커피"와 "커피/음료"가 카테고리 목록에 둘 다 남아있는 상태가 됐다.
-// 이제 "커피"가 BT/거래 어디에도 안 쓰이면(이미 다 "커피/음료"로 바뀌었으면) 카테고리 목록에서 완전히 지운다.
-var COFFEE_RENAME_CLEANUP_FLAG='gaegyebu_coffee_rename_cleanup_v1';
+// 일회성 정정: "커피"를 "커피/음료"로 이름을 바꿨는데, 그때 만든 일괄변경 기능이 그 시점 "이후"에
+// 수정한 예산 항목에만 적용돼서, 이미 예전부터 "커피"로 입력돼 있던 과거 거래들은 안 바뀐 채 남아있었다.
+// 이번엔 남은 "커피" 거래를 전부 "커피/음료"로 먼저 바꾸고, 그 다음 카테고리 목록도 정리한다.
+// (v2로 새로 만든 이유: 이전 버전(v1)은 카테고리 목록 정리만 했고, 거래 자체를 바꾸는 부분이 없었음)
+var COFFEE_RENAME_CLEANUP_FLAG_V2='gaegyebu_coffee_rename_cleanup_v2';
 function cleanupCoffeeRename(){
-  if(localStorage.getItem(COFFEE_RENAME_CLEANUP_FLAG))return;
-  localStorage.setItem(COFFEE_RENAME_CLEANUP_FLAG,'1');
+  if(localStorage.getItem(COFFEE_RENAME_CLEANUP_FLAG_V2))return;
+  localStorage.setItem(COFFEE_RENAME_CLEANUP_FLAG_V2,'1');
+  var db=loadDB();
+  var txs=db.txs||[];
+  var changedCount=0;
+  txs.forEach(function(t){
+    if(t.mid==='식비'&&t.sub==='커피'){t.sub='커피/음료';changedCount++;}
+  });
+  if(changedCount>0){
+    saveDB(db);
+    console.log('[가계부] "식비 > 커피" 거래 '+changedCount+'건을 "커피/음료"로 일괄 변경했어요.');
+  }
+  // BT(예산 항목)에도 아직 "커피"로 남은 게 있으면 "커피/음료"로 맞춰준다(둘 다 있으면 커피 쪽을 지움).
+  var btCoffeeIdx=BT.findIndex(function(b){return b.mid==='식비'&&b.sub==='커피';});
+  if(btCoffeeIdx>=0){
+    var hasCoffeeDrink=BT.some(function(b){return b.mid==='식비'&&b.sub==='커피/음료';});
+    if(hasCoffeeDrink)BT.splice(btCoffeeIdx,1);
+    else BT[btCoffeeIdx].sub='커피/음료';
+    saveBT();
+  }
   if(CATS['식비']&&CATS['식비'].s.indexOf('커피')>=0&&CATS['식비'].s.indexOf('커피/음료')>=0){
     removeSubCategoryIfUnused('식비','커피',-1);
     console.log('[가계부] "식비 > 커피" 이름 변경 잔재를 정리했어요.');
