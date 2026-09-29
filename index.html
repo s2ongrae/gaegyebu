@@ -616,6 +616,31 @@ function loadExtraSubs(){
     });
   });
 }
+// 소분류 이름을 바꾼 뒤, 예전 이름이 더 이상 아무데도(BT/거래) 안 쓰이면 카테고리 목록에서 완전히 제거한다.
+// skipBtIndex: 방금 이름이 바뀐 그 BT 항목 자신은 "예전 이름을 쓰는 항목" 집계에서 빼야 하므로 인덱스를 받아 제외한다.
+function removeSubCategoryIfUnused(mid,oldSub,skipBtIndex){
+  var stillUsedInBT=BT.some(function(b,idx){return idx!==skipBtIndex&&b.mid===mid&&b.sub===oldSub;});
+  var stillUsedInTxs=(loadDB().txs||[]).some(function(t){return t.mid===mid&&t.sub===oldSub;});
+  if(stillUsedInBT||stillUsedInTxs)return; // 다른 곳에서 아직 쓰고 있으면 안전하게 그대로 둔다
+  var cat=CATS[mid];
+  if(!cat)return;
+  var pos=cat.s.indexOf(oldSub);
+  if(pos<0)return;
+  cat.s.splice(pos,1);
+  // 사용자 정의 대분류라면 USER_CATS에서도 반영
+  var list=readUserCatsRaw();
+  var idx=list.findIndex(function(c){return c.mid===mid;});
+  if(idx>=0){
+    list[idx].s=cat.s.slice();saveUserCats(list);
+  }else{
+    // 기본 카테고리라면, 혹시 EXTRA_SUBS에 이 이름이 저장돼 있었을 경우(사용자가 나중에 추가한 소분류였던 경우)만 같이 지운다.
+    var map=readExtraSubsRaw();
+    if(map[mid]){
+      var epos=map[mid].indexOf(oldSub);
+      if(epos>=0){map[mid].splice(epos,1);saveExtraSubs(map);}
+    }
+  }
+}
 function addSubCategory(mid,sub){
   sub=(sub||'').trim();
   if(!sub)return{ok:false,msg:'소분류 이름을 입력해주세요.'};
@@ -1231,6 +1256,18 @@ function addKnownDebtGoals(){
   });
   if(added){saveGoals();console.log('[가계부] 마통 우리은행/카카오뱅크 부채상환 목표를 원금과 함께 추가했어요.');}
 }
+// 일회성 정정: "커피"를 "커피/음료"로 이름을 바꿨는데, 예전 코드가 예전 이름을 카테고리 목록에서
+// 지워주지 않아서 "커피"와 "커피/음료"가 카테고리 목록에 둘 다 남아있는 상태가 됐다.
+// 이제 "커피"가 BT/거래 어디에도 안 쓰이면(이미 다 "커피/음료"로 바뀌었으면) 카테고리 목록에서 완전히 지운다.
+var COFFEE_RENAME_CLEANUP_FLAG='gaegyebu_coffee_rename_cleanup_v1';
+function cleanupCoffeeRename(){
+  if(localStorage.getItem(COFFEE_RENAME_CLEANUP_FLAG))return;
+  localStorage.setItem(COFFEE_RENAME_CLEANUP_FLAG,'1');
+  if(CATS['식비']&&CATS['식비'].s.indexOf('커피')>=0&&CATS['식비'].s.indexOf('커피/음료')>=0){
+    removeSubCategoryIfUnused('식비','커피',-1);
+    console.log('[가계부] "식비 > 커피" 이름 변경 잔재를 정리했어요.');
+  }
+}
 // 데이터 정정: "투자손실/투자수입" 거래인데 fixed:true(고정거래)로 잘못 표시된 것이 있었음(수동 입력 실수로 추정).
 // 투자손익은 매달 금액이 다른 비정기 거래라 고정거래일 수가 없는데, 이게 fixed=true면
 // - 지출타입(금융지출>투자손실)인 경우 isFixed(t)가 true를 반환해서, 비상금 커버리지의 "평균 고정지출" 계산에 잘못 합산됨
@@ -1750,6 +1787,7 @@ function initApp(){
   // (이후엔 사용자가 직접 지워도 다시 채워넣지 않도록 플래그로 막는다)
   recoverKnownGoalsAiInstallments();
   addKnownDebtGoals();
+  cleanupCoffeeRename();
   maybeSaveDailyCheckpoint();
   backfillIncomeSavingsGoals();
   // 카테고리 개편 마이그레이션: 식비>식비→외식, 생활>생필품→생활용품, 꾸밈>잡화→기타꾸밈비, 주거>전기세→전기요금
@@ -3965,10 +4003,18 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
 
 // 예산/목표 카드 하나를 만드는 공용 함수 (지출 섹션과, 나란히 배치되는 수입/저축 섹션이 함께 사용)
 function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym,curYear){
-  var items=groups[m];
-  var rows=items.map(function(o){
-    var key=o.item.mid+'|'+o.item.sub;
-    return{i:o.i,sub:o.item.sub,amount:sectionEb.bySub[key]||0,autoTag:sectionEb.tags[key]};
+  var items=groups[m]||[];
+  var itemBySub={};
+  items.forEach(function(o){itemBySub[o.item.sub]=o;});
+  // 소분류 목록은 이제 "BT(예산 항목 템플릿)에 실제로 등록된 것"이 아니라
+  // "이 카테고리에 정의된 전체 소분류(CATS[m].s)"를 기준으로 만든다.
+  // (예전엔 BT에 한 번도 예산을 입력 안 한 소분류는 카드 자체에서 통째로 빠져서,
+  //  "여행" 카테고리에 숙박비만 예산을 넣었을 때 항공권/기타여행비가 안 보이는 문제가 있었음)
+  var allSubs=(CATS[m]&&CATS[m].s)||Object.keys(itemBySub);
+  var rows=allSubs.map(function(sub){
+    var o=itemBySub[sub];
+    var key=m+'|'+sub;
+    return{i:o?o.i:-1,sub:sub,amount:sectionEb.bySub[key]||0,autoTag:sectionEb.tags[key]};
   });
   var totalBudget=sectionEb.byMid[m]||0;
   var actual=0;
@@ -4027,12 +4073,17 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
       inp.onblur=function(){onBud(this,ym2,m2,s2);};
     })(ym,m,r.sub);
     row.appendChild(inp);
-    var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
-    (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
-    row.appendChild(editBtn);
-    var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
-    (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
-    row.appendChild(delBtn);
+    // BT에 아직 등록 안 된 소분류(r.i===-1)는 수정/삭제할 "예산 항목" 자체가 없으니 두 버튼을 숨긴다.
+    // (예산을 입력하는 순간 onBud가 알아서 db.budgets에 값을 만들어주지만, 그렇다고 BT 항목이 자동 생성되진 않음 -
+    //  BT 항목 자체를 만들려면 기존처럼 "➕ 항목추가"로 명시적으로 등록해야 함)
+    if(r.i>=0){
+      var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
+      (function(ii){editBtn.onclick=function(){openEditBudgetItem(ii);};})(r.i);
+      row.appendChild(editBtn);
+      var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
+      (function(ii){delBtn.onclick=function(){deleteBudgetTemplateItem(ii);};})(r.i);
+      row.appendChild(delBtn);
+    }
     card.appendChild(row);
   });
   return card;
@@ -4301,6 +4352,18 @@ function confirmEditBudgetItem(i){
   var sub=document.getElementById('ebud-sub').value.trim();
   if(!sub){showToast('⚠️ 소분류를 입력해주세요.');return;}
   if(BT.some(function(b,idx){return idx!==i&&b.mid===mid&&b.sub===sub;})){showToast('⚠️ 이미 있는 항목이에요.');return;}
+  var oldItem=BT[i];
+  var isRename=oldItem&&oldItem.mid===mid&&oldItem.sub&&oldItem.sub!==sub;
+  var renameCount=0;
+  if(isRename){
+    renameCount=(loadDB().txs||[]).filter(function(t){return t.mid===mid&&t.sub===oldItem.sub;}).length;
+  }
+  // 소분류 이름 자체를 바꾼 경우(같은 대분류 안에서 sub만 달라짐), 예전 이름으로 이미 입력된 거래들도
+  // 물어보고 새 이름으로 일괄 변경한다. 예전엔 예산 항목 이름만 바뀌고 과거 거래는 그대로라,
+  // "이름을 바꿨는데 예전 내역이 안 따라온다"는 문제가 있었음.
+  if(isRename&&renameCount>0){
+    if(!confirm('"'+mid+' > '+oldItem.sub+'"로 이미 입력된 거래 '+renameCount+'건이 있어요.\n이 거래들도 전부 "'+mid+' > '+sub+'"로 함께 바꿀까요?\n(취소하면 예산 항목 이름만 바뀌고, 기존 거래는 그대로 유지돼요)'))isRename=false;
+  }
   var cat=CATS[mid];
   if(cat&&cat.s.indexOf(sub)<0){
     var subRes=addSubCategory(mid,sub);
@@ -4308,9 +4371,20 @@ function confirmEditBudgetItem(i){
   }
   var amount=Number(document.getElementById('ebud-amt').value)||0;
   updateBudgetTemplateItem(i,{mid:mid,sub:sub,amount:amount});
+  if(isRename&&renameCount>0){
+    var db=loadDB();
+    (db.txs||[]).forEach(function(t){if(t.mid===mid&&t.sub===oldItem.sub)t.sub=sub;});
+    saveDB(db);
+  }
+  // 이름 변경이 확정된 경우, 예전 이름("커피" 등)을 아직 쓰는 거래나 다른 예산 항목이
+  // 하나도 안 남았으면 카테고리 목록(CATS)에서도 예전 이름을 완전히 지운다.
+  // (안 지우면 "커피"와 "커피/음료"가 카테고리 목록에 둘 다 남아서, 새 거래 입력할 때 예전 이름이 계속 자동완성에 뜨는 문제가 있었음)
+  if(isRename){
+    removeSubCategoryIfUnused(mid,oldItem.sub,i);
+  }
   document.getElementById('edit-bud-md').remove();
   renderBud();
-  showToast('✅ 예산 항목 수정됐어요!');
+  showToast(isRename&&renameCount>0?('✅ 예산 항목과 거래 '+renameCount+'건을 함께 수정했어요!'):'✅ 예산 항목 수정됐어요!');
 }
 function deleteBudgetTemplateItem(i){
   var item=BT[i];if(!item)return;
