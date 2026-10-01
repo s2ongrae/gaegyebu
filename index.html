@@ -2492,12 +2492,13 @@ function buildFixed(){
     else if(fi.type==='저축')grpS.push(obj);
     else grpE.push(obj);
   });
-  // 정렬 기준: "완료 여부"가 아니라 "예상(또는 실제) 결제일이 빠른 순"으로 바꿨다.
-  // (레이 요청: 날짜가 빠른 게 위로 오도록 - 이력이 없어 추정 자체가 안 되는 항목은 맨 뒤로 보낸다)
+  // 정렬 기준: "완료 여부"를 1순위로, 그 안에서 "예상(또는 실제) 결제일이 빠른 순"을 2순위로 둔다.
+  // (레이 요청: 이미 입력 완료한 건 날짜와 무관하게 맨 아래로 - 아직 처리 안 한 것부터 눈에 띄어야 하니까)
   function sortGrp(g){return g.sort(function(a,b){
+    if(a.done!==b.done)return a.done-b.done; // 미완료(false=0)가 먼저, 완료(true=1)가 나중
     var da=a.expectedDate||'9999-99-99',db2=b.expectedDate||'9999-99-99';
     if(da!==db2)return da<db2?-1:1;
-    return a.done-b.done;
+    return 0;
   });}
   sortGrp(grpI);sortGrp(grpS);sortGrp(grpE);
 
@@ -3733,7 +3734,7 @@ function renderDash(){
     document.getElementById('d-dash').appendChild(emptyDiv);
     return;
   }
-  var sums=months.map(function(ym){var s=getMonthSummary(ym);return{ym:ym,income:s.income,expense:s.expense,incomeFixed:s.incomeFixed,incomeVar:s.incomeVar};});
+  var sums=months.map(function(ym){var s=getMonthSummary(ym);return{ym:ym,income:s.income,expense:s.expense,incomeFixed:s.incomeFixed,incomeVar:s.incomeVar,expBudget:getEffectiveBudget(ym,'지출').total};});
   var tot=sums.reduce(function(a,s){return{income:a.income+s.income,expense:a.expense+s.expense};},{income:0,expense:0});
   var ai=sums.length?Math.round(tot.income/sums.length):0;var ae=sums.length?Math.round(tot.expense/sums.length):0;
   var sv=tot.income-tot.expense;var sr=tot.income>0?(sv/tot.income*100).toFixed(1):'0';
@@ -3879,7 +3880,10 @@ function renderDash(){
     dC=new Chart(document.getElementById('dC'),{type:'bar',data:{labels:lb,datasets:[
       {label:'고정수입(근로)',data:sums.map(function(s){return s.incomeFixed;}),backgroundColor:'rgba(43,108,176,.85)',stack:'inc',borderRadius:0,yAxisID:'y'},
       {label:'변동수입(사업/투자)',data:sums.map(function(s){return s.incomeVar;}),backgroundColor:'rgba(43,108,176,.4)',stack:'inc',borderRadius:5,borderSkipped:false,yAxisID:'y'},
-      {label:'지출',data:sums.map(function(s){return s.expense;}),backgroundColor:'rgba(197,48,48,.55)',stack:'exp',borderRadius:5,borderSkipped:false,yAxisID:'y'}
+      {label:'지출',data:sums.map(function(s){return s.expense;}),backgroundColor:'rgba(197,48,48,.55)',stack:'exp',borderRadius:5,borderSkipped:false,yAxisID:'y'},
+      // 지출예산 기준선: 막대(지출)가 이 점선을 넘으면 그 달 예산을 초과했다는 뜻.
+      // 예산이 아예 설정 안 된 달은 null로 둬서 선이 그 구간만 끊기게 한다(0원으로 깔리면 "예산이 0원"처럼 오해될 수 있어서).
+      {label:'지출예산',data:sums.map(function(s){return s.expBudget>0?s.expBudget:null;}),type:'line',borderColor:'#c53030',backgroundColor:'rgba(0,0,0,0)',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,spanGaps:false,yAxisID:'y',order:0}
     ].concat(hasNw?[{label:'순자산',data:nwAligned,type:'line',borderColor:'#553c9a',backgroundColor:'rgba(85,60,154,.08)',fill:false,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#553c9a',tension:0.35,spanGaps:true,yAxisID:'y1'}]:[])},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#2b6cb0',font:{size:11},boxRadius:3}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},
         scales:{x:{stacked:true,ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},
