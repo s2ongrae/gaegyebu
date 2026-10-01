@@ -1496,6 +1496,7 @@ function buildFullBackupPayload(){
   payload.taxLimits=loadTaxLimits();
   payload.prepay=getPrepayAmounts();
   payload.stockPrincipalHist=loadStockPrincipalHist();
+  payload.fixedDateOverrides=readFixedDateOverrides();
   return payload;
 }
 // 서버 백업분과 로컬을 병합한다(한쪽을 통째로 덮어쓰지 않음) - 배열형(BT/AI/GOALS/INSTALLMENTS/FX/USER_CATS) 공용 헬퍼.
@@ -1527,6 +1528,7 @@ function applyServerBackup(data){
   if(data.taxLimits)saveTaxLimits(mergeObjShallow(loadTaxLimits(),data.taxLimits));
   if(data.prepay){var pm=mergeObjShallow(getPrepayAmounts(),data.prepay);localStorage.setItem(PREPAY_KEY,JSON.stringify(pm));}
   if(data.stockPrincipalHist)saveStockPrincipalHist(mergeObjShallow(loadStockPrincipalHist(),data.stockPrincipalHist));
+  if(data.fixedDateOverrides)saveFixedDateOverrides(mergeObjShallow(readFixedDateOverrides(),data.fixedDateOverrides));
 }
 function loadFromServer(){
   var url=getServerURL();if(!url)return;
@@ -2000,10 +2002,12 @@ function initTxAc(){
         // 중분류 select 업데이트
         var midSel=document.getElementById('ti-mid');
         if(midSel){midSel.value=d.mid;onMid();}
-        // 소분류 select 업데이트 (onMid 후에)
+        // 소분류 select 업데이트 (onMid 후에) — 자동완성으로 고른 경우에도
+        // "과거 이력 기반 결제수단/지출유형 추천"이 똑같이 동작하도록 onTiSubChange()를 명시적으로 호출한다.
+        // (예전엔 .value만 바꾸고 change 이벤트가 안 일어나서, 자동완성으로 선택했을 때만 추천이 안 뜨는 문제가 있었음)
         setTimeout(function(){
           var subSel=document.getElementById('ti-sub');
-          if(subSel)subSel.value=d.sub;
+          if(subSel){subSel.value=d.sub;onTiSubChange();}
         },50);
         // 대분류 업데이트
         var typeSel=document.getElementById('ti-type');
@@ -2355,6 +2359,89 @@ function deleteIns(i){
   showToast('🗑️ 삭제됐어요.');
 }
 
+// ── 고정거래 예상 날짜 계산 (과거 이력 분석 + 영업일 보정) ──────────────
+// 2026~2027년 한국 공휴일(대체공휴일 포함). 주말과 함께 "비영업일" 판정에 쓴다.
+// 음력 명절(설날/추석)은 그 연도 양력 날짜를 직접 하드코딩했다 - 매년 자동 계산은 복잡해서,
+// 필요할 때마다 이 배열에 해를 추가해주는 방식으로 유지보수한다.
+var KR_HOLIDAYS=[
+  '2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-01','2026-03-02',
+  '2026-05-01','2026-05-05','2026-05-24','2026-05-25','2026-06-06','2026-07-17',
+  '2026-08-15','2026-08-17','2026-09-24','2026-09-25','2026-09-26','2026-10-03',
+  '2026-10-05','2026-10-09','2026-12-25',
+  '2027-01-01','2027-02-06','2027-02-07','2027-02-08','2027-03-01','2027-05-01',
+  '2027-05-05','2027-06-06','2027-07-17','2027-08-15','2027-09-14','2027-09-15',
+  '2027-09-16','2027-10-03','2027-10-09','2027-12-25'
+];
+function isBusinessDay(dateStr){
+  var d=new Date(dateStr+'T00:00:00');
+  var dow=d.getDay(); // 0=일요일, 6=토요일
+  if(dow===0||dow===6)return false;
+  if(KR_HOLIDAYS.indexOf(dateStr)>=0)return false;
+  return true;
+}
+// 비영업일이면 다음 영업일로 날짜를 밀어준다 (최대 10일까지만 탐색 - 무한루프 방지용 안전장치)
+function nextBusinessDay(dateStr){
+  var d=new Date(dateStr+'T00:00:00');
+  for(var i=0;i<10;i++){
+    var ds=d.toISOString().slice(0,10);
+    if(isBusinessDay(ds))return ds;
+    d.setDate(d.getDate()+1);
+  }
+  return dateStr; // 혹시 몰라 안전장치(여기까지 올 일은 거의 없음)
+}
+// 과거 거래 이력에서 "이 고정거래가 보통 매달 며칠에 나갔는지" 추정한다.
+// 최근 6개월 이내의 실제 거래 날짜(day-of-month)를 모아서 최빈값을 쓰고,
+// 동률이면 더 최근 것을 우선한다. 이력이 하나도 없으면 null을 반환(추정 불가).
+function estimateFixedExpenseDay(fi,beforeYm){
+  var db=loadDB();var txs=db.txs||[];
+  var months=getAllMonths().filter(function(m){return m<beforeYm;}).slice(-6);
+  if(!months.length)return null;
+  var dayCount={};// day(1~31) -> {count, lastYm}
+  txs.forEach(function(t){
+    if(t.mid!==fi.mid||t.sub!==fi.sub)return;
+    if(fi.memo&&t.memo!==fi.memo)return;
+    var ym=t.date.slice(0,7);
+    if(months.indexOf(ym)<0)return;
+    var day=Number(t.date.slice(8,10));
+    if(!dayCount[day])dayCount[day]={count:0,lastYm:''};
+    dayCount[day].count++;
+    if(ym>dayCount[day].lastYm)dayCount[day].lastYm=ym;
+  });
+  var keys=Object.keys(dayCount);
+  if(!keys.length)return null;
+  keys.sort(function(a,b){
+    var diff=dayCount[b].count-dayCount[a].count;
+    if(diff!==0)return diff;
+    return dayCount[b].lastYm>dayCount[a].lastYm?1:-1;
+  });
+  return Number(keys[0]);
+}
+// 특정 월(ym)에 대해, 이 고정거래의 "예상 결제일"을 최종 계산한다.
+// 1) 사용자가 그 달에 직접 날짜를 지정해뒀으면 그 값을 그대로 사용(최우선)
+// 2) 아니면 과거 이력으로 추정한 날짜를, 그 달의 실제 달력에 맞게 보정(31일 지정했는데 그 달이 30일까지면 말일로)하고
+// 3) 비영업일이면 다음 영업일로 밀어서 최종 날짜를 만든다.
+function getFixedExpectedDate(fi,ym){
+  var lastDay=new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0).getDate();
+  var overrideKey=fi.mid+'|'+fi.sub+'|'+(fi.memo||'')+'|'+ym;
+  var overrides=readFixedDateOverrides();
+  if(overrides[overrideKey])return overrides[overrideKey];
+  var day=estimateFixedExpenseDay(fi,ym);
+  if(!day)return null;
+  day=Math.min(day,lastDay);
+  var rawDate=ym+'-'+String(day).padStart(2,'0');
+  return nextBusinessDay(rawDate);
+}
+// 사용자가 직접 수정한 예상 날짜(고정거래별, 월별)를 저장하는 곳. BT 등과 마찬가지로
+// 로컬 전용 데이터라 이제 서버 백업 대상에도 포함시킨다(buildFullBackupPayload/applyServerBackup 참고).
+var FIXED_DATE_OVERRIDE_KEY='gaegyebu_fixed_date_overrides';
+function readFixedDateOverrides(){try{return JSON.parse(localStorage.getItem(FIXED_DATE_OVERRIDE_KEY)||'{}');}catch(e){return{};}}
+function saveFixedDateOverrides(m){localStorage.setItem(FIXED_DATE_OVERRIDE_KEY,JSON.stringify(m));scheduleSync();}
+function setFixedDateOverride(fi,ym,dateStr){
+  var m=readFixedDateOverrides();
+  var key=fi.mid+'|'+fi.sub+'|'+(fi.memo||'')+'|'+ym;
+  if(dateStr)m[key]=dateStr;else delete m[key];
+  saveFixedDateOverrides(m);
+}
 function buildFixed(){
   var today=new Date().toISOString().split('T')[0];
   var ym=gYM();
@@ -2397,12 +2484,21 @@ function buildFixed(){
     var tx=doneMap[k]||((!fi.memo&&sameCount===1)?doneMap[k2]:null)||null;
     var prev=prevMap[k]||((!fi.memo&&sameCount===1)?prevMap[k2]:null)||null;
     var done=!!tx;
-    var obj={fi:fi,i:i,done:done,tx:tx,prev:prev};
+    // 예상 결제일: 완료됐으면 실제 거래일, 아니면 과거 이력 기반 추정일(영업일 보정 포함).
+    // 이력이 전혀 없어서 추정이 안 되면(estimateFixedExpenseDay가 null) 정렬상 맨 뒤로 보내기 위해 큰 날짜값을 둔다.
+    var expectedDate=done?tx.date:getFixedExpectedDate(fi,ym);
+    var obj={fi:fi,i:i,done:done,tx:tx,prev:prev,expectedDate:expectedDate};
     if(fi.type==='수입')grpI.push(obj);
     else if(fi.type==='저축')grpS.push(obj);
     else grpE.push(obj);
   });
-  function sortGrp(g){return g.sort(function(a,b){return a.done-b.done;});}
+  // 정렬 기준: "완료 여부"가 아니라 "예상(또는 실제) 결제일이 빠른 순"으로 바꿨다.
+  // (레이 요청: 날짜가 빠른 게 위로 오도록 - 이력이 없어 추정 자체가 안 되는 항목은 맨 뒤로 보낸다)
+  function sortGrp(g){return g.sort(function(a,b){
+    var da=a.expectedDate||'9999-99-99',db2=b.expectedDate||'9999-99-99';
+    if(da!==db2)return da<db2?-1:1;
+    return a.done-b.done;
+  });}
   sortGrp(grpI);sortGrp(grpS);sortGrp(grpE);
 
   // ── 각 항목 DOM 생성
@@ -2412,7 +2508,10 @@ function buildFixed(){
     // 기본값: 입력됐으면 그 값, 아니면 지난달 값, 아니면 FX 기본값
     var defAmt  = done?(tx.amount):(prev?prev.amount:(fi.amt||0));
     var defPay  = done?(tx.payment):(prev?prev.payment:fi.pay);
-    var defDate = done?(tx.date):today;
+    // 예상 결제일: 이미 완료됐으면 실제 거래일을 그대로 보여주고,
+    // 아직이면 "과거 이력으로 추정한 날짜(영업일 보정 포함)"를 기본값으로 채운다 - 직접 수정하면 그 값이 저장됨.
+    var expectedDate=obj.expectedDate;
+    var defDate = done?(tx.date):(expectedDate||today);
 
     var wrap=document.createElement('div');
     wrap.id='fxi-'+i;
@@ -2513,6 +2612,16 @@ function buildFixed(){
     var dateInp=document.createElement('input');
     dateInp.type='date';dateInp.id='fx-date-'+i;dateInp.value=defDate;
     dateInp.style.cssText='flex:1;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:5px 8px;border-radius:var(--rs);font-size:12px;outline:none;font-family:inherit';
+    // 아직 완료 안 된 항목에서 날짜를 직접 바꾸면, 그 값을 이 달의 "확정 예상일"로 저장해서
+    // 다음에 이 화면을 다시 열어도 그대로 유지되고 정렬에도 반영되게 한다.
+    if(!done){
+      (function(fi2,ym2){
+        dateInp.addEventListener('change',function(){
+          setFixedDateOverride(fi2,ym2,dateInp.value);
+          buildFixed();
+        });
+      })(fi,ym);
+    }
     btnRow.appendChild(dateInp);
     var saveBtn=document.createElement('button');
     saveBtn.className='btn bsm '+(done?'bor':'bs');
