@@ -7330,7 +7330,13 @@ function renderAnnual(months){
             // 소분류별(sub)로 월별 금액을 쪼개서, "선 아래 영역을 소분류 비율로 색칠"할 수 있게 한다.
             // 소분류가 너무 많으면 색이 지저분해지니, 금액 큰 상위 5개만 각자 색을 주고 나머지는 "기타"로 묶는다.
             if(showMonthCols){
-              var subByMonth={}; // sub -> ym -> amount
+              // 색 배정 기준을 "연간 전체 실적"(opts.subBreakdown과 동일한 기간)으로 맞춘다.
+              // 예전엔 여기서 matrixMonths(최근 10~12개월)만 집계해서 순위를 매겼는데,
+              // 화면에 보이는 소분류 실적 금액(표 아래 목록)은 연간 전체 기준이라 서로 기준이 달랐다.
+              // 그 결과 "1년에 한두 번만 내는" 보험료/세금 같은 항목이 최근 몇 달엔 거래가 없어 순위에서 밀려
+              // 전부 회색(기타)으로 깔리고, 매달 꾸준히 나가는 항목 하나만 색이 들어간 것처럼 보였다.
+              var subTotals=opts.subBreakdown(x.name).map(function(s){return{name:s.sub,total:s.amt};});
+              var subByMonth={}; // sub -> ym -> amount (차트/점 색 배정이 아니라, 월별 칸 계산에는 그대로 필요)
               allTxs.forEach(function(t){
                 if(t.type!==opts.txType)return;
                 if(opts.txType==='지출'&&isInvestLossTx(t))return;
@@ -7341,9 +7347,6 @@ function renderAnnual(months){
                 if(!subByMonth[subName])subByMonth[subName]={};
                 subByMonth[subName][ym]=(subByMonth[subName][ym]||0)+(Number(t.amount)||0);
               });
-              var subTotals=Object.keys(subByMonth).map(function(s){
-                return{name:s,total:Object.values(subByMonth[s]).reduce(function(a,b){return a+b;},0)};
-              }).sort(function(a,b){return b.total-a.total;});
               var TOP_N=5;
               var topSubs=subTotals.slice(0,TOP_N);
               var etcSubs=subTotals.slice(TOP_N);
@@ -7383,16 +7386,12 @@ function renderAnnual(months){
                 +'</div>'):'<span style="font-size:10px;color:var(--mu)">'+opts.goalLabel+' 미설정</span>')
               +'</td>'
               +'</tr>'
-              +(showMonthCols?'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'-chart-wrap" style="display:none;padding:10px 16px 10px 0;background:var(--sf2)">'
-                +'<div style="display:flex;align-items:center;gap:0">'
-                // 순위(28px)+카테고리 이름 칸 폭만큼 들여써서, 차트의 첫 포인트가 표의 첫 월별 열과
-                // 세로로 가능한 한 가깝게 겹치도록 맞춘다(표 열 폭이 글자 수에 따라 달라지니 완벽히 일치는 안 되지만,
-                // 그래프가 표 바로 아래 자연스럽게 이어지는 느낌을 주는 게 목적).
-                +'<div style="width:28px;flex-shrink:0"></div>'
-                +'<div style="flex:1;min-width:0">'
-                +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:4px;padding-left:4px">📈 '+x.name+' 월별 추이 (최근 '+matrixMonths.length+'개월, 색상 = 소분류 비중)</div>'
+              +(showMonthCols?'<tr><td colspan="'+colCount+'" style="padding:10px 16px;border-bottom:1px solid var(--bd);background:var(--sf2)"><div id="'+subId+'-chart-wrap" style="display:none">'
+                // 표 열 폭(글자 수 기준으로 가변)과 차트 칸 폭(Chart.js가 전체를 N등분)은 계산 방식 자체가 달라서
+                // 억지로 들여쓰기해 맞추면 오히려 차트만 좁아져 보기 안 좋아진다. 그 대신 제목에 월 범위를 명확히 적어서
+                // "이 그래프가 표의 어느 월 구간과 같은 데이터인지"를 바로 알 수 있게 하는 쪽을 택했다.
+                +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:4px">📈 '+x.name+' 월별 추이 ('+matrixMonths[0].slice(2).replace('-','/')+' ~ '+matrixMonths[matrixMonths.length-1].slice(2).replace('-','/')+')</div>'
                 +'<div style="position:relative;height:140px"><canvas id="'+subId+'-chart"></canvas></div>'
-                +'</div></div>'
                 +'</div></td></tr>':'')
               +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx,opts.budgetBySub?{mid:x.name,bySub:opts.budgetBySub}:null,showMonthCols?window.__catMonthlyChartData[subId].subColorMap:null)+'</div></td></tr>'
               +(showMonthCols?matrixMonths.map(function(ym,yi){
