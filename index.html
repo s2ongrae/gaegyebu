@@ -7350,7 +7350,9 @@ function renderAnnual(months){
               var TOP_N=5;
               var topSubs=subTotals.slice(0,TOP_N);
               var etcSubs=subTotals.slice(TOP_N);
-              var STACK_COLORS=['#c53030','#2b6cb0','#276749','#b7791f','#553c9a'];
+              // 이 앱의 연한 하늘색 배경 위에서도 서로 확실히 구분되도록, 채도 높고 색조가 뚜렷이 다른 5색으로 구성.
+              // (예전 팔레트는 진초록·올리브 계열이 배경 톤과 비슷해서 거의 안 보이는 문제가 있었음)
+              var STACK_COLORS=['#e53e3e','#3182ce','#38a169','#d69e2e','#805ad5'];
               // 차트 자체는 카테고리 합계 하나만 그리는 단순 선그래프라 소분류별 월별값(stackSeries)은 더 이상 필요 없다.
               // 대신 "어느 소분류가 어떤 색인지"만 맵으로 만들어서, 아래 소분류 목록의 점 색으로 쓴다.
               var subColorMap={};
@@ -7386,12 +7388,14 @@ function renderAnnual(months){
                 +'</div>'):'<span style="font-size:10px;color:var(--mu)">'+opts.goalLabel+' 미설정</span>')
               +'</td>'
               +'</tr>'
-              +(showMonthCols?'<tr><td colspan="'+colCount+'" style="padding:10px 16px;border-bottom:1px solid var(--bd);background:var(--sf2)"><div id="'+subId+'-chart-wrap" style="display:none">'
+              +(showMonthCols?'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'-chart-wrap" style="display:none;padding:10px 16px;background:var(--sf2)">'
                 // 표 열 폭(글자 수 기준으로 가변)과 차트 칸 폭(Chart.js가 전체를 N등분)은 계산 방식 자체가 달라서
                 // 억지로 들여쓰기해 맞추면 오히려 차트만 좁아져 보기 안 좋아진다. 그 대신 제목에 월 범위를 명확히 적어서
                 // "이 그래프가 표의 어느 월 구간과 같은 데이터인지"를 바로 알 수 있게 하는 쪽을 택했다.
+                // 패딩/배경은 바깥 <td>가 아니라 반드시 이 안쪽 div에 둬야 한다 - <td>에 두면 display:none이어도
+                // <td> 자체의 패딩만큼 빈 줄이 항상 보여서, 구분선이 두 줄로 겹쳐 보이는 문제가 생긴다.
                 +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:4px">📈 '+x.name+' 월별 추이 ('+matrixMonths[0].slice(2).replace('-','/')+' ~ '+matrixMonths[matrixMonths.length-1].slice(2).replace('-','/')+')</div>'
-                +'<div style="position:relative;height:140px"><canvas id="'+subId+'-chart"></canvas></div>'
+                +'<div style="position:relative;height:140px;width:100%;min-width:500px"><canvas id="'+subId+'-chart"></canvas></div>'
                 +'</div></td></tr>':'')
               +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx,opts.budgetBySub?{mid:x.name,bySub:opts.budgetBySub}:null,showMonthCols?window.__catMonthlyChartData[subId].subColorMap:null)+'</div></td></tr>'
               +(showMonthCols?matrixMonths.map(function(ym,yi){
