@@ -3512,33 +3512,49 @@ function toggleCatSubWithChart(subId){
   if(chartWrap){
     var nowHidden=chartWrap.style.display==='none'||!chartWrap.style.display;
     chartWrap.style.display=nowHidden?'table-row':'none';
+    if(nowHidden){
+      // 이 표는 월별 열이 많아서 테이블 자체의 "실제 폭"이 화면보다 넓고(가로 스크롤 중), 일반적인
+      // width:100%는 <td> 레이아웃 특성상 그 실제 폭을 제대로 못 물려받는다. 그래서 표(<table>)의
+      // 실제 렌더링된 전체 폭(scrollWidth, 스크롤로 가려진 부분까지 포함)을 직접 읽어서 차트 컨테이너의
+      // 폭으로 픽셀 단위 강제 지정한다 - 이렇게 해야 표를 끝까지 스크롤했을 때 차트도 그만큼 넓게 보인다.
+      var tableEl=chartWrap.closest('table');
+      var chartOuter=document.getElementById(subId+'-chart-outer');
+      if(tableEl&&chartOuter){
+        chartOuter.style.width=tableEl.scrollWidth+'px';
+      }
+    }
     if(nowHidden&&!window.__catMonthlyChartInstances[subId]){
       var canvas=document.getElementById(subId+'-chart');
       var chartData=window.__catMonthlyChartData[subId];
       if(canvas&&chartData){
-        // 차트는 카테고리 전체 합계만 보여주는 단순한 선그래프 하나로 둔다.
-        // 소분류별 색 구분은 차트 안에 넣지 않고, 바로 아래 소분류 목록의 이름 앞에 점으로 대신 표시한다
-        // (레이 요청: 차트에 색깔별로 쌓지 말고, 목록 쪽에 점으로 표시하는 게 더 알아보기 쉬움).
+        // 선그래프 + 소분류별 누적 영역(stacked area): 가장 금액 큰 소분류가 맨 아래, 그 위로 작은 것들이 쌓인다.
+        // 맨 위 선(전체 높이)은 카테고리 합계와 같고, 색깔은 바로 아래 소분류 목록의 점 색과 정확히 일치한다.
+        var datasets=(chartData.stackSeries||[]).map(function(s){
+          return{
+            label:s.name,
+            data:s.values,
+            borderColor:s.color,
+            backgroundColor:s.color+'cc', // 거의 불투명하게 - 반투명이 겹치면 색이 섞여 보여서 "어느 층이 큰지" 헷갈리는 문제가 있었음
+            fill:true,
+            stack:'cat',
+            tension:0.25,
+            pointRadius:2,
+            pointBackgroundColor:s.color,
+            borderWidth:1.5
+          };
+        });
         window.__catMonthlyChartInstances[subId]=new Chart(canvas,{
           type:'line',
-          data:{labels:chartData.labels,datasets:[{
-            data:chartData.values,
-            borderColor:chartData.color,
-            backgroundColor:chartData.color+'22',
-            fill:true,
-            tension:0.25,
-            pointRadius:3,
-            pointBackgroundColor:chartData.color,
-            borderWidth:2
-          }]},
+          data:{labels:chartData.labels,datasets:datasets},
           options:{responsive:true,maintainAspectRatio:false,
+            interaction:{mode:'index',intersect:false},
             plugins:{
-              legend:{display:false},
-              tooltip:{callbacks:{label:function(c){return ff(c.raw);}}}
+              legend:{display:false}, // 범례는 생략 - 바로 아래 소분류 목록의 점이 이미 같은 색으로 범례 역할을 한다
+              tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}
             },
             scales:{
-              x:{ticks:{color:'#4a6fa5',font:{size:9}},grid:{display:false}},
-              y:{ticks:{color:'#4a6fa5',font:{size:9},callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}}
+              x:{stacked:true,ticks:{color:'#4a6fa5',font:{size:9}},grid:{display:false}},
+              y:{stacked:true,ticks:{color:'#4a6fa5',font:{size:9},callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}}
             }
           }
         });
@@ -7353,16 +7369,28 @@ function renderAnnual(months){
               // 이 앱의 연한 하늘색 배경 위에서도 서로 확실히 구분되도록, 채도 높고 색조가 뚜렷이 다른 5색으로 구성.
               // (예전 팔레트는 진초록·올리브 계열이 배경 톤과 비슷해서 거의 안 보이는 문제가 있었음)
               var STACK_COLORS=['#e53e3e','#3182ce','#38a169','#d69e2e','#805ad5'];
-              // 차트 자체는 카테고리 합계 하나만 그리는 단순 선그래프라 소분류별 월별값(stackSeries)은 더 이상 필요 없다.
-              // 대신 "어느 소분류가 어떤 색인지"만 맵으로 만들어서, 아래 소분류 목록의 점 색으로 쓴다.
+              // "어느 소분류가 어떤 색인지" 맵 - 아래 소분류 목록의 점 색과, 차트의 누적 영역 색을 정확히 일치시킨다.
               var subColorMap={};
               topSubs.forEach(function(s,si){subColorMap[s.name]=STACK_COLORS[si%STACK_COLORS.length];});
               etcSubs.forEach(function(s){subColorMap[s.name]='#718096';});
+              // 차트용 누적 영역 시리즈: 금액이 가장 큰 소분류를 맨 먼저(=맨 아래에 쌓이도록) 배열에 넣는다.
+              // Chart.js의 stacked line/area는 dataset 배열 순서대로 아래→위로 쌓이므로, topSubs가 이미
+              // 금액 큰 순으로 정렬돼 있는 걸 그대로 쓰면 "가장 큰 금액이 맨 아래"가 자연히 만족된다.
+              var stackSeries=topSubs.map(function(s){
+                return{name:s.name,color:subColorMap[s.name],values:matrixMonths.map(function(ym){return(subByMonth[s.name]||{})[ym]||0;})};
+              });
+              if(etcSubs.length){
+                stackSeries.push({
+                  name:'기타',color:'#718096',
+                  values:matrixMonths.map(function(ym){return etcSubs.reduce(function(sum,s){return sum+((subByMonth[s.name]||{})[ym]||0);},0);})
+                });
+              }
               window.__catMonthlyChartData[subId]={
                 labels:matrixMonths.map(function(ym){return ym.slice(2).replace('-','/');}),
                 values:matrixMonths.map(function(ym){return(byNameMonth[x.name]||{})[ym]||0;}),
                 color:opts.chartColor, // CSS 변수(var(--rd) 등)는 canvas fillStyle에서 해석이 안 되므로, 차트 전용으로 실제 hex 값을 쓴다
-                subColorMap:subColorMap
+                subColorMap:subColorMap,
+                stackSeries:stackSeries
               };
             }
             var clickFn=showMonthCols?'toggleCatSubWithChart':'toggleCatSub';
@@ -7395,7 +7423,7 @@ function renderAnnual(months){
                 // 패딩/배경은 바깥 <td>가 아니라 반드시 이 안쪽 div에 둬야 한다 - <td>에 두면 display:none이어도
                 // <td> 자체의 패딩만큼 빈 줄이 항상 보여서, 구분선이 두 줄로 겹쳐 보이는 문제가 생긴다.
                 +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:4px">📈 '+x.name+' 월별 추이 ('+matrixMonths[0].slice(2).replace('-','/')+' ~ '+matrixMonths[matrixMonths.length-1].slice(2).replace('-','/')+')</div>'
-                +'<div style="position:relative;height:140px;width:100%;min-width:500px"><canvas id="'+subId+'-chart"></canvas></div>'
+                +'<div id="'+subId+'-chart-outer" style="position:relative;height:140px"><canvas id="'+subId+'-chart"></canvas></div>'
                 +'</div></td></tr>':'')
               +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx,opts.budgetBySub?{mid:x.name,bySub:opts.budgetBySub}:null,showMonthCols?window.__catMonthlyChartData[subId].subColorMap:null)+'</div></td></tr>'
               +(showMonthCols?matrixMonths.map(function(ym,yi){
