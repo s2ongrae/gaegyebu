@@ -3880,16 +3880,44 @@ function renderDash(){
     dC=new Chart(document.getElementById('dC'),{type:'bar',data:{labels:lb,datasets:[
       {label:'고정수입(근로)',data:sums.map(function(s){return s.incomeFixed;}),backgroundColor:'rgba(43,108,176,.85)',stack:'inc',borderRadius:0,yAxisID:'y'},
       {label:'변동수입(사업/투자)',data:sums.map(function(s){return s.incomeVar;}),backgroundColor:'rgba(43,108,176,.4)',stack:'inc',borderRadius:5,borderSkipped:false,yAxisID:'y'},
-      {label:'지출',data:sums.map(function(s){return s.expense;}),backgroundColor:'rgba(197,48,48,.55)',stack:'exp',borderRadius:5,borderSkipped:false,yAxisID:'y'},
-      // 지출예산 기준선: 막대(지출)가 이 점선을 넘으면 그 달 예산을 초과했다는 뜻.
-      // 예산이 아예 설정 안 된 달은 null로 둬서 선이 그 구간만 끊기게 한다(0원으로 깔리면 "예산이 0원"처럼 오해될 수 있어서).
-      {label:'지출예산',data:sums.map(function(s){return s.expBudget>0?s.expBudget:null;}),type:'line',borderColor:'#c53030',backgroundColor:'rgba(0,0,0,0)',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false,spanGaps:false,yAxisID:'y',order:0}
+      {label:'지출',data:sums.map(function(s){return s.expense;}),backgroundColor:'rgba(197,48,48,.55)',stack:'exp',borderRadius:5,borderSkipped:false,yAxisID:'y'}
     ].concat(hasNw?[{label:'순자산',data:nwAligned,type:'line',borderColor:'#553c9a',backgroundColor:'rgba(85,60,154,.08)',fill:false,borderWidth:2.5,pointRadius:3,pointBackgroundColor:'#553c9a',tension:0.35,spanGaps:true,yAxisID:'y1'}]:[])},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#2b6cb0',font:{size:11},boxRadius:3}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#2b6cb0',font:{size:11},boxRadius:3,filter:function(item){return item.text!=='지출예산(막대마다)';}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},
         scales:{x:{stacked:true,ticks:{color:'#4a6fa5',autoSkip:true,maxTicksLimit:12},grid:{color:'rgba(0,0,0,.08)'}},
           y:{stacked:true,position:'left',ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.08)'}},
           y1:{position:'right',display:hasNw,ticks:{color:'#553c9a',callback:function(v){return f(v);}},grid:{drawOnChartArea:false}}
-        }}});
+        }},
+      plugins:[{
+        // 지출예산 기준선을 각 달의 "지출" 막대 폭 안에서만 짧게 그리는 커스텀 플러그인.
+        // (line 타입 데이터셋을 쓰면 Chart.js가 달과 달 사이도 자동으로 이어버려서,
+        //  "예산이 점점 변하는 추세선"처럼 잘못 보이는 문제가 있었음 - 그래서 각 막대 위에만 따로 그린다)
+        id:'expBudgetMarker',
+        afterDatasetsDraw:function(chart){
+          var expDatasetIndex=chart.data.datasets.findIndex(function(d){return d.label==='지출';});
+          if(expDatasetIndex<0)return;
+          var meta=chart.getDatasetMeta(expDatasetIndex);
+          var yScale=chart.scales.y;
+          var ctx=chart.ctx;
+          ctx.save();
+          ctx.strokeStyle='#c53030';
+          ctx.lineWidth=2;
+          ctx.setLineDash([5,3]);
+          meta.data.forEach(function(bar,idx){
+            var budget=sums[idx]&&sums[idx].expBudget;
+            if(!budget||budget<=0)return;
+            // getProps로 애니메이션이 끝난 최종 좌표를 안전하게 가져온다(직접 bar.x/bar.width를 읽으면
+            // 애니메이션 도중의 중간값이 잡힐 수 있어서, Chart.js 공식 권장 방식을 그대로 썼다).
+            var props=bar.getProps(['x','width'],true);
+            var yPix=yScale.getPixelForValue(budget);
+            var halfW=props.width/2;
+            ctx.beginPath();
+            ctx.moveTo(props.x-halfW,yPix);
+            ctx.lineTo(props.x+halfW,yPix);
+            ctx.stroke();
+          });
+          ctx.restore();
+        }
+      }]});
   },100);
 }
 function renderMonDetail(ym){
