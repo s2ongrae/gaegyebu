@@ -3095,29 +3095,62 @@ function renderFixedExpenseCard(ym){
   var total=rows.reduce(function(s,r){return s+r.amt;},0);
   var doneCount=rows.filter(function(r){return r.done;}).length;
 
+  // 카테고리(대분류)별로 묶되, 항목이 1~2개뿐인 소규모 카테고리들은 "기타"로 한데 몰아서 보여준다.
+  // (레이 요청: 카테고리별로 구분은 하되, 항목 적은 것들끼리 따로따로 줄이 많이 생기면 오히려 줄바꿈이 심해지니까)
+  var byMid={};
+  rows.forEach(function(r){
+    var mid=r.fi.mid;
+    if(!byMid[mid])byMid[mid]=[];
+    byMid[mid].push(r);
+  });
+  var MIN_GROUP_SIZE=3;
+  var sections=[]; // [{title, icon, rows}]
+  var etcRows=[];
+  Object.keys(byMid).forEach(function(mid){
+    var group=byMid[mid];
+    if(group.length>=MIN_GROUP_SIZE){
+      sections.push({title:mid,icon:CE[mid]||'',rows:group});
+    }else{
+      etcRows=etcRows.concat(group);
+    }
+  });
+  // 섹션은 총액이 큰 카테고리가 먼저 보이도록 정렬(카드 자체의 금액 큰 순 정렬은 각 섹션 안에서 유지)
+  sections.sort(function(a,b){
+    var sumA=a.rows.reduce(function(s,r){return s+r.amt;},0);
+    var sumB=b.rows.reduce(function(s,r){return s+r.amt;},0);
+    return sumB-sumA;
+  });
+  if(etcRows.length)sections.push({title:'기타',icon:'🔹',rows:etcRows});
+
+  function renderCard(r){
+    var fi=r.fi;
+    var icon=CE[fi.mid]||'';
+    // 결제 완료된 항목만 파란색으로 강조하고, 미확인 항목은 무채색(테두리만)으로 눈에 덜 띄게 둔다
+    var cardStyle=r.done
+      ?'background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.35)'
+      :'background:var(--sf);border:1px solid var(--bd)';
+    var statusText=r.done?'✅ 결제 완료':'⏳ 미확인';
+    var statusColor=r.done?'var(--bl)':'var(--mu)';
+    return'<div style="'+cardStyle+';border-radius:var(--rs);padding:9px 10px">'
+      +'<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+icon+' '+(fi.memo||fi.sub)+'</div>'
+      +'<div style="font-size:9px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fi.mid+' &gt; '+fi.sub+'</div>'
+      +'<div style="font-size:13px;font-weight:900;margin-top:5px">'+ff(r.amt)+'</div>'
+      +'<div style="font-size:10px;color:'+statusColor+';font-weight:700;margin-top:3px">'+statusText+'</div>'
+      +'</div>';
+  }
+
   var html='<div class="card"><div class="card-title">🔁 이번달 고정지출 <span class="sub">· 구독료·통신비·보험료·월세 등 매달 나가는 지출 · '+doneCount+'/'+rows.length+'건 결제 확인됨</span></div>'
     +'<div class="g2 mb8">'
     +'<div class="kpi"><div class="kl">월 고정지출 총액</div><div class="kv" style="font-size:18px;color:var(--pu)">'+f(total)+'</div><div class="kb" style="background:var(--pu)"></div></div>'
     +'<div class="kpi"><div class="kl">항목 개수</div><div class="kv" style="font-size:18px">'+rows.length+'개</div><div class="kb" style="background:var(--mu2)"></div></div>'
     +'</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">'
-    +rows.map(function(r){
-      var fi=r.fi;
-      var icon=CE[fi.mid]||'';
-      // 결제 완료된 항목만 파란색으로 강조하고, 미확인 항목은 무채색(테두리만)으로 눈에 덜 띄게 둔다
-      var cardStyle=r.done
-        ?'background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.35)'
-        :'background:var(--sf);border:1px solid var(--bd)';
-      var statusText=r.done?'✅ 결제 완료':'⏳ 미확인';
-      var statusColor=r.done?'var(--bl)':'var(--mu)';
-      return'<div style="'+cardStyle+';border-radius:var(--rs);padding:9px 10px">'
-        +'<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+icon+' '+(fi.memo||fi.sub)+'</div>'
-        +'<div style="font-size:9px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fi.mid+' &gt; '+fi.sub+'</div>'
-        +'<div style="font-size:13px;font-weight:900;margin-top:5px">'+ff(r.amt)+'</div>'
-        +'<div style="font-size:10px;color:'+statusColor+';font-weight:700;margin-top:3px">'+statusText+'</div>'
+    +sections.map(function(sec,si){
+      return(si>0?'<div style="margin-top:14px"></div>':'')
+        +'<div style="font-size:11px;font-weight:700;color:var(--mu2);margin-bottom:6px">'+sec.icon+' '+sec.title+' <span style="font-weight:400;color:var(--mu)">('+sec.rows.length+'건 · '+ff(sec.rows.reduce(function(s,r){return s+r.amt;},0))+')</span></div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">'
+        +sec.rows.map(renderCard).join('')
         +'</div>';
     }).join('')
-    +'</div>'
     +'</div>';
   wrap.innerHTML=html;
 }
@@ -3414,7 +3447,7 @@ function getSubBreakdownByMid(txList){
 // - rowIdPrefix: 펼침 상태를 저장할 DOM id 접두사 (같은 화면에 여러 breakdown이 있을 때 id 충돌 방지용)
 // - budgetInfo: {mid: 대분류명, bySub: getEffectiveBudget().bySub} 선택적으로 넘기면, 각 소분류 옆에 "예산 대비 실적"을 같이 보여준다.
 //   (groupKeyField가 'sub'일 때만 의미가 있음 - 대분류 breakdown에는 소분류별 예산 개념이 없으므로 무시됨)
-function renderSubBreakdownRows(subRanked,indent,iconMap,txList,groupKeyField,rowIdPrefix,budgetInfo){
+function renderSubBreakdownRows(subRanked,indent,iconMap,txList,groupKeyField,rowIdPrefix,budgetInfo,colorMap){
   indent=indent||36;
   iconMap=iconMap||SUB_ICON;
   if(!subRanked.length)return'<div style="font-size:11px;color:var(--mu);padding:4px '+indent+'px">세부 내역 없음</div>';
@@ -3434,8 +3467,11 @@ function renderSubBreakdownRows(subRanked,indent,iconMap,txList,groupKeyField,ro
         budgetHtml='<span style="font-size:9px;color:var(--mu);margin-left:6px">예산 미설정</span>';
       }
     }
+    // colorMap이 있으면(위쪽 "월별 추이" 차트에서 이 소분류가 어떤 색으로 그려졌는지 알고 있으면),
+    // 그 색과 똑같은 작은 점을 이름 앞에 찍어줘서 "차트의 이 색 = 이 소분류"라는 걸 바로 연결해 보여준다.
+    var dotHtml=(colorMap&&colorMap[s.sub])?'<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:'+colorMap[s.sub]+';margin-right:5px"></span>':'';
     var row='<div'+(clickable?' style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+rowId+'\')"':' style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px '+indent+'px;color:var(--mu2);border-bottom:1px solid var(--bd)"')+'>'
-      +'<span>'+(iconMap[s.sub]||'')+' '+s.sub+budgetHtml+'</span>'
+      +'<span>'+dotHtml+(iconMap[s.sub]||'')+' '+s.sub+budgetHtml+'</span>'
       +'<span><b style="color:var(--tx)">'+ff(s.amt)+'</b> <span style="color:var(--mu)">('+(total?Math.round(s.amt/total*100):0)+'%)</span></span>'
       +'</div>';
     if(!clickable)return row;
@@ -3464,6 +3500,51 @@ function toggleSubGroup(groupClass){
   if(!rows.length)return;
   var isHidden=rows[0].style.display==='none'||!rows[0].style.display;
   rows.forEach(function(r){r.style.display=isHidden?'table-row':'none';});
+}
+// 카테고리별 지출/수입/저축 순위 표에서 행을 클릭했을 때, 소분류 목록과 "월별 추이 미니차트"를 함께 토글한다.
+// 차트는 처음 펼칠 때 딱 한 번만 그리고(두 번째부터는 캔버스를 재사용), 데이터는 window.__catMonthlyChartData에
+// buildRankedMonthlyTable이 미리 등록해둔 {labels, values, color} 를 그대로 가져다 쓴다.
+window.__catMonthlyChartData=window.__catMonthlyChartData||{};
+window.__catMonthlyChartInstances=window.__catMonthlyChartInstances||{};
+function toggleCatSubWithChart(subId){
+  toggleCatSub(subId);
+  var chartWrap=document.getElementById(subId+'-chart-wrap');
+  if(chartWrap){
+    var nowHidden=chartWrap.style.display==='none'||!chartWrap.style.display;
+    chartWrap.style.display=nowHidden?'table-row':'none';
+    if(nowHidden&&!window.__catMonthlyChartInstances[subId]){
+      var canvas=document.getElementById(subId+'-chart');
+      var chartData=window.__catMonthlyChartData[subId];
+      if(canvas&&chartData){
+        // 차트는 카테고리 전체 합계만 보여주는 단순한 선그래프 하나로 둔다.
+        // 소분류별 색 구분은 차트 안에 넣지 않고, 바로 아래 소분류 목록의 이름 앞에 점으로 대신 표시한다
+        // (레이 요청: 차트에 색깔별로 쌓지 말고, 목록 쪽에 점으로 표시하는 게 더 알아보기 쉬움).
+        window.__catMonthlyChartInstances[subId]=new Chart(canvas,{
+          type:'line',
+          data:{labels:chartData.labels,datasets:[{
+            data:chartData.values,
+            borderColor:chartData.color,
+            backgroundColor:chartData.color+'22',
+            fill:true,
+            tension:0.25,
+            pointRadius:3,
+            pointBackgroundColor:chartData.color,
+            borderWidth:2
+          }]},
+          options:{responsive:true,maintainAspectRatio:false,
+            plugins:{
+              legend:{display:false},
+              tooltip:{callbacks:{label:function(c){return ff(c.raw);}}}
+            },
+            scales:{
+              x:{ticks:{color:'#4a6fa5',font:{size:9}},grid:{display:false}},
+              y:{ticks:{color:'#4a6fa5',font:{size:9},callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}}
+            }
+          }
+        });
+      }
+    }
+  }
 }
 function toggleAnomalyRow(rowId){
   var el=document.getElementById(rowId);
@@ -6962,6 +7043,15 @@ function renderAssetComp(){
 }
 
 function renderAnnual(months){
+  // 이 표가 다시 그려질 때마다(월 변경, 페이지 재방문 등) 기존에 만들어둔 월별 추이 미니차트 인스턴스를
+  // 전부 정리한다. 안 지우면 같은 id의 캔버스가 재사용되면서 Chart.js가 "Canvas is already in use" 에러를 낸다.
+  if(window.__catMonthlyChartInstances){
+    Object.keys(window.__catMonthlyChartInstances).forEach(function(k){
+      try{window.__catMonthlyChartInstances[k].destroy();}catch(e){}
+    });
+  }
+  window.__catMonthlyChartInstances={};
+  window.__catMonthlyChartData={};
   // 연간 총 예산/목표: 하드코딩 숫자 대신, 해당 연도 각 달에 "실제로 적용된" 예산/목표(예산탭과 동일 로직)를 합산
   // (이렇게 해야 예산탭에서 값을 수정하면 여기도 항상 같이 바뀐다 — 전에는 지출만 이 방식이고 수입/저축은 하드코딩이라 서로 안 맞았음)
   //
@@ -7236,9 +7326,44 @@ function renderAnnual(months){
             var w=Math.min(pct,100);
             var subId=opts.idPrefix+'-sub-'+idx;
             var colCount=7+(showMonthCols?matrixMonths.length:0);
+            // 이 카테고리의 월별 추이 미니차트용 데이터를 전역에 등록해둔다(클릭해서 펼칠 때 toggleCatSubWithChart가 사용).
+            // 소분류별(sub)로 월별 금액을 쪼개서, "선 아래 영역을 소분류 비율로 색칠"할 수 있게 한다.
+            // 소분류가 너무 많으면 색이 지저분해지니, 금액 큰 상위 5개만 각자 색을 주고 나머지는 "기타"로 묶는다.
+            if(showMonthCols){
+              var subByMonth={}; // sub -> ym -> amount
+              allTxs.forEach(function(t){
+                if(t.type!==opts.txType)return;
+                if(opts.txType==='지출'&&isInvestLossTx(t))return;
+                if(t[opts.txField]!==x.name)return;
+                var ym=t.date.slice(0,7);
+                if(matrixMonths.indexOf(ym)<0)return;
+                var subName=t[opts.subGroupField];
+                if(!subByMonth[subName])subByMonth[subName]={};
+                subByMonth[subName][ym]=(subByMonth[subName][ym]||0)+(Number(t.amount)||0);
+              });
+              var subTotals=Object.keys(subByMonth).map(function(s){
+                return{name:s,total:Object.values(subByMonth[s]).reduce(function(a,b){return a+b;},0)};
+              }).sort(function(a,b){return b.total-a.total;});
+              var TOP_N=5;
+              var topSubs=subTotals.slice(0,TOP_N);
+              var etcSubs=subTotals.slice(TOP_N);
+              var STACK_COLORS=['#c53030','#2b6cb0','#276749','#b7791f','#553c9a'];
+              // 차트 자체는 카테고리 합계 하나만 그리는 단순 선그래프라 소분류별 월별값(stackSeries)은 더 이상 필요 없다.
+              // 대신 "어느 소분류가 어떤 색인지"만 맵으로 만들어서, 아래 소분류 목록의 점 색으로 쓴다.
+              var subColorMap={};
+              topSubs.forEach(function(s,si){subColorMap[s.name]=STACK_COLORS[si%STACK_COLORS.length];});
+              etcSubs.forEach(function(s){subColorMap[s.name]='#718096';});
+              window.__catMonthlyChartData[subId]={
+                labels:matrixMonths.map(function(ym){return ym.slice(2).replace('-','/');}),
+                values:matrixMonths.map(function(ym){return(byNameMonth[x.name]||{})[ym]||0;}),
+                color:opts.chartColor, // CSS 변수(var(--rd) 등)는 canvas fillStyle에서 해석이 안 되므로, 차트 전용으로 실제 hex 값을 쓴다
+                subColorMap:subColorMap
+              };
+            }
+            var clickFn=showMonthCols?'toggleCatSubWithChart':'toggleCatSub';
             return'<tr>'
-              +'<td style="font-size:11px;font-weight:700;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(idx+1)+'</td>'
-              +'<td style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;position:sticky;left:0;background:var(--sf)" onclick="toggleCatSub(\''+subId+'\')">'+(opts.icon2?(opts.icon2(x.name)+' '):'')+x.name+'</td>'
+              +'<td style="font-size:11px;font-weight:700;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="'+clickFn+'(\''+subId+'\')">'+(idx+1)+'</td>'
+              +'<td style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;position:sticky;left:0;background:var(--sf)" onclick="'+clickFn+'(\''+subId+'\')">'+(opts.icon2?(opts.icon2(x.name)+' '):'')+x.name+'</td>'
               +(showMonthCols?matrixMonths.map(function(ym,yi){
                 var v=(byNameMonth[x.name]||{})[ym]||0;
                 var bg=cellBg(v);
@@ -7246,11 +7371,11 @@ function renderAnnual(months){
                 if(!v)return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);color:var(--mu)">-</td>';
                 return'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);border-left:1px solid var(--bd);cursor:pointer;background:'+bg+'" onclick="toggleCatSub(\''+cellId+'\')" title="눌러서 그 달 소분류 보기">'+f(v)+'</td>';
               }).join(''):'')
-              +'<td style="text-align:right;font-size:11px;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);border-left:2px solid var(--bd2);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+(hasGoal?ff(goal):'-')+'</td>'
-              +'<td style="text-align:right;font-weight:700;font-size:11px;color:'+opts.actualColor+';padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(x.amt)+'</td>'
-              +'<td style="text-align:right;font-size:11px;color:var(--pu);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'+ff(avg)+'</td>'
-              +'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;color:'+(!hasGoal?'var(--mu)':(opts.goodWhenOver?(remain<=0?'var(--gn)':'var(--rd)'):(remain>=0?'var(--gn)':'var(--rd)')))+'" onclick="toggleCatSub(\''+subId+'\')">'+(hasGoal?ff(remain):'-')+'</td>'
-              +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="toggleCatSub(\''+subId+'\')">'
+              +'<td style="text-align:right;font-size:11px;color:var(--mu2);padding:5px 6px;border-bottom:1px solid var(--bd);border-left:2px solid var(--bd2);cursor:pointer" onclick="'+clickFn+'(\''+subId+'\')">'+(hasGoal?ff(goal):'-')+'</td>'
+              +'<td style="text-align:right;font-weight:700;font-size:11px;color:'+opts.actualColor+';padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="'+clickFn+'(\''+subId+'\')">'+ff(x.amt)+'</td>'
+              +'<td style="text-align:right;font-size:11px;color:var(--pu);padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="'+clickFn+'(\''+subId+'\')">'+ff(avg)+'</td>'
+              +'<td style="text-align:right;font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer;color:'+(!hasGoal?'var(--mu)':(opts.goodWhenOver?(remain<=0?'var(--gn)':'var(--rd)'):(remain>=0?'var(--gn)':'var(--rd)')))+'" onclick="'+clickFn+'(\''+subId+'\')">'+(hasGoal?ff(remain):'-')+'</td>'
+              +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd);cursor:pointer" onclick="'+clickFn+'(\''+subId+'\')">'
               +(hasGoal?('<div style="display:flex;align-items:center;gap:3px">'
                 +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
                 +'<div style="width:'+w+'%;height:100%;background:'+color+';border-radius:2px"></div></div>'
@@ -7258,7 +7383,18 @@ function renderAnnual(months){
                 +'</div>'):'<span style="font-size:10px;color:var(--mu)">'+opts.goalLabel+' 미설정</span>')
               +'</td>'
               +'</tr>'
-              +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx,opts.budgetBySub?{mid:x.name,bySub:opts.budgetBySub}:null)+'</div></td></tr>'
+              +(showMonthCols?'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'-chart-wrap" style="display:none;padding:10px 16px 10px 0;background:var(--sf2)">'
+                +'<div style="display:flex;align-items:center;gap:0">'
+                // 순위(28px)+카테고리 이름 칸 폭만큼 들여써서, 차트의 첫 포인트가 표의 첫 월별 열과
+                // 세로로 가능한 한 가깝게 겹치도록 맞춘다(표 열 폭이 글자 수에 따라 달라지니 완벽히 일치는 안 되지만,
+                // 그래프가 표 바로 아래 자연스럽게 이어지는 느낌을 주는 게 목적).
+                +'<div style="width:28px;flex-shrink:0"></div>'
+                +'<div style="flex:1;min-width:0">'
+                +'<div style="font-size:10px;font-weight:700;color:var(--mu2);margin-bottom:4px;padding-left:4px">📈 '+x.name+' 월별 추이 (최근 '+matrixMonths.length+'개월, 색상 = 소분류 비중)</div>'
+                +'<div style="position:relative;height:140px"><canvas id="'+subId+'-chart"></canvas></div>'
+                +'</div></div>'
+                +'</div></td></tr>':'')
+              +'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+subId+'" style="display:none">'+renderSubBreakdownRows(opts.subBreakdown(x.name),16,SUB_ICON,allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&(opts.txType!=='지출'||!isInvestLossTx(t));}),opts.subGroupField,opts.idPrefix+'-detail-'+idx,opts.budgetBySub?{mid:x.name,bySub:opts.budgetBySub}:null,showMonthCols?window.__catMonthlyChartData[subId].subColorMap:null)+'</div></td></tr>'
               +(showMonthCols?matrixMonths.map(function(ym,yi){
                 var v=(byNameMonth[x.name]||{})[ym]||0;
                 if(!v)return'';
@@ -7291,7 +7427,7 @@ function renderAnnual(months){
         txType:'지출',txField:'mid',subGroupField:'sub',idPrefix:'annualcat',
         icon:'🏆',title:'카테고리별 지출 순위 & 예산 대비',titleColor:'var(--rd)',
         nameColLabel:'카테고리',goalLabel:'예산',remainLabel:'잔액',
-        goodWhenOver:false,actualColor:'var(--rd)',
+        goodWhenOver:false,actualColor:'var(--rd)',chartColor:'#c53030',
         icon2:function(name){return CE[name]||'';},
         cellColor:{strong:'rgba(220,38,38,.30)',mid:'rgba(220,38,38,.16)',weak:'rgba(220,38,38,.07)'},
         subBreakdown:function(name){return getSubBreakdown(allTxs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}),name);},
@@ -7303,7 +7439,7 @@ function renderAnnual(months){
         txType:'수입',txField:'sub',subGroupField:'mid',idPrefix:'annualinc',
         icon:'💰',title:'항목별 수입 순위 & 목표 대비',titleColor:'var(--gn)',
         nameColLabel:'항목',goalLabel:'목표',remainLabel:'부족분',
-        goodWhenOver:true,actualColor:'var(--gn)',
+        goodWhenOver:true,actualColor:'var(--gn)',chartColor:'#276749',
         icon2:function(name){return SUB_ICON[name]||'';},
         cellColor:{strong:'rgba(39,103,73,.30)',mid:'rgba(39,103,73,.16)',weak:'rgba(39,103,73,.07)'},
         subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(t.type==='수입'&&t.sub===name)m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
@@ -7314,7 +7450,7 @@ function renderAnnual(months){
         txType:'저축',txField:'sub',subGroupField:'mid',idPrefix:'annualsav',
         icon:'🏦',title:'항목별 저축 순위 & 목표 대비',titleColor:'var(--bl)',
         nameColLabel:'항목',goalLabel:'목표',remainLabel:'부족분',
-        goodWhenOver:true,actualColor:'var(--bl)',
+        goodWhenOver:true,actualColor:'var(--bl)',chartColor:'#2b6cb0',
         icon2:function(name){return SUB_ICON[name]||'';},
         cellColor:{strong:'rgba(43,108,176,.30)',mid:'rgba(43,108,176,.16)',weak:'rgba(43,108,176,.07)'},
         subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(t.type==='저축'&&t.sub===name)m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
