@@ -7368,11 +7368,13 @@ function renderAnnual(months){
               var etcSubs=subTotals.slice(TOP_N);
               // 이 앱의 연한 하늘색 배경 위에서도 서로 확실히 구분되도록, 채도 높고 색조가 뚜렷이 다른 5색으로 구성.
               // (예전 팔레트는 진초록·올리브 계열이 배경 톤과 비슷해서 거의 안 보이는 문제가 있었음)
-              var STACK_COLORS=['#e53e3e','#3182ce','#38a169','#d69e2e','#805ad5'];
+              var STACK_COLORS=['#5b7fd6','#e08b6d','#58a98f','#e3b75a','#9a7bc4'];
+              // 위 팔레트: 쨍한 원색 대신 채도를 낮춘 톤(소프트 블루/테라코타/세이지 그린/머스타드/라벤더)으로 구성해서
+              // 앱 전체의 차분한 하늘색 배경과 어울리게 하되, 5색이 서로 확실히 구분되도록 색조를 멀리 떨어뜨렸다.
               // "어느 소분류가 어떤 색인지" 맵 - 아래 소분류 목록의 점 색과, 차트의 누적 영역 색을 정확히 일치시킨다.
               var subColorMap={};
               topSubs.forEach(function(s,si){subColorMap[s.name]=STACK_COLORS[si%STACK_COLORS.length];});
-              etcSubs.forEach(function(s){subColorMap[s.name]='#718096';});
+              etcSubs.forEach(function(s){subColorMap[s.name]='#a0aec0';});
               // 차트용 누적 영역 시리즈: 금액이 가장 큰 소분류를 맨 먼저(=맨 아래에 쌓이도록) 배열에 넣는다.
               // Chart.js의 stacked line/area는 dataset 배열 순서대로 아래→위로 쌓이므로, topSubs가 이미
               // 금액 큰 순으로 정렬돼 있는 걸 그대로 쓰면 "가장 큰 금액이 맨 아래"가 자연히 만족된다.
@@ -7381,7 +7383,7 @@ function renderAnnual(months){
               });
               if(etcSubs.length){
                 stackSeries.push({
-                  name:'기타',color:'#718096',
+                  name:'기타',color:'#a0aec0',
                   values:matrixMonths.map(function(ym){return etcSubs.reduce(function(sum,s){return sum+((subByMonth[s.name]||{})[ym]||0);},0);})
                 });
               }
