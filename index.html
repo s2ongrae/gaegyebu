@@ -95,18 +95,19 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bs-bar-today{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--tx);border-radius:2px;transform:translateX(-1px)}
 .bs-bar-legend{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--mu2);margin-top:9px;flex-wrap:wrap}
 .bs-pace{font-weight:800}
-.bs-eq{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd)}
-.bs-eq-i{background:#fff;border:1px solid var(--bd);border-radius:var(--rs);padding:5px 10px;font-size:11px;color:var(--mu2);line-height:1.3}
-.bs-eq-i b{display:block;font-size:13px;font-weight:800;color:var(--tx);font-variant-numeric:tabular-nums}
-.bs-op{font-size:15px;font-weight:800;color:var(--mu)}
-.bs-goals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
-.bs-goal{background:var(--sf2);border-radius:var(--r);padding:12px 14px}
-.bs-goal-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
-.bs-goal-title{font-size:13px;font-weight:800}
-.bs-goal-pct{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
-.bs-goal-foot{display:flex;justify-content:space-between;font-size:11px;color:var(--mu2);margin-top:7px}
-.bs-goal-foot b{color:var(--tx)}
-.bs-goal-empty{font-size:11px;color:var(--mu);text-align:center;padding:20px 12px}
+.bs-goalbox{margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd);display:flex;flex-direction:column;gap:10px}
+.bs-goalbox.solo{margin-top:0;padding-top:0;border-top:none}
+.bs-grow{display:grid;grid-template-columns:104px 1fr 52px 240px;align-items:center;gap:12px}
+.bs-grow-l{font-size:13px;font-weight:800;white-space:nowrap}
+.bs-grow .bs-bar{height:10px;background:#fff}
+.bs-grow-pct{font-size:16px;font-weight:900;text-align:right;font-variant-numeric:tabular-nums}
+.bs-grow-n{font-size:12px;color:var(--mu2);text-align:right;white-space:nowrap}
+.bs-grow-n b{color:var(--tx);font-weight:800}
+.bs-grow-e{grid-column:2 / -1;font-size:11px;color:var(--mu)}
+.bs-note{margin-top:12px;font-size:12px;font-weight:600;padding:9px 12px;border-radius:var(--rs)}
+.bs-note b{font-weight:900}
+.bs-note.bad{background:#fff;border:1px solid rgba(197,48,48,.5);color:var(--rd)}
+.bs-note.good{background:#fff;border:1px solid rgba(39,103,73,.5);color:var(--gn)}
 .bs-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--mu2);margin:4px 2px 8px}
 .bs-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .bs-legend .bs-legend-act{margin-left:auto}
@@ -156,7 +157,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bs-m-sub.pos{color:var(--gn)}
 .bs-m-sub.neg{color:var(--rd)}
 @media(max-width:700px){
-.bs-pct{font-size:32px}.bs-goals{grid-template-columns:1fr}.bs-hero{padding:14px}
+.bs-pct{font-size:32px}.bs-hero{padding:14px}
+.bs-grow{grid-template-columns:92px 1fr 46px;gap:6px 10px}
+.bs-grow-n{grid-column:1 / -1;text-align:left}
+.bs-grow-e{grid-column:2 / -1}
 /* 폰에서는 예산·잔액 열을 숨기고, 실적 아래에 남음/초과를 작게 붙여 한 화면에 들어오게 한다 */
 .bs-tbl{min-width:0}
 .bs-c-bud,.bs-c-rem{display:none}
@@ -4776,18 +4780,26 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
 
   var html='<div class="card mb12"><div class="card-title">📊 '+label+' 결산</div>';
 
-  // ① 지출 예산 사용 현황 (히어로)
-  var allocHtml='';
+  // ① 한 장짜리 결산 카드: 지출 예산 사용 그래프 + 수입/저축 목표 달성 막대 + 배분 한 줄 요약.
+  // (예전엔 "수입 목표 = 지출 예산 + 저축 목표 + 부족분" 칩 줄과 수입/저축 목표 카드가 따로 있어서 같은 숫자가 두 번씩 나왔다)
+  function goalRow(icon,title,budget,actual){
+    if(!budget)return'<div class="bs-grow"><div class="bs-grow-l">'+icon+' '+title+'</div><div class="bs-grow-e">'+title+'를 추가하면 여기 표시돼요</div></div>';
+    var gp=Math.round(actual/budget*100);
+    var gcol=gp>=100?'var(--gn)':gp>=70?'var(--yw)':'var(--rd)';
+    return'<div class="bs-grow"><div class="bs-grow-l">'+icon+' '+title+'</div>'
+      +'<div class="bs-bar"><div class="bs-bar-fill" style="width:'+Math.min(gp,100)+'%;background:'+gcol+'"></div></div>'
+      +'<div class="bs-grow-pct" style="color:'+gcol+'">'+gp+'%</div>'
+      +'<div class="bs-grow-n">실적 <b>'+ff(actual)+'</b> / 목표 '+ff(budget)+'</div></div>';
+  }
+  var hasGoals=!!(ebInc.total||ebSav.total);
+  var goalsHtml=hasGoals?'<div class="bs-goalbox'+(expBudget?'':' solo')+'">'+goalRow('💰','수입 목표',ebInc.total,sm.income)+goalRow('🏦','저축 목표',ebSav.total,savActual)+'</div>':'';
+  var noteHtml='';
   if(ebInc.total>0&&(expBudget>0||ebSav.total>0)){
-    var allocated=expBudget+ebSav.total;
-    var leftover=ebInc.total-allocated;
-    allocHtml='<div class="bs-eq" title="수입 목표를 지출 예산과 저축 목표로 나눠 쓰는 계획이에요. 합이 모자라면 부족분, 남으면 여윳돈으로 보여요.">'
-      +'<div class="bs-eq-i">수입 목표<b>'+ff(ebInc.total)+'</b></div><span class="bs-op">=</span>'
-      +'<div class="bs-eq-i">지출 예산<b style="color:var(--rd)">'+ff(expBudget)+'</b></div><span class="bs-op">+</span>'
-      +'<div class="bs-eq-i">저축 목표<b style="color:var(--bl)">'+ff(ebSav.total)+'</b></div><span class="bs-op">+</span>'
-      +(leftover<0?'<div class="bs-eq-i" style="border-color:var(--rd)">부족분<b style="color:var(--rd)">'+ff(-leftover)+'</b></div>'
-                  :'<div class="bs-eq-i" style="border-color:var(--gn)">여윳돈<b style="color:var(--gn)">'+ff(leftover)+'</b></div>')
-      +'</div>';
+    var leftover=ebInc.total-(expBudget+ebSav.total);
+    var calc='수입 목표 '+ff(ebInc.total)+' − 지출 예산 '+ff(expBudget)+' − 저축 목표 '+ff(ebSav.total)+' = '+(leftover<0?'부족분 ':'여윳돈 ')+ff(Math.abs(leftover));
+    noteHtml=leftover<0
+      ?'<div class="bs-note bad" title="'+calc+'">⚠️ 수입 목표로는 지출 예산과 저축 목표를 다 못 채워요 — <b>'+ff(-leftover)+'</b> 부족</div>'
+      :'<div class="bs-note good" title="'+calc+'">✅ 수입 목표로 지출 예산과 저축 목표를 채우고 <b>'+ff(leftover)+'</b>이 남아요</div>';
   }
   if(expBudget){
     var hs=stateOf(expPct,true);
@@ -4807,23 +4819,12 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
       +'<div class="bs-bar"><div class="bs-bar-fill" style="width:'+Math.min(expPct,100)+'%;background:'+hs.color+'"></div>'
         +(elapsedPct!==null?'<div class="bs-bar-today" style="left:'+elapsedPct+'%"></div>':'')+'</div>'
       +(elapsedPct!==null?'<div class="bs-bar-legend"><span><span style="display:inline-block;width:3px;height:11px;background:var(--tx);vertical-align:-2px;margin-right:6px;border-radius:2px"></span>오늘 ('+(now.getMonth()+1)+'/'+now.getDate()+') · 월 '+elapsedPct+'% 경과</span>'+paceHtml+'</div>':'')
-      +allocHtml
+      +goalsHtml
+      +noteHtml
       +'</div>';
-  }else if(allocHtml){
-    html+='<div class="bs-hero">'+allocHtml.replace('margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd)','')+'</div>';
-  }
-
-  // ② 수입 / 저축 목표 달성
-  function goalCard(icon,title,budget,actual){
-    if(!budget)return'<div class="bs-goal bs-goal-empty">'+icon+' '+title+'를 추가하면 여기 표시돼요</div>';
-    var pct=Math.round(actual/budget*100);
-    var col=pct>=100?'var(--gn)':pct>=70?'var(--yw)':'var(--rd)';
-    return'<div class="bs-goal"><div class="bs-goal-top"><span class="bs-goal-title">'+icon+' '+title+'</span><span class="bs-goal-pct" style="color:'+col+'">'+pct+'%</span></div>'
-      +'<div class="bs-bar" style="height:10px;background:#fff"><div class="bs-bar-fill" style="width:'+Math.min(pct,100)+'%;background:'+col+'"></div></div>'
-      +'<div class="bs-goal-foot"><span>실적 <b>'+ff(actual)+'</b></span><span>목표 <b>'+ff(budget)+'</b></span></div></div>';
-  }
-  if(ebInc.total||ebSav.total){
-    html+='<div class="bs-goals">'+goalCard('💰','수입 목표',ebInc.total,sm.income)+goalCard('🏦','저축 목표',ebSav.total,savActual)+'</div>';
+  }else if(goalsHtml||noteHtml){
+    // 지출 예산이 없을 때(드문 경우)는 목표 달성 막대만 한 카드로 보여준다
+    html+='<div class="bs-hero"><div class="bs-title" style="margin-bottom:12px">이번달 목표</div>'+goalsHtml+noteHtml+'</div>';
   }
 
   // ③ 카테고리별 표 (카테고리를 누르면 소분류, 소분류를 누르면 그 거래 내역)
