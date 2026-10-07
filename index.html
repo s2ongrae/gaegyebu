@@ -300,6 +300,21 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .inp-kpi-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:10px}
 .donut-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:12px}
 .stk-kpi-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:12px}
+.fxk-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:8px}
+.fxk-cash{font-size:12px;font-weight:600;padding:8px 12px;border-radius:var(--rs);margin-bottom:12px;background:#fff;border:1px solid var(--bd)}
+.fxk-cash b{font-weight:900}
+.fxk-cash.good{border-color:rgba(39,103,73,.45);color:var(--gn)}
+.fxk-cash.bad{border-color:rgba(197,48,48,.5);color:var(--rd)}
+.bs-freeline{font-size:12px;font-weight:600;color:var(--mu2);margin-top:6px}
+.bs-freeline b{font-weight:900}
+.bs-freeline b.g{color:var(--gn)}
+.bs-freeline b.r{color:var(--rd)}
+.bs-freeline .m{color:var(--mu);font-weight:500;font-size:11px}
+.bs-warnline{font-size:12px;font-weight:700;margin-top:5px}
+.bs-warnline b{font-weight:900}
+.bs-warnline.bad{color:var(--rd)}
+.bs-warnline.good{color:var(--gn)}
+.ast-comp-box{margin-bottom:16px;padding-bottom:14px;border-bottom:1px dashed var(--bd)}
 /* ── 모바일 사용성 보강 ── */
 @media(max-width:700px){
 .asset-item{flex-wrap:wrap;row-gap:8px}
@@ -311,6 +326,8 @@ input[type=number],input[type=date],select{min-height:36px}
 .inp-kpi-row>div:last-child{grid-column:1 / -1}
 /* 폰에서는 날짜 칸이 좁아 "지출 -3만"이 "지출 -3"으로 잘려 단위가 사라지므로, 접두어를 숨기고 금액만 보여준다(색으로 수입/지출 구분) */
 .cds-pre{display:none}
+.fxk-row .kl{font-size:10px;white-space:nowrap}
+.fxk-row .ks{font-size:10px}
 .donut-grid{grid-template-columns:1fr}
 .stk-kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}
 .stk-kpi-row>div:last-child{grid-column:1 / -1}
@@ -1366,7 +1383,9 @@ function isAutoMarTongOn(){return localStorage.getItem(AUTO_MT_OFF_KEY)!=='1';}
 function isAutoMtTx(t){return !!(t&&t.auto&&String(t.id).indexOf(AUTO_MT_PREFIX)===0);}
 function readAutoMtSkip(){try{return JSON.parse(localStorage.getItem(AUTO_MT_SKIP_KEY)||'{}');}catch(e){return{};}}
 function saveAutoMtSkip(m){localStorage.setItem(AUTO_MT_SKIP_KEY,JSON.stringify(m));scheduleSync();}
-function getMarTongNames(){return(AI||[]).filter(function(a){return a.d&&/^마통/.test(a.n);}).map(function(a){return a.n;});}
+// 대출성 부채(마통·보험대출 등): 부채 항목 중 이름이 '마통'으로 시작하거나 '대출'이 들어간 것. 카드 결제금액/할부 잔액은 대출 상환이 아니라서 제외.
+function getLoanNames(){return(AI||[]).filter(function(a){return a.d&&/^마통|대출/.test(a.n);}).map(function(a){return a.n;});}
+function getMarTongNames(){return getLoanNames();}
 // 순수 계산 함수(저장하지 않음) - 검증하기 쉽도록 분리해 둠
 function computeAutoMarTongSavings(assets,txs,names,skip){
   var out=[];
@@ -1393,7 +1412,7 @@ function computeAutoMarTongSavings(assets,txs,names,skip){
     var lastDay=new Date(Number(cur.slice(0,4)),Number(cur.slice(5,7)),0).getDate();
     var date=cur+'-'+String(lastDay).padStart(2,'0');
     if(cur===todayYm&&todayStr<date)date=todayStr;
-    out.push({id:AUTO_MT_PREFIX+cur,date:date,type:'저축',mid:'저축',sub:'대출상환',amount:dec,memo:'마통 순상환 (전월 대비 자동계산)',payment:'',eval:'',fixed:false,auto:true});
+    out.push({id:AUTO_MT_PREFIX+cur,date:date,type:'저축',mid:'저축',sub:'대출상환',amount:dec,memo:'대출 순상환 (전월 대비 자동계산)',payment:'',eval:'',fixed:false,auto:true});
   });
   return out;
 }
@@ -1403,7 +1422,7 @@ function syncAutoMarTongSavings(){
     var desired=isAutoMarTongOn()?computeAutoMarTongSavings(db.assets||{},txs,getMarTongNames(),readAutoMtSkip()):[];
     var existing=txs.filter(isAutoMtTx);
     var same=existing.length===desired.length&&desired.every(function(d){
-      return existing.some(function(e){return e.id===d.id&&e.date===d.date&&Number(e.amount)===d.amount;});
+      return existing.some(function(e){return e.id===d.id&&e.date===d.date&&Number(e.amount)===d.amount&&e.memo===d.memo;});
     });
     if(same)return;
     // 처음 자동 기록이 생기기 직전에 체크포인트를 한 번 남겨서, 마음에 안 들면 "이전 기록"으로 되돌릴 수 있게 한다.
@@ -1419,7 +1438,7 @@ function setAutoMarTongSavings(on){
   if(on)localStorage.removeItem(AUTO_MT_OFF_KEY);else localStorage.setItem(AUTO_MT_OFF_KEY,'1');
   syncAutoMarTongSavings();
   renderAst();
-  showToast(on?'🔁 마통 순상환 자동 저축을 켰어요.':'⏸️ 마통 순상환 자동 저축을 껐어요. (자동 기록은 삭제됐어요)');
+  showToast(on?'🔁 대출 순상환 자동 저축을 켰어요.':'⏸️ 대출 순상환 자동 저축을 껐어요. (자동 기록은 삭제됐어요)');
 }
 // ── 입력 폼에서 새 카테고리/소분류 추가 ────────────────────────────
 // 중분류 <select>(입력 폼 ti-mid, 수정 모달 em-mid)를 CATS 기준으로 다시 만든다. 새 카테고리를 만든 직후에도 호출한다.
@@ -3693,73 +3712,111 @@ function renderCardPerf(ym){
 // ── 월별 탭: 고정지출(구독료/통신비/보험료/월세 등 매달 나가는 지출) 요약 카드 ──
 // FX(고정거래 목록) 중 지출성 항목만 추려서, 이번달에 이미 결제됐는지 여부와 함께 보여준다.
 // (수입/저축 고정거래는 "입력/내역" 탭의 고정거래 관리에서 이미 다루므로 여기선 지출만 대상으로 함)
-function renderFixedExpenseCard(ym){
-  var wrap=document.getElementById('d-fixedexp');
-  if(!wrap)return;
-  var fixedExpItems=FX.filter(function(fi){return fi.type==='지출';});
-  if(!fixedExpItems.length){wrap.innerHTML='';return;}
-
-  var thisTxs=getTxs(ym);
+// 이번달 고정지출 행 목록(월별 탭 카드와 예산 탭 "자유 예산" 계산이 같은 기준을 쓰도록 공용으로 분리).
+// done=이번달 결제(입력) 여부, amt=결제 금액(미결제면 고정거래에 등록한 금액), date=결제일(미결제면 과거 이력으로 추정한 예정일)
+function getFixedExpenseRows(ym){
+  var items=FX.filter(function(fi){return fi.type==='지출';});
   var doneMap={};
-  thisTxs.forEach(function(t){
+  getTxs(ym).forEach(function(t){
     var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
     doneMap[k]=t;
     var k2=t.mid+'|'+t.sub;
     if(!doneMap[k2])doneMap[k2]=t;
   });
-
-  var rows=fixedExpItems.map(function(fi,i){
+  return items.map(function(fi){
     var k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
     var k2=fi.mid+'|'+fi.sub;
-    var sameCount=fixedExpItems.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;}).length;
+    var sameCount=items.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;}).length;
     var tx=doneMap[k]||((!fi.memo&&sameCount===1)?doneMap[k2]:null)||null;
     var done=!!tx;
-    var amt=done?Number(tx.amount)||0:(fi.amt||0);
-    return{fi:fi,done:done,amt:amt};
+    return{fi:fi,done:done,amt:done?(Number(tx.amount)||0):(fi.amt||0),date:done?(tx.date||null):getFixedExpectedDate(fi,ym)};
   });
-  // 미결제(구독인데 아직 이번달 결제 안 된 것)를 위로, 그 다음 금액 큰 순
-  rows.sort(function(a,b){if(a.done!==b.done)return a.done-b.done;return b.amt-a.amt;});
+}
+// 정렬: 미결제(예정일 빠른 순, 예정일을 모르면 맨 뒤) → 결제 완료(결제일 순). 같은 날이면 금액 큰 순.
+function cmpFixedRow(a,b){
+  if(a.done!==b.done)return a.done-b.done;
+  var da=a.date||'9999-99-99',db2=b.date||'9999-99-99';
+  if(da!==db2)return da<db2?-1:1;
+  return b.amt-a.amt;
+}
+// 현금성 자산(자산 항목 중 분류가 '기타'인 것: 현금/예금 등) - ym 이전 가장 최근에 입력된 값을 쓴다.
+function getCashAssets(ym){
+  var assets=(loadDB().assets)||{};
+  var names=AI.filter(function(a){return !a.d&&a.cat==='기타';}).map(function(a){return a.n;});
+  if(!names.length)return null;
+  var yms=Object.keys(assets).filter(function(m){return m<=ym;}).sort();
+  for(var i=yms.length-1;i>=0;i--){
+    var am=assets[yms[i]]||{},sum=0,any=false;
+    names.forEach(function(n){if(am[n]!==undefined){any=true;sum+=Number(am[n])||0;}});
+    if(any)return{ym:yms[i],cash:sum};
+  }
+  return null;
+}
+function renderFixedExpenseCard(ym){
+  var wrap=document.getElementById('d-fixedexp');
+  if(!wrap)return;
+  var rows=getFixedExpenseRows(ym);
+  if(!rows.length){wrap.innerHTML='';return;}
+  rows.sort(cmpFixedRow);
 
-  var total=rows.reduce(function(s,r){return s+r.amt;},0);
-  var doneCount=rows.filter(function(r){return r.done;}).length;
-
-  // 카테고리(대분류)별로 묶되, 항목이 1~2개뿐인 소규모 카테고리들은 "기타"로 한데 몰아서 보여준다.
-  // (레이 요청: 카테고리별로 구분은 하되, 항목 적은 것들끼리 따로따로 줄이 많이 생기면 오히려 줄바꿈이 심해지니까)
-  var byMid={};
+  var today=localToday();
+  var isCur=(ym===today.slice(0,7));
+  var lim=new Date();lim.setDate(lim.getDate()+7);var limStr=localYMD(lim);
+  function dayDiff(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000);}
+  function md(d){return d.slice(5).replace('-','/');}
+  var total=0,doneAmt=0,pendAmt=0,doneCount=0,pendCount=0,soonCount=0,soonAmt=0,lateCount=0;
   rows.forEach(function(r){
-    var mid=r.fi.mid;
-    if(!byMid[mid])byMid[mid]=[];
-    byMid[mid].push(r);
-  });
-  var MIN_GROUP_SIZE=3;
-  var sections=[]; // [{title, icon, rows}]
-  var etcRows=[];
-  Object.keys(byMid).forEach(function(mid){
-    var group=byMid[mid];
-    if(group.length>=MIN_GROUP_SIZE){
-      sections.push({title:mid,icon:CE[mid]||'',rows:group});
-    }else{
-      etcRows=etcRows.concat(group);
+    total+=r.amt;
+    if(r.done){doneAmt+=r.amt;doneCount++;}
+    else{
+      pendAmt+=r.amt;pendCount++;
+      if(isCur&&r.date){
+        if(r.date<today)lateCount++;
+        else if(r.date<=limStr){soonCount++;soonAmt+=r.amt;}
+      }
     }
   });
-  // 섹션은 총액이 큰 카테고리가 먼저 보이도록 정렬(카드 자체의 금액 큰 순 정렬은 각 섹션 안에서 유지)
-  sections.sort(function(a,b){
-    var sumA=a.rows.reduce(function(s,r){return s+r.amt;},0);
-    var sumB=b.rows.reduce(function(s,r){return s+r.amt;},0);
-    return sumB-sumA;
+  var donePct=total>0?Math.round(doneAmt/total*100):0;
+
+  // 카테고리(대분류)별로 묶되, 항목이 1~2개뿐인 소규모 카테고리들은 "기타"로 한데 몰아서 보여준다.
+  var byMid={};
+  rows.forEach(function(r){(byMid[r.fi.mid]=byMid[r.fi.mid]||[]).push(r);});
+  var MIN_GROUP_SIZE=3;
+  var sections=[],etcRows=[];
+  Object.keys(byMid).forEach(function(mid){
+    var group=byMid[mid];
+    if(group.length>=MIN_GROUP_SIZE)sections.push({title:mid,icon:CE[mid]||'',rows:group.slice().sort(cmpFixedRow)});
+    else etcRows=etcRows.concat(group);
   });
-  if(etcRows.length)sections.push({title:'기타',icon:'🔹',rows:etcRows});
+  // 섹션 순서: 아직 낼 게 있는 카테고리를 먼저(가장 빠른 예정일 순), 전부 결제된 카테고리는 뒤로. 같으면 총액 큰 순.
+  function secKey(sec){var p=sec.rows.filter(function(r){return !r.done;});return p.length?(p[0].date||'9999-99-98'):'9999-99-99';}
+  function secSum(sec){return sec.rows.reduce(function(s2,r){return s2+r.amt;},0);}
+  // "기타"는 여러 카테고리를 이어 붙인 것이라 반드시 다시 정렬해야 한다(안 하면 결제 완료가 중간에 끼어 있게 됨).
+  // 또 기타도 다른 섹션과 똑같이 "가장 이른 미결제 예정일" 기준으로 순서에 참여시킨다(예전엔 무조건 맨 뒤라서, 이미 지난 항목이 기타에 있으면 화면 맨 아래에 숨었음).
+  if(etcRows.length)sections.push({title:'기타',icon:'🔹',rows:etcRows.slice().sort(cmpFixedRow)});
+  sections.sort(function(a,b){
+    var ka=secKey(a),kb=secKey(b);
+    if(ka!==kb)return ka<kb?-1:1;
+    if((a.title==='기타')!==(b.title==='기타'))return a.title==='기타'?1:-1; // 날짜가 같으면 기타는 뒤로
+    return secSum(b)-secSum(a);
+  });
 
   function renderCard(r){
     var fi=r.fi;
     var icon=CE[fi.mid]||'';
-    // 결제 완료된 항목만 파란색으로 강조하고, 미확인 항목은 무채색(테두리만)으로 눈에 덜 띄게 둔다
-    var cardStyle=r.done
-      ?'background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.35)'
-      :'background:var(--sf);border:1px solid var(--bd)';
-    var statusText=r.done?'✅ 결제 완료':'⏳ 미확인';
-    var statusColor=r.done?'var(--bl)':'var(--mu)';
-    return'<div style="'+cardStyle+';border-radius:var(--rs);padding:9px 10px">'
+    var cardStyle=r.done?'background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.35)':'background:var(--sf);border:1px solid var(--bd)';
+    var statusText,statusColor;
+    if(r.done){
+      statusText='✅ '+(r.date?md(r.date)+' 결제':'결제 완료');statusColor='var(--bl)';
+    }else if(isCur&&r.date){
+      var dd=dayDiff(today,r.date);
+      var late=dd<0;
+      statusText=(late?'⚠️ ':'⏳ ')+md(r.date)+' 예정 · '+(dd===0?'오늘':dd>0?'D-'+dd:(-dd)+'일 지남');
+      statusColor=late?'var(--rd)':(dd<=3?'var(--yw)':'var(--mu)');
+    }else{
+      statusText='⏳ 미확인';statusColor='var(--mu)';
+    }
+    return'<div class="fx-card" data-done="'+(r.done?1:0)+'" data-date="'+(r.date||'')+'" style="'+cardStyle+';border-radius:var(--rs);padding:9px 10px">'
       +'<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+icon+' '+escCatHtml(fi.memo||fi.sub)+'</div>'
       +'<div style="font-size:9px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escCatHtml(fi.mid)+' &gt; '+escCatHtml(fi.sub)+'</div>'
       +'<div style="font-size:13px;font-weight:900;margin-top:5px">'+ff(r.amt)+'</div>'
@@ -3767,14 +3824,30 @@ function renderFixedExpenseCard(ym){
       +'</div>';
   }
 
+  // 예정 고정지출을 낼 수 있는지: 현금성 자산(현금/예금 등)과 바로 비교
+  var cashHtml='';
+  var cash=getCashAssets(ym);
+  if(pendAmt>0&&cash&&ym>=today.slice(0,7)){
+    var diff=cash.cash-pendAmt;
+    cashHtml='<div class="fxk-cash '+(diff>=0?'good':'bad')+'">'+(diff>=0
+      ?'💵 현금성 자산 <b>'+ff(cash.cash)+'</b>('+cash.ym+' 기준)으로 예정 고정지출 <b>'+ff(pendAmt)+'</b>을 모두 낼 수 있어요 · 여유 <b>'+ff(diff)+'</b>'
+      :'⚠️ 현금성 자산 <b>'+ff(cash.cash)+'</b>('+cash.ym+' 기준)으로는 예정 고정지출 <b>'+ff(pendAmt)+'</b>에 <b>'+ff(-diff)+'</b> 부족해요')+'</div>';
+  }
+  function kpi(label,val,color,sub){return'<div class="kpi"><div class="kl">'+label+'</div><div class="kv" style="font-size:18px;color:'+color+'">'+val+'</div><div class="ks">'+sub+'</div><div class="kb" style="background:'+color+'"></div></div>';}
+  var pendSub=pendCount+'건'+(lateCount?' · <span style="color:var(--rd);font-weight:700">'+lateCount+'건 지남</span>':'')+(soonCount?' · 7일 내 '+soonCount+'건 '+f(soonAmt):'');
+
   var html='<div class="card"><div class="card-title">🔁 이번달 고정지출 <span class="sub">· 구독료·통신비·보험료·월세 등 매달 나가는 지출 · '+doneCount+'/'+rows.length+'건 결제 확인됨</span></div>'
-    +'<div class="g2 mb8">'
-    +'<div class="kpi"><div class="kl">월 고정지출 총액</div><div class="kv" style="font-size:18px;color:var(--pu)">'+f(total)+'</div><div class="kb" style="background:var(--pu)"></div></div>'
-    +'<div class="kpi"><div class="kl">항목 개수</div><div class="kv" style="font-size:18px">'+rows.length+'개</div><div class="kb" style="background:var(--mu2)"></div></div>'
+    +'<div class="fxk-row">'
+      +kpi('총 고정지출',f(total),'var(--pu)',rows.length+'건')
+      +kpi('나간 고정지출',f(doneAmt),'var(--bl)',doneCount+'건 · '+donePct+'%')
+      +kpi('예정 고정지출',f(pendAmt),'var(--yw)',pendSub)
     +'</div>'
+    +'<div class="bs-bar" style="height:8px;margin:2px 0 4px"><div class="bs-bar-fill" style="width:'+donePct+'%;background:var(--bl)"></div></div>'
+    +'<div style="font-size:10px;color:var(--mu);margin-bottom:8px">금액 기준 '+donePct+'% 결제 · 미결제 금액은 고정거래에 등록한 금액(예상)이에요</div>'
+    +cashHtml
     +sections.map(function(sec,si){
       return(si>0?'<div style="margin-top:14px"></div>':'')
-        +'<div style="font-size:11px;font-weight:700;color:var(--mu2);margin-bottom:6px">'+sec.icon+' '+sec.title+' <span style="font-weight:400;color:var(--mu)">('+sec.rows.length+'건 · '+ff(sec.rows.reduce(function(s,r){return s+r.amt;},0))+')</span></div>'
+        +'<div style="font-size:11px;font-weight:700;color:var(--mu2);margin-bottom:6px">'+sec.icon+' '+sec.title+' <span style="font-weight:400;color:var(--mu)">('+sec.rows.length+'건 · '+ff(secSum(sec))+')</span></div>'
         +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">'
         +sec.rows.map(renderCard).join('')
         +'</div>';
@@ -4887,17 +4960,37 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
   }
   var hasGoals=!!(ebInc.total||ebSav.total);
   var goalsHtml=hasGoals?'<div class="bs-goalbox'+(expBudget?'':' solo')+'">'+goalRow('💰','수입 목표',ebInc.total,sm.income)+goalRow('🏦','저축 목표',ebSav.total,savActual)+'</div>':'';
-  var noteHtml='';
+  var noteHtml='',warnLine='';
   if(ebInc.total>0&&(expBudget>0||ebSav.total>0)){
     var leftover=ebInc.total-(expBudget+ebSav.total);
     var calc='수입 목표 '+ff(ebInc.total)+' − 지출 예산 '+ff(expBudget)+' − 저축 목표 '+ff(ebSav.total)+' = '+(leftover<0?'부족분 ':'여윳돈 ')+ff(Math.abs(leftover));
     noteHtml=leftover<0
       ?'<div class="bs-note bad" title="'+calc+'">⚠️ 수입 목표로는 지출 예산과 저축 목표를 다 못 채워요 — <b>'+ff(-leftover)+'</b> 부족</div>'
       :'<div class="bs-note good" title="'+calc+'">✅ 수입 목표로 지출 예산과 저축 목표를 채우고 <b>'+ff(leftover)+'</b>이 남아요</div>';
+    // 같은 내용을 제목 줄 바로 아래 한 줄로도 만든다(지출 예산 카드 안에서 바로 보이도록 - 별도 박스는 지출 예산이 없을 때만 쓴다)
+    warnLine=leftover<0
+      ?'<div class="bs-warnline bad" title="'+calc+'">⚠️ 수입 목표로는 지출 예산과 저축 목표를 <b>'+ff(-leftover)+'</b> 못 채워요</div>'
+      :'<div class="bs-warnline good" title="'+calc+'">✅ 수입 목표로 지출 예산과 저축 목표를 채우고 <b>'+ff(leftover)+'</b>이 남아요</div>';
   }
   if(expBudget){
     var hs=stateOf(expPct,true);
     var remain0=expBudget-expActual;
+    // 고정지출과 연계: 이번달에 아직 안 나간 고정지출(예정) 중 예산에 잡혀 있는 만큼은 이미 쓸 곳이 정해진 돈이다.
+    // 소분류마다 "남은 예산"과 "예정 고정지출" 중 작은 쪽만 빼서(예산에 없는 고정지출은 빼지 않음) 이중 차감을 막는다.
+    var freeLine='';
+    if(inProgress){
+      var pendBySub={},actualSubAll={},pendTotal=0,reserved=0;
+      getFixedExpenseRows(ym).forEach(function(r){if(!r.done){var pk=r.fi.mid+'|'+r.fi.sub;pendBySub[pk]=(pendBySub[pk]||0)+r.amt;}});
+      getTxs(ym).forEach(function(t){if(t.type==='지출'&&!isInvestLossTx(t)){var ak=t.mid+'|'+t.sub;actualSubAll[ak]=(actualSubAll[ak]||0)+(Number(t.amount)||0);}});
+      Object.keys(pendBySub).forEach(function(k){
+        pendTotal+=pendBySub[k];
+        reserved+=Math.min(Math.max(0,(ebExp.bySub[k]||0)-(actualSubAll[k]||0)),pendBySub[k]);
+      });
+      if(pendTotal>0){
+        var freeAmt=remain0-reserved;
+        freeLine='<div class="bs-freeline" title="예정 고정지출 전체 '+ff(pendTotal)+' 중 예산에 잡혀 있는 '+ff(reserved)+'만 뺐어요">📌 자유롭게 쓸 수 있는 금액 <b class="'+(freeAmt>=0?'g':'r')+'">'+ff(Math.max(freeAmt,0))+'</b> <span class="m">(남은 예산 − 예정 고정지출 '+ff(reserved)+(freeAmt<0?' · '+ff(-freeAmt)+' 부족':'')+')</span></div>';
+      }
+    }
     var paceHtml='';
     if(elapsedPct!==null){
       var diff=expPct-elapsedPct;
@@ -4908,13 +5001,12 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
     html+='<div class="bs-hero">'
       +'<div class="bs-hero-top"><div>'
         +'<div class="bs-title">'+(inProgress?'이번달':parseInt(p[1])+'월')+' 지출 예산 <span class="bs-chip" style="background:'+hs.bg+';color:'+hs.fg+'">'+hs.text+'</span></div>'
-        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 <b>'+ff(expActual)+' 사용</b> · '+(remain0>=0?'<b class="g">'+ff(remain0)+' 남음</b>':'<b class="r">'+ff(-remain0)+' 초과</b>')+'</div>'
+        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 <b>'+ff(expActual)+' 사용</b> · '+(remain0>=0?'<b class="g">'+ff(remain0)+' 남음</b>':'<b class="r">'+ff(-remain0)+' 초과</b>')+'</div>'+freeLine+warnLine
       +'</div><div class="bs-pct" style="color:'+hs.fg+'">'+expPct+'<small>%</small></div></div>'
       +'<div class="bs-bar"><div class="bs-bar-fill" style="width:'+Math.min(expPct,100)+'%;background:'+hs.color+'"></div>'
         +(elapsedPct!==null?'<div class="bs-bar-today" style="left:'+elapsedPct+'%"></div>':'')+'</div>'
       +(elapsedPct!==null?'<div class="bs-bar-legend"><span><span style="display:inline-block;width:3px;height:11px;background:var(--tx);vertical-align:-2px;margin-right:6px;border-radius:2px"></span>오늘 ('+(now.getMonth()+1)+'/'+now.getDate()+') · 월 '+elapsedPct+'% 경과</span>'+paceHtml+'</div>':'')
       +goalsHtml
-      +noteHtml
       +'</div>';
   }else if(goalsHtml||noteHtml){
     // 지출 예산이 없을 때(드문 경우)는 목표 달성 막대만 한 카드로 보여준다
@@ -5507,6 +5599,13 @@ function renderAst(){
   var cg={'투자':'투자/절세계좌','절세계좌':'투자/절세계좌','연금':'연금','보험저축':'저축/보험','저축':'저축/보험','부동산':'부동산','기타':'기타','부채':'부채'};
   AI.forEach(function(a,i){var g=cg[a.cat]||'기타';if(groups[g])groups[g].push({a:a,i:i});});
   var container=document.getElementById('d-ast');container.innerHTML='';
+  // 전체 탭에 있는 "자산 구성 현황"(자산 구성 / 순자산 vs 부채 도넛)을 자산 탭에서도 바로 볼 수 있게 맨 위에 둔다.
+  try{
+    var compBox=document.createElement('div');
+    compBox.className='ast-comp-box';
+    compBox.innerHTML=renderAssetComp();
+    container.appendChild(compBox);
+  }catch(err){console.error('assetComp(ast) error',err);}
   Object.keys(groups).forEach(function(gname){
     var items=groups[gname];if(!items.length)return;
     var isDebt=gname==='부채';
@@ -5600,8 +5699,8 @@ function renderAst(){
     var autoBox=document.createElement('div');
     autoBox.style.cssText='margin-top:12px;padding:10px 12px;background:var(--sf2);border:1px solid var(--bd);border-radius:var(--rs);font-size:12px';
     autoBox.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'
-      +'<div style="flex:1;min-width:220px"><b>🔁 마통 순상환 → 저축 자동 반영</b>'
-      +'<div style="font-size:10px;color:var(--mu);margin-top:3px;line-height:1.5">마통 합계('+mtNames.join(' + ')+')가 전월보다 줄어든 만큼을 그 달 「저축 &gt; 대출상환」으로 자동 기록해요. 잔액이 늘어난 달은 기록하지 않고, 그 달에 직접 입력한 대출상환이 있으면 중복을 피하려고 건너뛰어요. 현재 자동 기록 '+autoCnt+'건.</div></div>'
+      +'<div style="flex:1;min-width:220px"><b>🔁 대출 순상환 → 저축 자동 반영</b>'
+      +'<div style="font-size:10px;color:var(--mu);margin-top:3px;line-height:1.5">대출 합계('+mtNames.join(' + ')+')가 전월보다 줄어든 만큼을 그 달 「저축 &gt; 대출상환」으로 자동 기록해요. 잔액이 늘어난 달은 기록하지 않고, 그 달에 직접 입력한 대출상환이 있으면 중복을 피하려고 건너뛰어요. 현재 자동 기록 '+autoCnt+'건.</div></div>'
       +'<button class="btn '+(on?'bp':'bg2')+' bsm" onclick="setAutoMarTongSavings('+(on?'false':'true')+')">'+(on?'켜짐 · 끄기':'꺼짐 · 켜기')+'</button></div>';
     container.appendChild(autoBox);
   }
