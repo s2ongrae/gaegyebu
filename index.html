@@ -78,6 +78,100 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 /* 월별 카드 */
 .mon-card-body{display:none;border-top:1px solid var(--bd)}
 .sec-divider{font-size:11px;font-weight:800;color:var(--mu2);text-transform:uppercase;letter-spacing:.08em;margin:20px 0 10px;padding-left:10px;border-left:3px solid var(--bl);display:flex;align-items:center;gap:8px}
+/* ── 예산 탭 결산(월 요약) / 전체 탭 기간 안내 ── */
+.bs-hero{background:linear-gradient(180deg,#fff 0%,var(--sf2) 100%);border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;margin-bottom:12px}
+.bs-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.bs-title{font-size:14px;font-weight:800;color:var(--tx);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bs-hint{font-size:11px;color:var(--mu);margin-top:3px}
+.bs-pct{font-size:40px;font-weight:900;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.bs-pct small{font-size:18px;font-weight:800;margin-left:1px}
+.bs-chip{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.bs-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.bs-stat{background:#fff;border:1px solid var(--bd);border-radius:var(--rs);padding:10px 12px;min-width:0}
+.bs-stat .l{font-size:11px;font-weight:700;color:var(--mu)}
+.bs-stat .v{font-size:20px;font-weight:900;margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bs-bar{position:relative;height:14px;background:var(--sf3);border-radius:7px}
+.bs-bar-fill{height:100%;border-radius:7px;transition:width .5s}
+.bs-bar-today{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--tx);border-radius:2px;transform:translateX(-1px)}
+.bs-bar-legend{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--mu2);margin-top:9px;flex-wrap:wrap}
+.bs-pace{font-weight:800}
+.bs-eq{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd)}
+.bs-eq-i{background:#fff;border:1px solid var(--bd);border-radius:var(--rs);padding:5px 10px;font-size:11px;color:var(--mu2);line-height:1.3}
+.bs-eq-i b{display:block;font-size:13px;font-weight:800;color:var(--tx);font-variant-numeric:tabular-nums}
+.bs-op{font-size:15px;font-weight:800;color:var(--mu)}
+.bs-goals{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.bs-goal{background:var(--sf2);border-radius:var(--r);padding:12px 14px}
+.bs-goal-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.bs-goal-title{font-size:13px;font-weight:800}
+.bs-goal-pct{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums}
+.bs-goal-foot{display:flex;justify-content:space-between;font-size:11px;color:var(--mu2);margin-top:7px}
+.bs-goal-foot b{color:var(--tx)}
+.bs-goal-empty{font-size:11px;color:var(--mu);text-align:center;padding:20px 12px}
+.bs-legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--mu2);margin:4px 2px 8px}
+.bs-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.bs-legend .bs-legend-act{margin-left:auto}
+.bs-legend a{color:var(--bl);cursor:pointer;font-weight:700}
+.bs-wrap{overflow-x:auto}
+.bs-tbl{width:100%;border-collapse:collapse;min-width:640px}
+.bs-tbl th{font-size:11px;font-weight:700;color:var(--mu);text-align:right;padding:8px 10px;border-bottom:2px solid var(--bd)}
+.bs-tbl th:first-child{text-align:left}
+.bs-tbl td{padding:0 10px;border-bottom:1px solid var(--bd);font-variant-numeric:tabular-nums}
+.bs-cat{cursor:pointer;background:#fff;transition:background .15s}
+.bs-cat.nokid{cursor:default}
+.bs-cat:hover{background:var(--sf2)}
+.bs-cat td{height:46px;font-size:13px}
+.bs-cat td:first-child{box-shadow:inset 4px 0 0 var(--st,var(--bd))}
+.bs-name{font-size:14px;font-weight:800;white-space:nowrap}
+.bs-caret{display:inline-block;width:16px;color:var(--mu);font-size:11px}
+.bs-num{text-align:right;white-space:nowrap}
+.bs-muted{color:var(--mu)}
+.bs-act{font-weight:800;color:var(--tx)}
+.bs-act.over{color:var(--rd)}
+.bs-zero{color:var(--mu);font-weight:500}
+.bs-rem.pos{color:var(--gn);font-weight:700}
+.bs-rem.neg{color:var(--rd);font-weight:800}
+.bs-usage{min-width:150px}
+.bs-usage-in{display:flex;align-items:center;gap:8px}
+.bs-usage-bar{flex:1;height:8px;background:var(--sf3);border-radius:4px;overflow:hidden}
+.bs-usage-bar i{display:block;height:100%;border-radius:4px}
+.bs-usage-pct{min-width:46px;text-align:right;font-size:12px;font-weight:800}
+.bs-sub{background:#f3f9ff}
+.bs-sub td{height:38px;font-size:12.5px}
+.bs-sub td:first-child{box-shadow:inset 4px 0 0 var(--st,var(--bd))}
+.bs-sub.clk{cursor:pointer}
+.bs-sub.clk:hover{background:var(--sf2)}
+.bs-subname{padding-left:30px!important;white-space:nowrap;color:var(--mu2);font-weight:600}
+.bs-tag{display:inline-block;font-size:10px;font-weight:700;color:var(--mu);background:var(--sf3);border-radius:10px;padding:1px 7px;margin-left:6px}
+.bs-det td{padding:0 10px 8px 44px!important;background:#f3f9ff}
+.bs-det-list{background:#fff;border:1px solid var(--bd);border-radius:var(--rs);overflow:hidden}
+.bs-det-row{display:grid;grid-template-columns:48px 1fr auto auto;gap:10px;align-items:center;padding:7px 12px;font-size:12px;border-bottom:1px solid var(--bd)}
+.bs-det-row:last-child{border-bottom:none}
+.bs-det-d{color:var(--mu);font-variant-numeric:tabular-nums}
+.bs-det-m{color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bs-det-p{font-size:10px;color:var(--mu2);background:var(--sf3);border-radius:10px;padding:1px 8px;white-space:nowrap}
+.bs-det-a{font-weight:800;color:var(--tx);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.dash-range-note{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--mu2);margin-bottom:10px;font-weight:600}
+.dash-range-note .prog{font-size:11px;font-weight:700;background:var(--sf2);color:var(--mu2);border-radius:20px;padding:2px 10px}
+.bs-m-sub{display:none;font-size:10px;font-weight:700;margin-top:1px}
+.bs-m-sub.pos{color:var(--gn)}
+.bs-m-sub.neg{color:var(--rd)}
+@media(max-width:700px){
+.bs-pct{font-size:32px}.bs-stat .v{font-size:15px}.bs-goals{grid-template-columns:1fr}.bs-hero{padding:14px}
+/* 폰에서는 예산·잔액 열을 숨기고, 실적 아래에 남음/초과를 작게 붙여 한 화면에 들어오게 한다 */
+.bs-tbl{min-width:0}
+.bs-c-bud,.bs-c-rem{display:none}
+.bs-m-sub{display:block}
+.bs-tbl th,.bs-tbl td{padding-left:8px;padding-right:8px}
+.bs-cat td{height:54px;font-size:12.5px}
+.bs-sub td{height:46px}
+.bs-name{font-size:13px}
+.bs-usage{min-width:0;padding-left:8px!important}
+.bs-usage-pct{min-width:34px;font-size:11px}
+.bs-subname{padding-left:22px!important;white-space:normal}
+.bs-det td{padding:0 6px 8px 14px!important}
+.bs-det-row{grid-template-columns:40px 1fr auto}
+.bs-det-p{display:none}
+}
 .sec-divider:first-child{margin-top:0}
 .sec-divider .sec-sub{font-size:10px;font-weight:400;color:var(--mu);text-transform:none;letter-spacing:0}
 .asset-comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px}
@@ -3966,13 +4060,33 @@ function toggleCatSub(id){
   var showVal=el.tagName==='TR'?'table-row':'block';
   el.style.display=(el.style.display==='none'||!el.style.display)?showVal:'none';
 }
-// toggleCatSub와 달리, 같은 groupClass를 가진 여러 <tr>(소분류 행 + 그 아래 상세행들)을 한꺼번에 토글한다.
-// (대분류 하나를 클릭하면 그 밑에 소분류가 여러 줄로 나오는 예산탭 요약표에서 사용)
-function toggleSubGroup(groupClass){
-  var rows=document.querySelectorAll('.'+groupClass);
-  if(!rows.length)return;
-  var isHidden=rows[0].style.display==='none'||!rows[0].style.display;
-  rows.forEach(function(r){r.style.display=isHidden?'table-row':'none';});
+// 예산 탭 결산 표: 카테고리 행을 누르면 소분류만 펼쳐지고(거래 상세는 닫힌 채), 소분류 행을 누르면 그 거래 내역만 펼쳐진다.
+// (예전 toggleSubGroup은 소분류 행과 거래 상세 행을 같은 그룹으로 묶어서, 카테고리를 펼치면 모든 소분류의 거래 상세가
+//  한꺼번에 열려 '거래 내역 없음' 줄이 도배되던 문제가 있었다)
+function toggleBudCat(ri){
+  var subs=document.querySelectorAll('.bs-sub-'+ri);
+  if(!subs.length)return;
+  var open=subs[0].style.display==='none'||!subs[0].style.display;
+  subs.forEach(function(r){r.style.display=open?'table-row':'none';});
+  if(!open){
+    document.querySelectorAll('.bs-det-'+ri).forEach(function(r){r.style.display='none';});
+    document.querySelectorAll('.bs-sub-'+ri+' .bs-caret').forEach(function(cr){if(cr.textContent)cr.textContent='▸';});
+  }
+  var cr2=document.getElementById('bs-caret-'+ri);if(cr2)cr2.textContent=open?'▾':'▸';
+}
+function toggleBudSub(detId,caretId){
+  var el=document.getElementById(detId);if(!el)return;
+  var open=el.style.display==='none'||!el.style.display;
+  el.style.display=open?'table-row':'none';
+  var cr=document.getElementById(caretId);if(cr)cr.textContent=open?'▾':'▸';
+}
+function toggleBudAll(open){
+  var n=document.querySelectorAll('.bs-cat').length;
+  for(var i=0;i<n;i++){
+    var subs=document.querySelectorAll('.bs-sub-'+i);if(!subs.length)continue;
+    var isOpen=subs[0].style.display==='table-row';
+    if(isOpen!==open)toggleBudCat(i);
+  }
 }
 // 카테고리별 지출/수입/저축 순위 표에서 행을 클릭했을 때, 소분류 목록과 "월별 추이 미니차트"를 함께 토글한다.
 // 차트는 처음 펼칠 때 딱 한 번만 그리고(두 번째부터는 캔버스를 재사용), 데이터는 window.__catMonthlyChartData에
@@ -4176,38 +4290,6 @@ function renderForecastCard(curYM2){
   return html;
 }
 
-// ── 구독료 총합 대시보드 ──────────────────────────────────────
-function renderSubscriptionCard(curYM2){
-  var allTxs=loadDB().txs||[];
-  var subTxs=allTxs.filter(function(t){return t.mid==='문화여가'&&t.sub==='구독료'&&t.type==='지출';});
-  if(!subTxs.length)return'';
-  var cutoff=addMonthsToYm(curYM2,-2);
-  var byName={};
-  subTxs.forEach(function(t){
-    var name=t.memo||'이름없는 구독';
-    if(!byName[name]||t.date>byName[name].date)byName[name]=t;
-  });
-  var active=Object.keys(byName).map(function(n){return byName[n];}).filter(function(t){return t.date&&t.date.slice(0,7)>=cutoff;});
-  if(!active.length)return'';
-  var total=active.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
-  active.sort(function(a,b){return b.amount-a.amount;});
-  var html='<div class="card mb12"><div class="card-title">🔁 구독료 총합 <span class="sub">· 최근 3개월 내 결제 기록 기준</span></div>'
-    +'<div class="dtl-card" id="dtl-subs" onclick="toggleDtl(\'dtl-subs\')">'
-    +'<div class="g2 mb8">'
-    +'<div class="kpi"><div class="kl">월 구독료 총액</div><div class="kv" style="font-size:18px;color:var(--pu)">'+f(total)+'</div><div class="kb" style="background:var(--pu)"></div></div>'
-    +'<div class="kpi"><div class="kl">구독 개수</div><div class="kv" style="font-size:18px">'+active.length+'개</div><div class="kb" style="background:var(--mu2)"></div></div>'
-    +'</div>'
-    +'<div style="font-size:11px;color:var(--mu)">작아 보여도 다 더하면 꽤 큰 돈이에요 — 안 쓰는 구독 있는지 한번 점검해보세요.</div>'
-    +'<div class="dtl-hint">눌러서 구독별 내역보기 ▾</div>'
-    +'<div class="dtl-body">'
-    +active.map(function(t){
-      return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid var(--bd)"><span>'+(t.memo||'이름없는 구독')+' <span style="color:var(--mu)">('+t.date+' 결제)</span></span><span style="font-weight:700;color:var(--pu)">'+ff(t.amount)+'</span></div>';
-    }).join('')
-    +'</div>'
-    +'</div></div>';
-  return html;
-}
-
 function renderAnomalyCard(curYM2){
   var res=detectSpendingAnomalies(curYM2);
   var dismissed=getDismissedAnomalies();
@@ -4282,6 +4364,74 @@ function renderDashRangeBtns(){
     btn.onclick=function(){setDashRangeMode(b.key);};
     wrap.appendChild(btn);
   });
+}
+// 전체 탭 "스냅샷"/"수입 구조" 카드의 문구를 집계 기간(이번달/연도/전체)에 맞춰 만든다.
+// (예전엔 기간과 상관없이 "누적 수입" + "이번달 이전 누적 기준"이라고 써서, '이번달'을 고르면 1개월치만 보이는데도
+//  누적 수치가 사라진 것처럼 보이는 혼란이 있었다.)
+function dashPeriodMeta(months){
+  var mode=getDashRangeMode();
+  var n=months.length;
+  function fmt(ym){return ym.slice(0,4)+'년 '+parseInt(ym.slice(5,7))+'월';}
+  var first=n?months[0]:curYM,last=n?months[n-1]:curYM;
+  var now=new Date();
+  var realYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var meta={isMonth:mode==='month',word:'누적',title:'',text:'',progress:''};
+  if(mode==='month'){
+    var mw=(curYM===realYm)?'이번달':parseInt(curYM.slice(5,7))+'월';
+    meta.word=mw;meta.title='💰 '+mw+' 현황';meta.text=fmt(curYM)+' 한 달 기준';
+  }else if(mode==='all'){
+    meta.title='💰 전체 기간 요약';meta.text='전체 기간 누적 · '+fmt(first)+' ~ '+fmt(last)+' ('+n+'개월)';
+  }else{
+    var y=mode.indexOf('year:')===0?mode.slice(5):curYM.slice(0,4);
+    meta.title='💰 '+y+'년 요약';meta.text=y+'년 누적 · '+parseInt(first.slice(5,7))+'월 ~ '+parseInt(last.slice(5,7))+'월 ('+n+'개월)';
+  }
+  if(last===realYm){
+    var dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+    meta.progress='이번달은 '+(now.getMonth()+1)+'/'+now.getDate()+'까지의 내역 · 월 '+Math.round(now.getDate()/dim*100)+'% 경과';
+  }
+  return meta;
+}
+function renderDashSnapshotHtml(c){
+  var m=dashPeriodMeta(c.months),w=m.word;
+  var ytd=null;
+  if(m.isMonth){
+    // 이번달만 볼 때도 "올해 누적"을 보조 줄로 같이 보여준다.
+    var yms=getAllMonths().filter(function(x){return x<=curYM&&x.slice(0,4)===curYM.slice(0,4);});
+    var yi=0,ye=0;yms.forEach(function(x){var s=getMonthSummary(x);yi+=s.income;ye+=s.expense;});
+    ytd={income:yi,expense:ye,sv:yi-ye,sr:yi>0?((yi-ye)/yi*100).toFixed(1):'0'};
+  }
+  function kpi(label,val,cls,sub,color){return'<div class="kpi"><div class="kl">'+label+'</div><div class="kv '+cls+'">'+val+'</div><div class="ks">'+sub+'</div><div class="kb" style="background:'+color+'"></div></div>';}
+  return'<div class="sec-divider">'+m.title+'</div>'
+    +'<div class="dash-range-note">📅 '+m.text+(m.progress?'<span class="prog">'+m.progress+'</span>':'')+'</div>'
+    +'<div class="g5 mb12">'
+    +kpi(w+' 수입',f(c.tot.income),'tg',m.isMonth?'올해 누적 '+f(ytd.income):'월평균 '+f(c.ai),'var(--gn)')
+    +kpi(w+' 지출',f(c.tot.expense),'trd',m.isMonth?'올해 누적 '+f(ytd.expense):'월평균 '+f(c.ae),'var(--rd)')
+    +kpi(w+' 순저축',f(c.sv),'tb',m.isMonth?'올해 누적 '+f(ytd.sv):'수입-지출','var(--bl)')
+    +kpi(m.isMonth?w+' 저축률':'평균 저축률',c.sr+'%','ty',m.isMonth?'올해 평균 '+ytd.sr+'%':c.months.length+'개월','var(--yw)')
+    +kpi('현재 순자산',f(c.latestNW),'tpu','최신 자산 기준','var(--pu)')
+    +'</div>';
+}
+function renderDashIncomeStructHtml(c){
+  var m=dashPeriodMeta(c.months),w=m.word,n=c.months.length;
+  function kpi(label,val,sub,color,cls){return'<div class="kpi"><div class="kl">'+label+'</div><div class="kv '+(cls||'')+'"'+(cls?'':' style="color:'+color+'"')+'>'+val+'</div><div class="ks">'+sub+'</div><div class="kb" style="background:'+color+'"></div></div>';}
+  var cards=kpi(w+' 고정수입(근로)',f(c.totIncomeFixed),'고정거래 등록분','#3b82f6')
+    +kpi(w+' 변동수입(사업/투자)',f(c.totIncomeVar),'비고정 수입','#f59e0b')
+    +kpi('고정수입 비중',c.incFixedPct+'%','전체 수입 대비','var(--gn)','tg');
+  if(m.isMonth){
+    // 이번달 고정수입(급여 등)이 아직 안 들어왔는지 비교할 수 있게, 지난 3개월 평균을 같이 보여준다.
+    var prev=getAllMonths().filter(function(x){return x<curYM;}).slice(-3);
+    var pf=0,pv=0;prev.forEach(function(x){var s=getMonthSummary(x);pf+=s.incomeFixed;pv+=s.incomeVar;});
+    var pn=prev.length;
+    cards+=kpi('지난 '+(pn||3)+'개월 평균 고정수입',pn?f(Math.round(pf/pn)):'-',pn?'이번달과 비교해 보세요':'비교할 지난달이 없어요','#3b82f6')
+         +kpi('지난 '+(pn||3)+'개월 평균 변동수입',pn?f(Math.round(pv/pn)):'-',pn?'이번달과 비교해 보세요':'비교할 지난달이 없어요','#f59e0b');
+  }else{
+    cards+=kpi('평균 고정 월수입',f(n?Math.round(c.totIncomeFixed/n):0),'월 '+n+'개월 평균','#3b82f6')
+         +kpi('평균 변동 월수입',f(n?Math.round(c.totIncomeVar/n):0),'월 '+n+'개월 평균','#f59e0b');
+  }
+  return'<div class="card mb12"><div class="card-title">💰 수입 구조: 고정수입(근로) vs 변동수입(사업/투자) <span class="sub">· 고정수입 비중 '+c.incFixedPct+'%</span></div>'
+    +'<div class="g5 mb12" style="margin-bottom:0">'+cards+'</div>'
+    +'<div style="font-size:10px;color:var(--mu);margin-top:4px">↓ 아래 "월별 수입·지출 &amp; 순자산 추이"의 수입 막대에서 고정/변동 구성을 확인할 수 있어요.</div>'
+    +'</div>';
 }
 function renderDash(){
   renderDashRangeBtns();
@@ -4422,14 +4572,8 @@ function renderDash(){
     +renderGoalsCard()
     +'<div class="sec-divider">📊 자산 &amp; 수입 구조</div>'
     +(function(){try{return'<div class="card mb12">'+renderAssetComp()+'</div>';}catch(e){console.error('assetComp error',e);return'';}})()
-    +'<div class="sec-divider">💰 이번달 스냅샷</div>'
-    +'<div style="font-size:12px;color:var(--mu2);margin-bottom:8px">📅 '+curYM.replace('-','년 ')+'월 이전 누적 기준</div>'
-    +'<div class="g5 mb12"><div class="kpi"><div class="kl">누적 수입</div><div class="kv tg">'+f(tot.income)+'</div><div class="ks">월평균 '+f(ai)+'</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">누적 지출</div><div class="kv trd">'+f(tot.expense)+'</div><div class="ks">월평균 '+f(ae)+'</div><div class="kb" style="background:var(--rd)"></div></div><div class="kpi"><div class="kl">누적 순저축</div><div class="kv tb">'+f(sv)+'</div><div class="ks">수입-지출</div><div class="kb" style="background:var(--bl)"></div></div><div class="kpi"><div class="kl">평균 저축률</div><div class="kv ty">'+sr+'%</div><div class="ks">'+sums.length+'개월</div><div class="kb" style="background:var(--yw)"></div></div><div class="kpi"><div class="kl">현재 순자산</div><div class="kv tpu">'+f(latestNW)+'</div><div class="ks">최신 자산 기준</div><div class="kb" style="background:var(--pu)"></div></div></div>'
-    +renderSubscriptionCard(curYM)
-    +'<div class="card mb12"><div class="card-title">💰 수입 구조: 고정수입(근로) vs 변동수입(사업/투자) <span class="sub">· 고정수입 비중 '+incFixedPct+'%</span></div>'
-    +'<div class="g5 mb12" style="margin-bottom:0"><div class="kpi"><div class="kl">누적 고정수입(근로)</div><div class="kv" style="color:#3b82f6">'+f(totIncomeFixed)+'</div><div class="ks">고정거래 등록분</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">누적 변동수입(사업/투자)</div><div class="kv" style="color:#f59e0b">'+f(totIncomeVar)+'</div><div class="ks">비고정 수입</div><div class="kb" style="background:#f59e0b"></div></div><div class="kpi"><div class="kl">고정수입 비중</div><div class="kv tg">'+incFixedPct+'%</div><div class="ks">전체 수입 대비</div><div class="kb" style="background:var(--gn)"></div></div><div class="kpi"><div class="kl">평균 고정 월수입</div><div class="kv" style="color:#3b82f6">'+f(sums.length?Math.round(totIncomeFixed/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#3b82f6"></div></div><div class="kpi"><div class="kl">평균 변동 월수입</div><div class="kv" style="color:#f59e0b">'+f(sums.length?Math.round(totIncomeVar/sums.length):0)+'</div><div class="ks">월 '+sums.length+'개월 평균</div><div class="kb" style="background:#f59e0b"></div></div></div>'
-    +'<div style="font-size:10px;color:var(--mu);margin-top:4px">↓ 아래 "월별 수입·지출 &amp; 순자산 추이"의 수입 막대에서 고정/변동 구성을 확인할 수 있어요.</div>'
-    +'</div>'
+    +renderDashSnapshotHtml({months:months,tot:tot,ai:ai,ae:ae,sv:sv,sr:sr,latestNW:latestNW})
+    +renderDashIncomeStructHtml({months:months,totIncomeFixed:totIncomeFixed,totIncomeVar:totIncomeVar,incFixedPct:incFixedPct})
     +renderForecastCard(curYM)
     +'<div class="sec-divider">📈 추이 &amp; 히스토리</div>'
     +'<div class="card mb12"><div class="card-title">📈 월별 수입·지출 &amp; 순자산 추이 <span class="sub">· 수입은 고정(파랑)+변동(주황) 구성으로 표시</span></div><div style="position:relative;height:260px"><canvas id="dC"></canvas></div></div>'
@@ -4595,7 +4739,6 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
 
   var expBudget=ebExp.total,expActual=sm.expense;
   var expPct=expBudget>0?Math.round(expActual/expBudget*100):0;
-  var expColor=expPct>100?'var(--rd)':expPct>80?'var(--yw)':'var(--gn)';
 
   if(!expBudget&&!ebInc.total&&!ebSav.total){
     wrap.innerHTML='<div class="card mb12"><div class="card-title">📊 '+label+' 결산</div>'
@@ -4603,139 +4746,145 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
     return;
   }
 
-  function goalBar(title,budget,actual,color){
-    if(!budget)return'';
-    var pct=Math.round(actual/budget*100);
-    var barColor=pct>=100?'var(--gn)':pct>=70?'var(--yw)':'var(--rd)';
-    return'<div style="background:var(--sf2);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">'
-      +'<span style="font-size:12px;font-weight:700;color:'+color+'">'+title+'</span>'
-      +'<span style="font-size:11px;color:var(--mu2)">실적 '+ff(actual)+' / 목표 '+ff(budget)+'</span>'
-      +'</div>'
-      +'<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden">'
-      +'<div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+barColor+';border-radius:3px"></div></div>'
-      +'<div style="text-align:right;font-size:11px;font-weight:700;color:'+barColor+';margin-top:2px">'+pct+'% 달성</div>'
-      +'</div>';
+  // 상태 구분(색/문구). 기준은 기존과 같다: 100% 초과=초과(빨강), 80% 초과=주의(노랑), 그 외=여유(초록)
+  function stateOf(pct,hasBudget){
+    if(!hasBudget)return{key:'none',color:'var(--bd2)',text:'예산 없음',bg:'var(--sf3)',fg:'var(--mu2)'};
+    if(pct>100)return{key:'over',color:'var(--rd)',text:'예산 초과',bg:'rgba(197,48,48,.13)',fg:'var(--rd)'};
+    if(pct>80)return{key:'warn',color:'var(--yw)',text:'주의',bg:'rgba(183,121,31,.15)',fg:'var(--yw)'};
+    return{key:'ok',color:'var(--gn)',text:'여유',bg:'rgba(39,103,73,.13)',fg:'var(--gn)'};
+  }
+  function usageBar(pct,st){
+    return'<div class="bs-usage-in"><div class="bs-usage-bar"><i style="width:'+Math.min(pct,100)+'%;background:'+st.color+'"></i></div>'
+      +'<span class="bs-usage-pct" style="color:'+st.fg+'">'+pct+'%</span></div>';
   }
 
-  var ranked=Object.keys(ebExp.byMid).map(function(m){
-    return{name:m,budget:ebExp.byMid[m],actual:sm.byMid[m]||0};
-  }).sort(function(a,b){return b.actual-a.actual;});
+  // 이번 달이 "지금 진행 중인 달"이면 오늘이 월의 몇 % 지점인지 막대에 표시해서, 쓴 속도가 빠른지 한눈에 보이게 한다.
+  var now=new Date();
+  var realYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  var inProgress=(ym===realYm);
+  var dim=new Date(Number(p[0]),Number(p[1]),0).getDate();
+  var elapsedPct=inProgress?Math.round(now.getDate()/dim*100):null;
 
   var html='<div class="card mb12"><div class="card-title">📊 '+label+' 결산</div>';
 
-  // "이번달 지출 예산 사용률" 카드 하나로 통합: 진행바 아래에 "수입목표=지출예산+저축목표+부족분/여윳돈" 한 줄 요약만 덧붙인다.
-  // (예전엔 이 요약이 별도의 경고/성공 박스로 따로 떨어져 있었는데, 같은 예산 얘기라 한 카드 안에 합치는 게 자연스러움)
-  var allocSummaryHtml='';
+  // ① 지출 예산 사용 현황 (히어로)
+  var allocHtml='';
   if(ebInc.total>0&&(expBudget>0||ebSav.total>0)){
     var allocated=expBudget+ebSav.total;
     var leftover=ebInc.total-allocated;
-    var overAllocated=leftover<0;
-    allocSummaryHtml='<div style="font-size:11px;color:var(--mu2);margin-top:10px;padding-top:10px;border-top:1px dashed var(--bd)">'
-      +'수입목표 <b style="color:var(--tx)">'+ff(ebInc.total)+'</b> = 지출예산 <b style="color:var(--rd)">'+ff(expBudget)+'</b> + 저축목표 <b style="color:var(--bl)">'+ff(ebSav.total)+'</b> + '+(overAllocated?'<b style="color:var(--rd)">부족분 '+ff(-leftover)+'</b>':'<b style="color:var(--gn)">여윳돈 '+ff(leftover)+'</b>')
+    allocHtml='<div class="bs-eq" title="수입 목표를 지출 예산과 저축 목표로 나눠 쓰는 계획이에요. 합이 모자라면 부족분, 남으면 여윳돈으로 보여요.">'
+      +'<div class="bs-eq-i">수입 목표<b>'+ff(ebInc.total)+'</b></div><span class="bs-op">=</span>'
+      +'<div class="bs-eq-i">지출 예산<b style="color:var(--rd)">'+ff(expBudget)+'</b></div><span class="bs-op">+</span>'
+      +'<div class="bs-eq-i">저축 목표<b style="color:var(--bl)">'+ff(ebSav.total)+'</b></div><span class="bs-op">+</span>'
+      +(leftover<0?'<div class="bs-eq-i" style="border-color:var(--rd)">부족분<b style="color:var(--rd)">'+ff(-leftover)+'</b></div>'
+                  :'<div class="bs-eq-i" style="border-color:var(--gn)">여윳돈<b style="color:var(--gn)">'+ff(leftover)+'</b></div>')
       +'</div>';
   }
-
   if(expBudget){
-    html+='<div style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">'
-      +'<span style="font-size:13px;font-weight:700">이번달 지출 예산 사용률</span>'
-      +'<span style="font-size:18px;font-weight:900;color:'+expColor+'">'+expPct+'%</span>'
+    var hs=stateOf(expPct,true);
+    var remain0=expBudget-expActual;
+    var paceHtml='';
+    if(elapsedPct!==null){
+      var diff=expPct-elapsedPct;
+      paceHtml=diff>5?'<span class="bs-pace" style="color:var(--rd)">⚠️ 월 진행률보다 '+diff+'%p 빠르게 쓰는 중</span>'
+              :diff<-5?'<span class="bs-pace" style="color:var(--gn)">👍 월 진행률보다 '+(-diff)+'%p 여유 있어요</span>'
+              :'<span class="bs-pace" style="color:var(--mu2)">월 진행률과 비슷하게 쓰는 중</span>';
+    }
+    html+='<div class="bs-hero">'
+      +'<div class="bs-hero-top"><div>'
+        +'<div class="bs-title">'+(inProgress?'이번달':parseInt(p[1])+'월')+' 지출 예산 <span class="bs-chip" style="background:'+hs.bg+';color:'+hs.fg+'">'+hs.text+'</span></div>'
+        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 '+ff(expActual)+' 사용</div>'
+      +'</div><div class="bs-pct" style="color:'+hs.fg+'">'+expPct+'<small>%</small></div></div>'
+      +'<div class="bs-stats">'
+        +'<div class="bs-stat"><div class="l">예산</div><div class="v">'+ff(expBudget)+'</div></div>'
+        +'<div class="bs-stat"><div class="l">쓴 금액</div><div class="v" style="color:'+(expPct>100?'var(--rd)':'var(--tx)')+'">'+ff(expActual)+'</div></div>'
+        +'<div class="bs-stat"><div class="l">'+(remain0>=0?'남은 예산':'초과한 금액')+'</div><div class="v" style="color:'+(remain0>=0?'var(--gn)':'var(--rd)')+'">'+ff(Math.abs(remain0))+'</div></div>'
       +'</div>'
-      +'<div style="display:flex;gap:16px;font-size:12px;margin-bottom:8px;flex-wrap:wrap">'
-      +'<span style="color:var(--mu2)">예산 <strong style="color:var(--tx)">'+ff(expBudget)+'</strong></span>'
-      +'<span style="color:var(--mu2)">실적 <strong style="color:var(--rd)">'+ff(expActual)+'</strong></span>'
-      +'<span style="color:var(--mu2)">잔액 <strong style="color:'+(expBudget-expActual>=0?'var(--gn)':'var(--rd)')+'">'+ff(expBudget-expActual)+'</strong></span>'
-      +'</div>'
-      +'<div style="height:10px;background:var(--sf3);border-radius:5px;overflow:hidden">'
-      +'<div style="width:'+Math.min(expPct,100)+'%;height:100%;background:'+expColor+';border-radius:5px;transition:width .5s"></div>'
-      +'</div>'
-      +allocSummaryHtml
+      +'<div class="bs-bar"><div class="bs-bar-fill" style="width:'+Math.min(expPct,100)+'%;background:'+hs.color+'"></div>'
+        +(elapsedPct!==null?'<div class="bs-bar-today" style="left:'+elapsedPct+'%"></div>':'')+'</div>'
+      +(elapsedPct!==null?'<div class="bs-bar-legend"><span><span style="display:inline-block;width:3px;height:11px;background:var(--tx);vertical-align:-2px;margin-right:6px;border-radius:2px"></span>오늘 ('+(now.getMonth()+1)+'/'+now.getDate()+') · 월 '+elapsedPct+'% 경과</span>'+paceHtml+'</div>':'')
+      +allocHtml
       +'</div>';
-  }else if(allocSummaryHtml){
-    // 지출예산 자체가 없을 때도(드문 경우) 배분 요약만이라도 보여준다
-    html+='<div style="background:var(--sf2);border-radius:var(--r);padding:14px;margin-bottom:12px">'+allocSummaryHtml+'</div>';
+  }else if(allocHtml){
+    html+='<div class="bs-hero">'+allocHtml.replace('margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd)','')+'</div>';
   }
 
-  if(ebInc.total||ebSav.total){
-    html+='<div class="g2" style="margin-bottom:12px">'
-      +'<div>'+(ebInc.total?goalBar('💰 수입 목표',ebInc.total,sm.income,'var(--gn)'):'<div class="em" style="padding:12px;font-size:11px">수입 목표를 추가하면 여기 표시돼요</div>')+'</div>'
-      +'<div>'+(ebSav.total?goalBar('🏦 저축 목표',ebSav.total,savActual,'var(--bl)'):'<div class="em" style="padding:12px;font-size:11px">저축 목표를 추가하면 여기 표시돼요</div>')+'</div>'
-      +'</div>';
+  // ② 수입 / 저축 목표 달성
+  function goalCard(icon,title,budget,actual){
+    if(!budget)return'<div class="bs-goal bs-goal-empty">'+icon+' '+title+'를 추가하면 여기 표시돼요</div>';
+    var pct=Math.round(actual/budget*100);
+    var col=pct>=100?'var(--gn)':pct>=70?'var(--yw)':'var(--rd)';
+    return'<div class="bs-goal"><div class="bs-goal-top"><span class="bs-goal-title">'+icon+' '+title+'</span><span class="bs-goal-pct" style="color:'+col+'">'+pct+'%</span></div>'
+      +'<div class="bs-bar" style="height:10px;background:#fff"><div class="bs-bar-fill" style="width:'+Math.min(pct,100)+'%;background:'+col+'"></div></div>'
+      +'<div class="bs-goal-foot"><span>실적 <b>'+ff(actual)+'</b></span><span>목표 <b>'+ff(budget)+'</b></span></div></div>';
   }
+  if(ebInc.total||ebSav.total){
+    html+='<div class="bs-goals">'+goalCard('💰','수입 목표',ebInc.total,sm.income)+goalCard('🏦','저축 목표',ebSav.total,savActual)+'</div>';
+  }
+
+  // ③ 카테고리별 표 (카테고리를 누르면 소분류, 소분류를 누르면 그 거래 내역)
+  var ranked=Object.keys(ebExp.byMid).map(function(m){
+    return{name:m,budget:ebExp.byMid[m],actual:sm.byMid[m]||0};
+  }).sort(function(a,b){return(b.actual-a.actual)||(b.budget-a.budget);});
 
   if(ranked.length){
-    var monthTxsForBreakdown=getTxs(ym);
-    html+='<table style="width:100%;border-collapse:collapse"><thead><tr>'
-      +'<th style="text-align:left;font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">카테고리</th>'
-      +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">예산</th>'
-      +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">실적</th>'
-      +'<th class="tr" style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd)">잔액</th>'
-      +'<th style="font-size:11px;color:var(--mu);font-weight:700;padding:5px 6px;border-bottom:1px solid var(--bd);width:80px">사용률</th>'
-      +'</tr></thead><tbody>'
+    var monthTxs=getTxs(ym);
+    html+='<div class="bs-legend"><span><i style="background:var(--gn)"></i>여유 (80% 이하)</span><span><i style="background:var(--yw)"></i>주의 (80% 초과)</span><span><i style="background:var(--rd)"></i>초과 (100% 초과)</span>'
+      +'<span class="bs-legend-act"><a onclick="toggleBudAll(true)">모두 펼치기</a> · <a onclick="toggleBudAll(false)">모두 접기</a></span></div>'
+      +'<div class="bs-wrap"><table class="bs-tbl"><thead><tr><th>카테고리</th><th class="bs-c-bud">예산</th><th>실적</th><th class="bs-c-rem">잔액</th><th style="text-align:left;padding-left:18px">사용률</th></tr></thead><tbody>'
       +ranked.map(function(r,ri){
-        var pct2=r.budget>0?Math.min(Math.round(r.actual/r.budget*100),999):0;
+        var pct=r.budget>0?Math.min(Math.round(r.actual/r.budget*100),999):0;
+        var st=stateOf(pct,r.budget>0);
         var remain=r.budget-r.actual;
-        var c=pct2>100?'var(--rd)':pct2>80?'var(--yw)':'var(--gn)';
-        var w=Math.min(pct2,100);
-        var rowId='budsum-sub-'+ri;
-        var groupClass='budsum-group-'+ri;
-        // 소분류 목록: "이번달에 실제로 쓴 소분류"뿐 아니라 "예산이 설정된 소분류"도 합쳐서 보여준다.
-        // (예전엔 실적 있는 소분류만 나와서, 아직 이번달에 안 쓴 예산 항목이 통째로 안 보이던 문제가 있었음)
+
+        // 소분류 = 이번달 실적이 있는 것 + 예산이 설정된 것
         var actualBySub={};
-        monthTxsForBreakdown.forEach(function(t){if(t.mid===r.name)actualBySub[t.sub]=(actualBySub[t.sub]||0)+(Number(t.amount)||0);});
+        monthTxs.forEach(function(t){if(t.mid===r.name)actualBySub[t.sub]=(actualBySub[t.sub]||0)+(Number(t.amount)||0);});
         var subNames={};
-        Object.keys(actualBySub).forEach(function(s){subNames[s]=true;});
-        Object.keys(ebExp.bySub).forEach(function(key){
-          if(key.indexOf(r.name+'|')===0)subNames[key.slice(r.name.length+1)]=true;
-        });
-        var subRows=Object.keys(subNames).map(function(sub){
-          var subBudget=ebExp.bySub[r.name+'|'+sub]||0;
-          var subActual=actualBySub[sub]||0;
-          return{sub:sub,budget:subBudget,actual:subActual};
-        }).sort(function(a,b){return b.actual-a.actual;});
-        var subHtml=subRows.map(function(s,si){
-          var spct=s.budget>0?Math.min(Math.round(s.actual/s.budget*100),999):0;
-          var sremain=s.budget-s.actual;
-          var scolor=s.budget>0?(spct>100?'var(--rd)':spct>80?'var(--yw)':'var(--gn)'):'var(--mu)';
-          var sw=Math.min(spct,100);
-          var subDetailId=rowId+'-item-'+si;
-          var itemTxs=monthTxsForBreakdown.filter(function(t){return t.mid===r.name&&t.sub===s.sub;})
+        Object.keys(actualBySub).forEach(function(sb){subNames[sb]=true;});
+        Object.keys(ebExp.bySub).forEach(function(key){if(key.indexOf(r.name+'|')===0)subNames[key.slice(r.name.length+1)]=true;});
+        var subRows=Object.keys(subNames).map(function(sb){
+          return{sub:sb,budget:ebExp.bySub[r.name+'|'+sb]||0,actual:actualBySub[sb]||0};
+        }).sort(function(a,b){return(b.actual-a.actual)||(b.budget-a.budget);});
+
+        var subHtml=subRows.map(function(sr,si){
+          var spct=sr.budget>0?Math.min(Math.round(sr.actual/sr.budget*100),999):0;
+          var sst=stateOf(spct,sr.budget>0);
+          var sremain=sr.budget-sr.actual;
+          var itemTxs=monthTxs.filter(function(t){return t.mid===r.name&&t.sub===sr.sub;})
             .slice().sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;});
-          var detailHtml=itemTxs.length?itemTxs.map(function(t){
-            return'<div style="display:flex;justify-content:space-between;font-size:10px;padding:3px 36px;color:var(--mu);border-bottom:1px dashed var(--bd)">'
-              +'<span>'+t.date+' '+(t.memo||'(메모 없음)')+'</span>'
-              +'<span>'+ff(Number(t.amount)||0)+(t.payment?' · '+t.payment:'')+'</span>'
-              +'</div>';
-          }).join(''):'<div style="font-size:10px;color:var(--mu);padding:3px 36px">거래 내역 없음</div>';
-          return'<tr class="'+groupClass+'" style="display:none;cursor:pointer;background:var(--sf2)" onclick="toggleCatSub(\''+subDetailId+'\')">'
-            +'<td style="font-size:11px;color:var(--mu2);padding:5px 6px 5px 24px;border-bottom:1px solid var(--bd)">'+(SUB_ICON[s.sub]||'')+' '+s.sub+'</td>'
-            +'<td class="tr" style="font-size:11px;color:var(--mu);padding:5px 6px;border-bottom:1px solid var(--bd)">'+(s.budget>0?ff(s.budget):'-')+'</td>'
-            +'<td class="tr" style="font-size:11px;font-weight:700;color:var(--rd);padding:5px 6px;border-bottom:1px solid var(--bd)">'+ff(s.actual)+'</td>'
-            +'<td class="tr" style="font-size:11px;padding:5px 6px;border-bottom:1px solid var(--bd);color:'+(s.budget>0?(sremain>=0?'var(--gn)':'var(--rd)'):'var(--mu)')+'">'+(s.budget>0?ff(sremain):'-')+'</td>'
-            +'<td style="padding:5px 6px;border-bottom:1px solid var(--bd)">'
-            +(s.budget>0?('<div style="display:flex;align-items:center;gap:4px">'
-              +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden"><div style="width:'+sw+'%;height:100%;background:'+scolor+';border-radius:2px"></div></div>'
-              +'<span style="font-size:10px;color:'+scolor+';font-weight:700;min-width:28px;text-align:right">'+spct+'%</span>'
-              +'</div>'):'<span style="font-size:10px;color:var(--mu)">예산 미설정</span>')
-            +'</td>'
-            +'</tr>'
-            +'<tr id="'+subDetailId+'" class="'+groupClass+'" style="display:none"><td colspan="5" style="padding:0;background:var(--sf2);border-bottom:1px solid var(--bd)">'+detailHtml+'</td></tr>';
+          var hasTx=itemTxs.length>0;
+          var detId='bs-det-'+ri+'-'+si,caretId='bs-subcaret-'+ri+'-'+si;
+          var rowHtml='<tr class="bs-sub bs-sub-'+ri+(hasTx?' clk':'')+'" style="display:none;--st:'+sst.color+'"'+(hasTx?' onclick="toggleBudSub(\''+detId+'\',\''+caretId+'\')"':'')+'>'
+            +'<td class="bs-subname"><span class="bs-caret" id="'+caretId+'">'+(hasTx?'▸':'')+'</span>'+(SUB_ICON[sr.sub]||'')+' '+escCatHtml(sr.sub)+(sr.budget>0?'':'<span class="bs-tag">예산 미설정</span>')+'</td>'
+            +'<td class="bs-num bs-muted bs-c-bud">'+(sr.budget>0?ff(sr.budget):'-')+'</td>'
+            +'<td class="bs-num '+(sr.actual>0?'bs-act'+(sst.key==='over'?' over':''):'bs-zero')+'">'+ff(sr.actual)+(sr.budget>0?'<span class="bs-m-sub '+(sremain>=0?'pos':'neg')+'">'+(sremain>=0?'남음 '+ff(sremain):'초과 '+ff(-sremain))+'</span>':'')+'</td>'
+            +'<td class="bs-num bs-rem bs-c-rem '+(sr.budget>0?(sremain>=0?'pos':'neg'):'bs-muted')+'">'+(sr.budget>0?(sremain>=0?ff(sremain):'초과 '+ff(-sremain)):'-')+'</td>'
+            +'<td class="bs-usage" style="padding-left:18px">'+(sr.budget>0?usageBar(spct,sst):'')+'</td>'
+            +'</tr>';
+          if(hasTx){
+            rowHtml+='<tr id="'+detId+'" class="bs-det bs-det-'+ri+'" style="display:none"><td colspan="5"><div class="bs-det-list">'
+              +itemTxs.map(function(t){
+                return'<div class="bs-det-row"><span class="bs-det-d">'+(t.date||'').slice(5).replace('-','/')+'</span>'
+                  +'<span class="bs-det-m">'+(t.memo?escCatHtml(t.memo):'<span class="bs-muted">(메모 없음)</span>')+'</span>'
+                  +'<span>'+(t.payment?'<span class="bs-det-p">'+escCatHtml(t.payment)+'</span>':'')+'</span>'
+                  +'<span class="bs-det-a">'+ff(Number(t.amount)||0)+'</span></div>';
+              }).join('')
+              +'</div></td></tr>';
+          }
+          return rowHtml;
         }).join('');
-        return'<tr style="cursor:pointer" onclick="toggleSubGroup(\''+groupClass+'\')">'
-          +'<td style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd)">'+(CE[r.name]||'')+' '+r.name+'</td>'
-          +'<td class="tr" style="font-size:12px;color:var(--mu2);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.budget)+'</td>'
-          +'<td class="tr" style="font-weight:700;font-size:12px;color:var(--rd);padding:6px 6px;border-bottom:1px solid var(--bd)">'+ff(r.actual)+'</td>'
-          +'<td class="tr" style="font-size:12px;padding:6px 6px;border-bottom:1px solid var(--bd);color:'+(remain>=0?'var(--gn)':'var(--rd)')+'">'+ff(remain)+'</td>'
-          +'<td style="padding:6px 6px;border-bottom:1px solid var(--bd)">'
-          +'<div style="display:flex;align-items:center;gap:4px">'
-          +'<div style="flex:1;height:4px;background:var(--sf3);border-radius:2px;overflow:hidden"><div style="width:'+w+'%;height:100%;background:'+c+';border-radius:2px"></div></div>'
-          +'<span style="font-size:10px;color:'+c+';font-weight:700;min-width:28px;text-align:right">'+pct2+'%</span>'
-          +'</div></td>'
-          +'</tr>'
-          +subHtml;
+
+        var hasKids=subRows.length>0;
+        return'<tr class="bs-cat'+(hasKids?'':' nokid')+'" style="--st:'+st.color+'"'+(hasKids?' onclick="toggleBudCat('+ri+')"':'')+'>'
+          +'<td class="bs-name"><span class="bs-caret" id="bs-caret-'+ri+'">'+(hasKids?'▸':'')+'</span>'+(CE[r.name]||'')+' '+escCatHtml(r.name)+'</td>'
+          +'<td class="bs-num bs-muted bs-c-bud">'+ff(r.budget)+'</td>'
+          +'<td class="bs-num '+(r.actual>0?'bs-act'+(st.key==='over'?' over':''):'bs-zero')+'">'+ff(r.actual)+(r.budget>0?'<span class="bs-m-sub '+(remain>=0?'pos':'neg')+'">'+(remain>=0?'남음 '+ff(remain):'초과 '+ff(-remain))+'</span>':'')+'</td>'
+          +'<td class="bs-num bs-rem bs-c-rem '+(remain>=0?'pos':'neg')+'">'+(remain>=0?ff(remain):'초과 '+ff(-remain))+'</td>'
+          +'<td class="bs-usage" style="padding-left:18px">'+usageBar(pct,st)+'</td>'
+          +'</tr>'+subHtml;
       }).join('')
-      +'</tbody></table>';
+      +'</tbody></table></div>';
   }
   html+='</div>';
   wrap.innerHTML=html;
