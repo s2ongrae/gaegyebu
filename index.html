@@ -82,14 +82,14 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bs-hero{background:linear-gradient(180deg,#fff 0%,var(--sf2) 100%);border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;margin-bottom:12px}
 .bs-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .bs-title{font-size:14px;font-weight:800;color:var(--tx);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.bs-hint{font-size:11px;color:var(--mu);margin-top:3px}
+.bs-hint{font-size:13px;color:var(--mu2);margin-top:8px;font-weight:600;line-height:1.5}
+.bs-hint b{font-weight:800;color:var(--tx);white-space:nowrap}
+.bs-hint b.g{color:var(--gn)}
+.bs-hint b.r{color:var(--rd)}
+.bs-hero-top + .bs-bar{margin-top:14px}
 .bs-pct{font-size:40px;font-weight:900;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums}
 .bs-pct small{font-size:18px;font-weight:800;margin-left:1px}
 .bs-chip{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap}
-.bs-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
-.bs-stat{background:#fff;border:1px solid var(--bd);border-radius:var(--rs);padding:10px 12px;min-width:0}
-.bs-stat .l{font-size:11px;font-weight:700;color:var(--mu)}
-.bs-stat .v{font-size:20px;font-weight:900;margin-top:3px;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bs-bar{position:relative;height:14px;background:var(--sf3);border-radius:7px}
 .bs-bar-fill{height:100%;border-radius:7px;transition:width .5s}
 .bs-bar-today{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--tx);border-radius:2px;transform:translateX(-1px)}
@@ -156,7 +156,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bs-m-sub.pos{color:var(--gn)}
 .bs-m-sub.neg{color:var(--rd)}
 @media(max-width:700px){
-.bs-pct{font-size:32px}.bs-stat .v{font-size:15px}.bs-goals{grid-template-columns:1fr}.bs-hero{padding:14px}
+.bs-pct{font-size:32px}.bs-goals{grid-template-columns:1fr}.bs-hero{padding:14px}
 /* 폰에서는 예산·잔액 열을 숨기고, 실적 아래에 남음/초과를 작게 붙여 한 화면에 들어오게 한다 */
 .bs-tbl{min-width:0}
 .bs-c-bud,.bs-c-rem{display:none}
@@ -4336,19 +4336,28 @@ function getDashRangeMode(){var r=getDashRange();return r.mode||('year:'+curYM.s
 // {start, end} 반환. start/end가 null이면 무제한.
 function getDashRangeBounds(){
   var mode=getDashRangeMode();
-  if(mode==='all')return{start:null,end:curYM};
+  // 년/전체 필터는 상단에서 고른 월과 무관하게 "그 해 전체 / 전체 기간"을 본다.
+  // (예전엔 상단 월까지만 잘라서, 상단이 6월이면 "2026년"을 골라도 1~6월 6개월 평균이 나오고,
+  //  상단이 2025년이면 "2026년"을 골라도 "데이터 없음"이 나오는 문제가 있었음)
+  if(mode==='all')return{start:null,end:null};
   if(mode==='month')return{start:curYM,end:curYM};
   if(mode.indexOf('year:')===0){
     var y=mode.slice(5);
     return{start:y+'-01',end:y+'-12'};
   }
-  return{start:curYM.slice(0,4)+'-01',end:curYM};
+  return{start:curYM.slice(0,4)+'-01',end:curYM.slice(0,4)+'-12'};
+}
+// 년/전체 필터에서 집계할 수 있는 마지막 달: 상단 월과 "실제 오늘 달" 중 늦은 쪽(아직 오지 않은 미래 달이 평균에 섞이지 않게).
+function dashMonthCap(){
+  var n=new Date();
+  var real=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+  return curYM>real?curYM:real;
 }
 function renderDashRangeBtns(){
   var wrap=document.getElementById('dashRangeBtns');
   if(!wrap)return;
   var mode=getDashRangeMode();
-  var allM=getAllMonths().filter(function(m){return m<=curYM;});
+  var allM=getAllMonths().filter(function(m){return m<=dashMonthCap();});
   var years=Array.from(new Set(allM.map(function(m){return m.slice(0,4);})));
   if(years.indexOf(curYM.slice(0,4))<0)years.push(curYM.slice(0,4));
   years.sort().reverse();
@@ -4439,7 +4448,7 @@ function renderDash(){
   var nwData=allAM.filter(function(m){return m<=curYM;}).map(function(ym){var r=calcNW(assets[ym]||{},ym);return{ym:ym,nw:r.nw};}).filter(function(d){return d.nw!==0;});
   var latestNW=nwData.length?nwData[nwData.length-1].nw:0;
   var rangeBounds=getDashRangeBounds();
-  var months=getAllMonths().filter(function(m){return m<=curYM&&(!rangeBounds.start||m>=rangeBounds.start)&&(!rangeBounds.end||m<=rangeBounds.end);});
+  var months=getAllMonths().filter(function(m){return m<=dashMonthCap()&&(!rangeBounds.start||m>=rangeBounds.start)&&(!rangeBounds.end||m<=rangeBounds.end);});
   var rangeLabelEl=document.getElementById('dashRangeLabel');
   if(rangeLabelEl)rangeLabelEl.textContent=months.length?(months[0]+' ~ '+months[months.length-1]+' · '+months.length+'개월'):'데이터 없음';
   // 항상 즉시 렌더링 (데이터 없으면 안내 메시지, 단 목표 카드는 데이터 유무와 무관하게 항상 표시)
@@ -4793,13 +4802,8 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
     html+='<div class="bs-hero">'
       +'<div class="bs-hero-top"><div>'
         +'<div class="bs-title">'+(inProgress?'이번달':parseInt(p[1])+'월')+' 지출 예산 <span class="bs-chip" style="background:'+hs.bg+';color:'+hs.fg+'">'+hs.text+'</span></div>'
-        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 '+ff(expActual)+' 사용</div>'
+        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 <b>'+ff(expActual)+' 사용</b> · '+(remain0>=0?'<b class="g">'+ff(remain0)+' 남음</b>':'<b class="r">'+ff(-remain0)+' 초과</b>')+'</div>'
       +'</div><div class="bs-pct" style="color:'+hs.fg+'">'+expPct+'<small>%</small></div></div>'
-      +'<div class="bs-stats">'
-        +'<div class="bs-stat"><div class="l">예산</div><div class="v">'+ff(expBudget)+'</div></div>'
-        +'<div class="bs-stat"><div class="l">쓴 금액</div><div class="v" style="color:'+(expPct>100?'var(--rd)':'var(--tx)')+'">'+ff(expActual)+'</div></div>'
-        +'<div class="bs-stat"><div class="l">'+(remain0>=0?'남은 예산':'초과한 금액')+'</div><div class="v" style="color:'+(remain0>=0?'var(--gn)':'var(--rd)')+'">'+ff(Math.abs(remain0))+'</div></div>'
-      +'</div>'
       +'<div class="bs-bar"><div class="bs-bar-fill" style="width:'+Math.min(expPct,100)+'%;background:'+hs.color+'"></div>'
         +(elapsedPct!==null?'<div class="bs-bar-today" style="left:'+elapsedPct+'%"></div>':'')+'</div>'
       +(elapsedPct!==null?'<div class="bs-bar-legend"><span><span style="display:inline-block;width:3px;height:11px;background:var(--tx);vertical-align:-2px;margin-right:6px;border-radius:2px"></span>오늘 ('+(now.getMonth()+1)+'/'+now.getDate()+') · 월 '+elapsedPct+'% 경과</span>'+paceHtml+'</div>':'')
