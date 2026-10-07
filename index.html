@@ -493,6 +493,7 @@ var CATS={
   '수입':{'p':'수입','s':['레드윗 급여','AZ 급여','투자수입','돌보미수입','보험금수입','중고거래수입','기타수입']},
   '저축':{'p':'저축','s':['주택청약','ISA','IRP','연금저축펀드','종신(KDB)','종신(라이나)','대출상환']}
 };
+var CATS_DEFAULT=JSON.parse(JSON.stringify(CATS)); // 기본 카테고리 원본 사본 - 삭제 기록을 되돌릴 때(rebuildCatsFromStores) 기본 카테고리를 다시 만드는 데 쓴다
 var SUB_ICON={
   // 식비
   '외식':'🍽️','배달':'🛵','식자재':'🛒','커피':'☕','식비':'🍽️',
@@ -594,6 +595,7 @@ function addUserCategory(mid,p,icon,color){
   mid=(mid||'').trim();
   if(!mid)return{ok:false,msg:'카테고리 이름을 입력해주세요.'};
   if(CATS[mid])return{ok:false,msg:'이미 있는 카테고리 이름이에요.'};
+  clearCatDeletedFor(mid,null);
   var list=readUserCatsRaw();
   list.push({mid:mid,p:p,s:[],icon:icon,color:color});
   saveUserCats(list);
@@ -632,7 +634,7 @@ function loadExtraSubs(){
 }
 // 소분류 이름을 바꾼 뒤, 예전 이름이 더 이상 아무데도(BT/거래) 안 쓰이면 카테고리 목록에서 완전히 제거한다.
 // skipBtIndex: 방금 이름이 바뀐 그 BT 항목 자신은 "예전 이름을 쓰는 항목" 집계에서 빼야 하므로 인덱스를 받아 제외한다.
-function removeSubCategoryIfUnused(mid,oldSub,skipBtIndex){
+function removeSubCategoryIfUnused(mid,oldSub,skipBtIndex,destSub){
   var stillUsedInBT=BT.some(function(b,idx){return idx!==skipBtIndex&&b.mid===mid&&b.sub===oldSub;});
   var stillUsedInTxs=(loadDB().txs||[]).some(function(t){return t.mid===mid&&t.sub===oldSub;});
   if(stillUsedInBT||stillUsedInTxs)return; // 다른 곳에서 아직 쓰고 있으면 안전하게 그대로 둔다
@@ -641,6 +643,9 @@ function removeSubCategoryIfUnused(mid,oldSub,skipBtIndex){
   var pos=cat.s.indexOf(oldSub);
   if(pos<0)return;
   cat.s.splice(pos,1);
+  // 기본 카테고리는 코드에 하드코딩돼 있어서 메모리에서만 지우면 새로고침 때 되살아난다.
+  // 그래서 "예전 이름 → 새 이름" 삭제 기록을 영구 저장해 두고, 시작할 때마다 다시 적용한다.
+  if(destSub){var rgd=readCatDeleted();rgd['sub:'+mid+'|'+oldSub]=mid+'|'+destSub;saveCatDeleted(rgd);}
   // 사용자 정의 대분류라면 USER_CATS에서도 반영
   var list=readUserCatsRaw();
   var idx=list.findIndex(function(c){return c.mid===mid;});
@@ -662,6 +667,7 @@ function addSubCategory(mid,sub){
   if(!cat)return{ok:false,msg:'대분류를 먼저 선택해주세요.'};
   if(cat.s.indexOf(sub)>=0)return{ok:false,msg:'이미 있는 소분류예요.'};
   cat.s.push(sub);
+  clearCatDeletedFor(mid,sub); // 예전에 삭제했던 이름을 다시 만들면 삭제 기록을 풀어서, 새 내역이 엉뚱한 곳으로 옮겨지지 않게 한다
   // 사용자 정의 대분류라면 USER_CATS에 저장
   var list=readUserCatsRaw();
   var idx=list.findIndex(function(c){return c.mid===mid;});
@@ -802,7 +808,7 @@ function loadDB(){try{return JSON.parse(localStorage.getItem(DB_KEY)||'{}')}catc
 function saveDB(db){localStorage.setItem(DB_KEY,JSON.stringify(db));scheduleSync();}
 function getTxs(ym){var db=loadDB();var all=db.txs||[];return ym?all.filter(function(t){return t.date&&t.date.indexOf(ym)===0;}):all;}
 function getTxsByDate(date){var db=loadDB();return(db.txs||[]).filter(function(t){return t.date===date;});}
-function addTx(tx){var db=loadDB();if(!db.txs)db.txs=[];tx.id=mkId();tx.fixed=tx.fixed||false;db.txs.push(tx);saveDB(db);}
+function addTx(tx){var db=loadDB();if(!db.txs)db.txs=[];tx.id=mkId();tx.fixed=tx.fixed||false;{var rgd=readCatDeleted();if(rgd['sub:'+tx.mid+'|'+tx.sub]||rgd['mid:'+tx.mid]){var rr=resolveCatRedirect(tx.mid,tx.sub,rgd);tx.mid=rr.mid;tx.sub=rr.sub;}}db.txs.push(tx);saveDB(db);}
 function updateTx(id,upd){var db=loadDB();var idx=-1;(db.txs||[]).forEach(function(t,i){if(t.id===id)idx=i;});if(idx>=0){db.txs[idx]=Object.assign({},db.txs[idx],upd);if(db.txs[idx].auto)db.txs[idx].auto=false;}saveDB(db);} // 마통 자동 기록 거래를 수정하면 '직접 입력'으로 취급(다음 계산에서 덮어쓰지 않음)
 function deleteTx(id){if(String(id).indexOf('auto-mt-')===0){var sk=readAutoMtSkip();sk[String(id).slice(8)]=true;saveAutoMtSkip(sk);} var db=loadDB();db.txs=(db.txs||[]).filter(function(t){return t.id!==id;});saveDB(db);}
 function getBudget(ym){var db=loadDB();return(db.budgets&&db.budgets[ym])||{};}
@@ -1342,6 +1348,255 @@ function submitTiNewCat(){
   document.getElementById('ti-newcat-form').style.display='none';
   showToast('✅ "'+mid+' > '+sub+'" 추가하고 바로 선택해뒀어요!');
 }
+// ── 카테고리 삭제(영구) ──────────────────────────────────────────
+// 기본 카테고리는 코드에 하드코딩돼 있어서 메모리에서만 지우면 새로고침 때 되살아나고, 서버의 오래된 거래가
+// 삭제 전 카테고리로 되돌릴 수도 있다. 그래서 삭제를 "삭제한 카테고리 → 옮길 카테고리" 기록으로 영구 저장하고,
+// 시작할 때/서버 데이터를 받을 때/가져오기 후마다 enforceDeletedCats()로 다시 적용한다.
+//   키 형식: 'sub:대분류|소분류' 또는 'mid:대분류'  →  값: '옮길대분류|옮길소분류'
+var CAT_DELETED_KEY='gaegyebu_deleted_cats';
+function readCatDeleted(){try{return JSON.parse(localStorage.getItem(CAT_DELETED_KEY)||'{}');}catch(e){return{};}}
+function saveCatDeleted(m){localStorage.setItem(CAT_DELETED_KEY,JSON.stringify(m));scheduleSync();}
+function clearCatDeletedFor(mid,sub){
+  var reg=readCatDeleted(),ch=false;
+  if(sub){if(reg['sub:'+mid+'|'+sub]){delete reg['sub:'+mid+'|'+sub];ch=true;}}
+  else{Object.keys(reg).forEach(function(k){if(k==='mid:'+mid||k.indexOf('sub:'+mid+'|')===0){delete reg[k];ch=true;}});}
+  if(ch)saveCatDeleted(reg);
+}
+// 삭제된 카테고리의 최종 이동처를 찾는다(이동처가 나중에 또 삭제됐을 수 있어 체인을 따라가되, 순환 방지로 6단계까지만).
+function resolveCatRedirect(mid,sub,reg){
+  for(var n=0;n<6;n++){
+    var to=reg['sub:'+mid+'|'+sub]||reg['mid:'+mid];
+    if(!to)break;
+    var p=to.split('|');
+    if(p[0]===mid&&p[1]===sub)break;
+    mid=p[0];sub=p[1];
+  }
+  return{mid:mid,sub:sub};
+}
+function buildSearchMidOptions(){
+  var sm=document.getElementById('s-mid');if(!sm)return;
+  var cur=sm.value;
+  sm.innerHTML='<option value="">전 카테고리</option>';
+  Object.keys(CATS).forEach(function(m){var o=document.createElement('option');o.value=o.textContent=m;sm.appendChild(o);});
+  if(cur&&CATS[cur])sm.value=cur;
+}
+// 삭제 기록을 모든 곳에 (다시) 적용한다. 몇 번을 불러도 결과가 같다(멱등).
+function enforceDeletedCats(){
+  var reg=readCatDeleted();
+  var stats={tx:0,fx:0,ins:0,bt:0,cats:0};
+  var keys=Object.keys(reg);
+  if(!keys.length)return stats;
+  function isDel(mid,sub){return !!(reg['sub:'+mid+'|'+sub]||reg['mid:'+mid]);}
+  // 1) 카테고리 목록(메모리)
+  keys.forEach(function(k){
+    if(k.indexOf('sub:')===0){
+      var p=k.slice(4).split('|');var cat=CATS[p[0]];
+      if(cat){var ix=cat.s.indexOf(p[1]);if(ix>=0){cat.s.splice(ix,1);stats.cats++;}}
+    }else if(k.indexOf('mid:')===0){
+      var m=k.slice(4);if(CATS[m]){delete CATS[m];stats.cats++;}
+    }
+  });
+  // 2) 저장소(사용자 카테고리 / 추가 소분류) - 서버 병합으로 되살아난 항목도 정리
+  var ul=readUserCatsRaw(),ulCh=false;
+  ul=ul.filter(function(cu){
+    if(!cu)return false;
+    if(reg['mid:'+cu.mid]){ulCh=true;return false;}
+    var b=(cu.s||[]).length;cu.s=(cu.s||[]).filter(function(s){return !reg['sub:'+cu.mid+'|'+s];});
+    if(cu.s.length!==b)ulCh=true;
+    return true;
+  });
+  if(ulCh)saveUserCats(ul);
+  var ex=readExtraSubsRaw(),exCh=false;
+  Object.keys(ex).forEach(function(m){
+    if(reg['mid:'+m]){delete ex[m];exCh=true;return;}
+    var b=(ex[m]||[]).length;ex[m]=(ex[m]||[]).filter(function(s){return !reg['sub:'+m+'|'+s];});
+    if(ex[m].length!==b)exCh=true;
+  });
+  if(exCh)saveExtraSubs(ex);
+  // 3) 거래 + 월별 예산 입력값
+  var db=loadDB(),dbCh=false;
+  (db.txs||[]).forEach(function(t){
+    if(isDel(t.mid,t.sub)){
+      var r=resolveCatRedirect(t.mid,t.sub,reg);
+      if(r.mid!==t.mid||r.sub!==t.sub){t.mid=r.mid;t.sub=r.sub;stats.tx++;dbCh=true;}
+    }
+  });
+  if(db.budgets){
+    Object.keys(db.budgets).forEach(function(ym){
+      var bm=db.budgets[ym]||{};
+      Object.keys(bm).forEach(function(m){
+        if(reg['mid:'+m]){delete bm[m];dbCh=true;return;}
+        Object.keys(bm[m]||{}).forEach(function(s){if(reg['sub:'+m+'|'+s]){delete bm[m][s];dbCh=true;}});
+      });
+    });
+  }
+  if(dbCh)saveDB(db);
+  // 4) 예산 항목(BT) - 삭제한 카테고리의 예산 설정은 함께 삭제
+  var btB=BT.length;BT=BT.filter(function(b){return !isDel(b.mid,b.sub);});
+  if(BT.length!==btB){stats.bt=btB-BT.length;saveBT();}
+  // 5) 고정거래(FX) - 이동처로 옮기고, 옮긴 결과가 기존 항목과 똑같아지면 중복 제거
+  var fxCh=false,seen={},nf=[];
+  FX.forEach(function(fi){
+    var moved=false;
+    if(isDel(fi.mid,fi.sub)){var r=resolveCatRedirect(fi.mid,fi.sub,reg);if(r.mid!==fi.mid||r.sub!==fi.sub){fi.mid=r.mid;fi.sub=r.sub;moved=true;stats.fx++;fxCh=true;}}
+    var key=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
+    if(moved&&seen[key])return;
+    seen[key]=true;nf.push(fi);
+  });
+  if(fxCh){FX=nf;saveFX();}
+  // 6) 할부
+  if(typeof INSTALLMENTS!=='undefined'&&INSTALLMENTS.length){
+    var insCh=false;
+    INSTALLMENTS.forEach(function(ins){
+      if(isDel(ins.mid,ins.sub)){var r=resolveCatRedirect(ins.mid,ins.sub,reg);if(r.mid!==ins.mid||r.sub!==ins.sub){ins.mid=r.mid;ins.sub=r.sub;stats.ins++;insCh=true;}}
+    });
+    if(insCh)saveIns();
+  }
+  // 7) 고정거래 예상일 수정값(키: 대분류|소분류|메모|YYYY-MM)
+  var ov=readFixedDateOverrides(),ovCh=false,nov={};
+  Object.keys(ov).forEach(function(k){
+    var mm=k.match(/^([^|]*)\|([^|]*)\|(.*)\|(\d{4}-\d{2})$/);
+    if(mm&&isDel(mm[1],mm[2])){var r=resolveCatRedirect(mm[1],mm[2],reg);nov[r.mid+'|'+r.sub+'|'+mm[3]+'|'+mm[4]]=ov[k];ovCh=true;}
+    else nov[k]=ov[k];
+  });
+  if(ovCh)saveFixedDateOverrides(nov);
+  if(stats.cats||stats.tx||stats.fx||stats.ins||stats.bt){buildMidSelectOptions();buildSearchMidOptions();}
+  return stats;
+}
+// 이전 기록으로 되돌릴 때: 기본 카테고리 원본 + 저장된 사용자 카테고리/추가 소분류 + (되돌려진) 삭제 기록으로 CATS를 처음부터 다시 만든다.
+function rebuildCatsFromStores(){
+  Object.keys(CATS).forEach(function(k){delete CATS[k];});
+  Object.keys(CATS_DEFAULT).forEach(function(k){CATS[k]={p:CATS_DEFAULT[k].p,s:CATS_DEFAULT[k].s.slice()};});
+  loadUserCats();loadExtraSubs();
+  enforceDeletedCats();
+  buildMidSelectOptions();buildSearchMidOptions();
+}
+// 코드가 이름으로 직접 참조해서 지우면 통계가 깨지는 소분류/대분류는 삭제를 막는다.
+var PROTECTED_SUBS={'금융지출|투자손실':'투자 손익 계산에 쓰이는 항목이라','수입|투자수입':'투자 손익 계산에 쓰이는 항목이라','저축|대출상환':'마통 자동 저축·대출 상환 통계에 쓰이는 항목이라'};
+var PROTECTED_MIDS={'수입':'기본 구조라','저축':'기본 구조라'};
+function getCatDeleteDestOptions(mid,sub){
+  var out=[];if(!CATS[mid])return out;
+  var p=CATS[mid].p;
+  Object.keys(CATS).forEach(function(m){
+    if(CATS[m].p!==p)return;
+    CATS[m].s.forEach(function(s){
+      if(sub?(m===mid&&s===sub):(m===mid))return;
+      out.push({mid:m,sub:s});
+    });
+  });
+  return out;
+}
+function getCatDeleteBlockReason(mid,sub){
+  var cat=CATS[mid];
+  if(!cat)return '이미 없는 카테고리예요.';
+  if(sub){
+    if(PROTECTED_SUBS[mid+'|'+sub])return '"'+mid+' > '+sub+'"는 '+PROTECTED_SUBS[mid+'|'+sub]+' 삭제할 수 없어요.';
+    if(cat.s.length<=1)return '"'+mid+'"의 마지막 소분류라서 삭제할 수 없어요. 카테고리 전체를 지우려면 카드 제목의 🗑️를 눌러주세요.';
+  }else{
+    if(PROTECTED_MIDS[mid])return '"'+mid+'"는 '+PROTECTED_MIDS[mid]+' 삭제할 수 없어요.';
+    var bad=cat.s.filter(function(s){return PROTECTED_SUBS[mid+'|'+s];});
+    if(bad.length)return '"'+mid+'"에는 삭제할 수 없는 항목('+bad.join(', ')+')이 있어서 통째로 지울 수 없어요.';
+  }
+  if(!getCatDeleteDestOptions(mid,sub).length)return '내역을 옮길 다른 카테고리가 없어서 삭제할 수 없어요.';
+  return '';
+}
+function countCatUsage(mid,sub){
+  var u={tx:0,fx:0,ins:0,bt:0,first:'',last:''};
+  (loadDB().txs||[]).forEach(function(t){
+    if(t.mid===mid&&(!sub||t.sub===sub)){u.tx++;if(!u.first||t.date<u.first)u.first=t.date;if(!u.last||t.date>u.last)u.last=t.date;}
+  });
+  u.fx=FX.filter(function(f){return f.mid===mid&&(!sub||f.sub===sub);}).length;
+  u.ins=(typeof INSTALLMENTS!=='undefined'?INSTALLMENTS:[]).filter(function(i){return i.mid===mid&&(!sub||i.sub===sub);}).length;
+  u.bt=BT.filter(function(b){return b.mid===mid&&(!sub||b.sub===sub);}).length;
+  return u;
+}
+function escCatHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function openDeleteCategory(mid,sub,ym){
+  var why=getCatDeleteBlockReason(mid,sub);
+  var isRow=!!sub;
+  if(why&&!isRow){showToast('⚠️ '+why);return;}
+  var ex=document.getElementById('del-cat-md');if(ex)ex.remove();
+  window.__delCat={mid:mid,sub:sub,ym:ym};
+  var u=countCatUsage(mid,sub);
+  var title=sub?(mid+' > '+sub):(mid+' (소분류 '+CATS[mid].s.length+'개 전체)');
+  var opts=why?[]:getCatDeleteDestOptions(mid,sub);
+  // 기본 이동처: 같은 대분류의 "기타…" 소분류 > 같은 대분류의 다른 소분류 > 같은 종류의 "기타…" > 첫 번째
+  var defIdx=0,best=-1;
+  opts.forEach(function(o,i){
+    var score=(o.mid===mid?2:0)+(o.sub.indexOf('기타')===0?1:0);
+    if(score>best){best=score;defIdx=i;}
+  });
+  var optHtml='',lastMid=null;
+  opts.forEach(function(o,i){
+    if(o.mid!==lastMid){if(lastMid!==null)optHtml+='</optgroup>';optHtml+='<optgroup label="'+escCatHtml((CE[o.mid]||'')+' '+o.mid)+'">';lastMid=o.mid;}
+    optHtml+='<option value="'+escCatHtml(o.mid+'|'+o.sub)+'"'+(i===defIdx?' selected':'')+'>'+escCatHtml(o.mid+' > '+o.sub)+'</option>';
+  });
+  if(lastMid!==null)optHtml+='</optgroup>';
+  var usage='거래 '+u.tx+'건'+(u.tx?' ('+u.first+' ~ '+u.last+')':'')+(u.fx?' · 고정거래 '+u.fx+'개':'')+(u.ins?' · 할부 '+u.ins+'개':'');
+  var md=document.createElement('div');md.className='mdbg on';md.id='del-cat-md';
+  md.innerHTML='<div class="md">'
+    +'<div class="mdh"><h3>🗑️ 카테고리 삭제</h3><button class="mdc" onclick="document.getElementById(\'del-cat-md\').remove()">✕</button></div>'
+    +'<div style="font-size:14px;font-weight:800;margin-bottom:8px">'+escCatHtml(title)+'</div>'
+    +(isRow?'<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px;font-size:12px">'
+      +'<label style="display:flex;gap:6px;align-items:flex-start;cursor:pointer"><input type="radio" name="dcat-mode" value="full" onchange="onDelCatModeChange()"'+(why?' disabled':' checked')+'><span><b>카테고리 완전 삭제</b> — 이 카테고리로 입력된 내역은 다른 카테고리로 옮겨요</span></label>'
+      +'<label style="display:flex;gap:6px;align-items:flex-start;cursor:pointer"><input type="radio" name="dcat-mode" value="budget" onchange="onDelCatModeChange()"'+(why?' checked':'')+'><span><b>예산 설정만 삭제</b> — 카테고리는 그대로 두고 예산 금액만 지워요</span></label>'
+      +'</div>':'')
+    +(why?'<div class="al wrn" style="font-size:11px">'+escCatHtml(why)+'</div>':'')
+    +'<div id="dcat-full-wrap" style="'+(why?'display:none':'')+'">'
+      +'<div class="al inf" style="font-size:11px;line-height:1.55">이 카테고리로 입력돼 있던 <b>'+usage+'</b>을(를) 아래 카테고리로 <b>옮겨요</b>. 이 카테고리의 예산 설정은 함께 삭제되고, 앞으로 가져오기 등으로 이 이름이 들어와도 아래 카테고리로 정리돼요.</div>'
+      +'<label>옮길 카테고리 <span style="font-weight:400;color:var(--mu)">(같은 종류만 선택 가능)</span></label>'
+      +'<select id="dcat-dest" class="md-input">'+optHtml+'</select>'
+      +'<div style="font-size:10px;color:var(--mu);margin-top:6px">삭제 직전 상태는 "🕐 이전 기록"에 자동 저장돼서 되돌릴 수 있어요.</div>'
+    +'</div>'
+    +'<div class="fx g8 mt8"><button class="btn bp" onclick="confirmDeleteCategory()">🗑️ 삭제</button><button class="btn bg2" onclick="document.getElementById(\'del-cat-md\').remove()">취소</button></div>'
+    +'</div>';
+  document.body.appendChild(md);
+}
+function onDelCatModeChange(){
+  var chk=document.querySelector('input[name="dcat-mode"]:checked');
+  var w=document.getElementById('dcat-full-wrap');
+  if(w)w.style.display=(chk&&chk.value==='budget')?'none':'';
+}
+function confirmDeleteCategory(){
+  var st=window.__delCat;if(!st)return;
+  var chk=document.querySelector('input[name="dcat-mode"]:checked');
+  var mode=chk?chk.value:'full';
+  var label=st.sub?(st.mid+' > '+st.sub):st.mid;
+  if(mode==='budget'){
+    // 같은 대분류|소분류의 예산 항목은 전부 지운다(혹시 중복돼 있어도 일부만 남지 않도록 뒤에서부터 제거)
+    for(var bi=BT.length-1;bi>=0;bi--){if(BT[bi].mid===st.mid&&BT[bi].sub===st.sub)removeBudgetTemplateItem(bi);}
+    if(st.ym)clearBudgetItem(st.ym,st.mid,st.sub);
+    document.getElementById('del-cat-md').remove();
+    renderBud();
+    showToast('🗑️ "'+label+'" 예산 설정을 삭제했어요.');
+    return;
+  }
+  var destSel=document.getElementById('dcat-dest');
+  var dv=destSel?destSel.value:'';
+  if(!dv){showToast('⚠️ 옮길 카테고리를 선택해주세요.');return;}
+  var dp=dv.split('|');
+  var r=deleteCategoryNow(st.mid,st.sub,dp[0],dp[1]);
+  if(!r.ok){showToast('⚠️ '+r.msg);return;}
+  document.getElementById('del-cat-md').remove();
+  showToast('🗑️ "'+label+'" 삭제 완료 · 거래 '+r.usage.tx+'건을 "'+r.dest+'"로 옮겼어요');
+}
+function deleteCategoryNow(mid,sub,destMid,destSub){
+  var why=getCatDeleteBlockReason(mid,sub);
+  if(why)return{ok:false,msg:why};
+  var okDest=getCatDeleteDestOptions(mid,sub).some(function(o){return o.mid===destMid&&o.sub===destSub;});
+  if(!okDest)return{ok:false,msg:'옮길 카테고리가 올바르지 않아요.'};
+  var usage=countCatUsage(mid,sub);
+  saveCheckpoint('카테고리 삭제 직전: '+mid+(sub?' > '+sub:''));
+  var reg=readCatDeleted();
+  reg[sub?('sub:'+mid+'|'+sub):('mid:'+mid)]=destMid+'|'+destSub;
+  saveCatDeleted(reg);
+  var stats=enforceDeletedCats();
+  // 지금 입력 폼에서 삭제한 카테고리를 고르고 있었다면 선택을 풀어준다
+  var tm=document.getElementById('ti-mid');
+  if(tm&&!tm.value){onMid();}
+  renderBud();
+  return{ok:true,usage:usage,stats:stats,dest:destMid+' > '+destSub};
+}
 function recoverOrphanedBTCategories(){
   var recovered=false;
   BT.forEach(function(item){
@@ -1428,6 +1683,14 @@ function addKnownDebtGoals(){
 // (v2로 새로 만든 이유: 이전 버전(v1)은 카테고리 목록 정리만 했고, 거래 자체를 바꾸는 부분이 없었음)
 var COFFEE_RENAME_CLEANUP_FLAG_V2='gaegyebu_coffee_rename_cleanup_v2';
 function cleanupCoffeeRename(){
+  // v3: 앞서 정리해도 새로고침하면 "커피"가 기본 카테고리로 되살아나던 문제를 영구 삭제 기록으로 마무리한다(1회).
+  if(!localStorage.getItem('gaegyebu_coffee_rename_cleanup_v3')){
+    localStorage.setItem('gaegyebu_coffee_rename_cleanup_v3','1');
+    if(CATS['식비']&&CATS['식비'].s.indexOf('커피/음료')>=0){
+      var rgc=readCatDeleted();
+      if(!rgc['sub:식비|커피']){rgc['sub:식비|커피']='식비|커피/음료';saveCatDeleted(rgc);}
+    }
+  }
   if(localStorage.getItem(COFFEE_RENAME_CLEANUP_FLAG_V2))return;
   localStorage.setItem(COFFEE_RENAME_CLEANUP_FLAG_V2,'1');
   var db=loadDB();
@@ -1664,6 +1927,7 @@ function buildFullBackupPayload(){
   payload.stockPrincipalHist=loadStockPrincipalHist();
   payload.fixedDateOverrides=readFixedDateOverrides();
   payload.autoMtSkip=readAutoMtSkip();
+  payload.deletedCats=readCatDeleted();
   return payload;
 }
 // 서버 백업분과 로컬을 병합한다(한쪽을 통째로 덮어쓰지 않음) - 배열형(BT/AI/GOALS/INSTALLMENTS/FX/USER_CATS) 공용 헬퍼.
@@ -1697,6 +1961,7 @@ function applyServerBackup(data){
   if(data.stockPrincipalHist)saveStockPrincipalHist(mergeObjShallow(loadStockPrincipalHist(),data.stockPrincipalHist));
   if(data.fixedDateOverrides)saveFixedDateOverrides(mergeObjShallow(readFixedDateOverrides(),data.fixedDateOverrides));
   if(data.autoMtSkip)saveAutoMtSkip(mergeObjShallow(readAutoMtSkip(),data.autoMtSkip));
+  if(data.deletedCats)saveCatDeleted(mergeObjShallow(readCatDeleted(),data.deletedCats));
 }
 function loadFromServer(){
   var url=getServerURL();if(!url)return;
@@ -1706,6 +1971,7 @@ function loadFromServer(){
       localStorage.setItem(DB_KEY,JSON.stringify(data));
       applyServerBackup(data);
       normalizeEvalOfIncomeSaving();
+      enforceDeletedCats();
       syncAutoMarTongSavings();
       setSyncStatus('ok','로드 완료');go(curPage);showToast('✅ 서버에서 데이터 불러옴!');
     }else setSyncStatus('ok','서버 연결됨');
@@ -1735,7 +2001,7 @@ function saveServerURL(){
 function clearServerURL(){localStorage.removeItem(SERVER_URL_KEY);setSyncStatus('','서버 미연결');document.getElementById('setup-res').innerHTML='<div class="al wrn">연결 해제됐어요.</div>';}
 function openSetup(){var url=getServerURL();if(url)document.getElementById('server-url').value=url;document.getElementById('setup-md').classList.add('on');}
 function exportJSON(){var blob=new Blob([JSON.stringify(loadDB(),null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='가계부_백업_'+new Date().toISOString().slice(0,10)+'.json';a.click();showToast('✅ 내보내기 완료!');}
-function importJSON(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var db=JSON.parse(ev.target.result);localStorage.setItem(DB_KEY,JSON.stringify(db));showToast('✅ 가져오기 완료!');var url=getServerURL();if(url){fetch(url,{method:'POST',body:JSON.stringify(db)}).then(function(){setSyncStatus('ok','동기화 완료');go(curPage);}).catch(function(){go(curPage);});}else go(curPage);}catch(err){showToast('❌ 파일 오류입니다.');}};reader.readAsText(file);e.target.value='';}
+function importJSON(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(ev){try{var db=JSON.parse(ev.target.result);localStorage.setItem(DB_KEY,JSON.stringify(db));enforceDeletedCats();showToast('✅ 가져오기 완료!');var url=getServerURL();if(url){fetch(url,{method:'POST',body:JSON.stringify(db)}).then(function(){setSyncStatus('ok','동기화 완료');go(curPage);}).catch(function(){go(curPage);});}else go(curPage);}catch(err){showToast('❌ 파일 오류입니다.');}};reader.readAsText(file);e.target.value='';}
 function f(n){if(n==null||isNaN(n))return'0';var a=Math.abs(Number(n));if(a>=100000000)return(n/100000000).toFixed(1)+'억';if(a>=10000)return Math.round(n/10000)+'만';return Number(n).toLocaleString();}
 function ff(n){return Math.round(Number(n)||0).toLocaleString()+'원';}
 function gYM(){return document.getElementById('gYM').value;}
@@ -1977,6 +2243,7 @@ function initApp(){
   loadExtraSubs();
   loadAI();
   loadBT();
+  enforceDeletedCats(); // 삭제한 카테고리를 목록·예산 항목·내역에 다시 적용(복원 안전망보다 먼저 실행해야 되살아나지 않음)
   // 안전망: 예산 항목(BT)엔 있는데 카테고리 트리(CATS)엔 없는 소분류가 있으면 자동 복구한다.
   // (기본 카테고리에 새 소분류를 추가할 때 저장 위치가 없어서 새로고침 시 사라지던 예전 버그로 생긴 데이터를 구제)
   recoverOrphanedBTCategories();
@@ -1989,6 +2256,7 @@ function initApp(){
   recoverKnownGoalsAiInstallments();
   addKnownDebtGoals();
   cleanupCoffeeRename();
+  enforceDeletedCats(); // 할부(INSTALLMENTS)까지 로드된 뒤 한 번 더
   syncAutoMarTongSavings();
   maybeSaveDailyCheckpoint();
   backfillIncomeSavingsGoals();
@@ -2055,6 +2323,7 @@ function initApp(){
         // 서버 백업분과 병합(둘 중 한쪽만 비어있거나 손상됐을 때 서로 안전망이 되도록).
         applyServerBackup(data);
         normalizeEvalOfIncomeSaving(); // 서버 데이터가 로컬을 덮어쓰므로, 받은 직후에도 정리해야 오염 값이 다시 살아나지 않는다
+        enforceDeletedCats(); // 서버의 오래된 거래/예산이 삭제한 카테고리를 되살리지 못하게
         syncAutoMarTongSavings();
         setSyncStatus('ok','서버 연결됨 · '+new Date().toLocaleTimeString());
         renderDash();
@@ -4502,6 +4771,11 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
   var name=document.createElement('div');name.className='bud-card-name';
   name.textContent=(CE[m]||'')+' '+m+' ';
   if(totalBudget){var badge=document.createElement('span');badge.className='bk '+badgeCls;badge.style.fontSize='10px';badge.textContent=pct2+'%';name.appendChild(badge);}
+  // 카테고리(대분류) 통째로 삭제하는 버튼
+  var catDel=document.createElement('button');catDel.className='btn bg2 bsm';catDel.textContent='🗑️';catDel.title='이 카테고리 전체 삭제';
+  catDel.style.cssText='padding:1px 5px;margin-left:6px;font-size:10px;vertical-align:middle';
+  (function(mm){catDel.onclick=function(ev){ev.stopPropagation();openDeleteCategory(mm,null,ym);};})(m);
+  name.appendChild(catDel);
   head.appendChild(name);
   var total=document.createElement('div');total.className='bud-card-total';
   total.innerHTML=totalBudget?('예산 '+ff(totalBudget)+'<span style="display:block;font-size:10px;font-weight:700;color:'+(isExpense?(over?'var(--rd)':'var(--mu2)'):'var(--gn)')+';margin-top:1px">실적 '+ff(actual)+'</span>'):(actual?('미설정<span style="display:block;font-size:10px;font-weight:700;color:var(--mu2);margin-top:1px">실적 '+ff(actual)+'</span>'):'미설정');
@@ -4560,19 +4834,11 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
     })(r.i,m,r.sub,r.amount);
     row.appendChild(editBtn);
     var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:10px;flex-shrink:0';
-    (function(ii,mid2,sub2){
-      delBtn.onclick=function(){
-        if(ii<0){
-          // BT 항목 자체가 없으면 지울 게 없으니, "이번달 명시 예산값"만 지워서 원상태(미설정)로 되돌린다.
-          if(!confirm('"'+mid2+' > '+sub2+'"의 이번달 예산 입력값을 지울까요?'))return;
-          clearBudgetItem(ym,mid2,sub2);
-          renderBud();
-          showToast('🗑️ 삭제됐어요.');
-        }else{
-          deleteBudgetTemplateItem(ii);
-        }
-      };
-    })(r.i,m,r.sub);
+    // 🗑️는 이제 "카테고리 완전 삭제"(내역은 다른 카테고리로 이동) 또는 "예산 설정만 삭제" 중에서 고르는 창을 연다.
+    // (예전엔 예산 금액 항목만 지워서, 카테고리 목록에 행이 그대로 남아 "삭제가 안 되는" 것처럼 보였음)
+    (function(mid2,sub2){
+      delBtn.onclick=function(){openDeleteCategory(mid2,sub2,ym);};
+    })(m,r.sub);
     row.appendChild(delBtn);
     card.appendChild(row);
   });
@@ -4870,7 +5136,7 @@ function confirmEditBudgetItem(i){
   // 하나도 안 남았으면 카테고리 목록(CATS)에서도 예전 이름을 완전히 지운다.
   // (안 지우면 "커피"와 "커피/음료"가 카테고리 목록에 둘 다 남아서, 새 거래 입력할 때 예전 이름이 계속 자동완성에 뜨는 문제가 있었음)
   if(isRename){
-    removeSubCategoryIfUnused(mid,oldItem.sub,i);
+    removeSubCategoryIfUnused(mid,oldItem.sub,i,sub);
   }
   document.getElementById('edit-bud-md').remove();
   renderBud();
@@ -6360,6 +6626,7 @@ function restoreCheckpoint(i){
   try{
     var data=JSON.parse(snap.data);
     localStorage.setItem(DB_KEY,JSON.stringify(data));
+    saveCatDeleted(data.deletedCats||{}); // 카테고리 삭제 기록도 그 시점 상태로(스냅샷 이후 삭제한 카테고리는 다시 살아남)
     // 체크포인트에 BT/AI/GOALS/INSTALLMENTS 등이 같이 들어있으면(새 형식), 그것도 각자 원래 자리로 되돌린다.
     // applyServerBackup은 원래 "병합"용이지만, 되돌리기는 이 스냅샷을 절대 기준으로 삼아야 하므로
     // 먼저 현재 값을 비워서 스냅샷 내용이 그대로 이기도록 한다(스냅샷에 없는 값은 건드리지 않음).
@@ -6369,6 +6636,7 @@ function restoreCheckpoint(i){
     if(data.installments){INSTALLMENTS=[];}
     if(data.fx){FX=[];}
     applyServerBackup(data);
+    rebuildCatsFromStores(); // 삭제로 지워졌던 기본/사용자 카테고리를 목록에 다시 만든다
     scheduleSync();
     showToast('↩️ 이전 상태로 되돌렸어요.');
     var md=document.getElementById('versionlog-md');if(md)md.remove();
@@ -6425,6 +6693,7 @@ function confirmBsImport(){
     if(!existKeys[key]){db.txs.push(t);added++;}
   });
   saveDB(db);
+  enforceDeletedCats(); // 삭제한 카테고리로 매핑된 거래가 들어와도 옮겨진 카테고리로 정리
   document.getElementById('bs-preview-md').remove();
   showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)'+(added>0?' · 실수했으면 ⋮더보기 > "이전 기록으로 돌리기"로 되돌릴 수 있어요':''));
   if(curPage==='inp'){renderInpDash();renderHis();}
