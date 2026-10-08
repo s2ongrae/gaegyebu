@@ -315,6 +315,47 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bs-warnline.bad{color:var(--rd)}
 .bs-warnline.good{color:var(--gn)}
 .ast-comp-box{margin-bottom:16px;padding-bottom:14px;border-bottom:1px dashed var(--bd)}
+.ast-chg{display:inline-block;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;margin-left:6px;white-space:nowrap}
+.ast-chg.up{background:rgba(39,103,73,.12);color:var(--gn)}
+.ast-chg.down{background:rgba(197,48,48,.12);color:var(--rd)}
+.asset-group-title .ast-chg{font-weight:700}
+.ast-flow-box{margin-bottom:16px}
+.flow-card,.flow-check{background:#fff;border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;margin-bottom:12px}
+.flow-title{font-size:14px;font-weight:800;margin-bottom:10px}
+.flow-title .sub{font-weight:500;font-size:11px;color:var(--mu)}
+.flow-msg{font-size:13px;font-weight:600;padding:9px 12px;border-radius:var(--rs);border:1px solid var(--bd);background:var(--sf2);margin-bottom:10px;line-height:1.5}
+.flow-msg b{font-weight:900}
+.flow-bridge{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+.flow-row{display:grid;grid-template-columns:190px 1fr 100px;align-items:center;gap:10px;font-size:12px}
+.flow-row .l{font-weight:700;color:var(--mu2)}
+.flow-row .bar{height:8px;background:var(--sf3);border-radius:4px;overflow:hidden}
+.flow-row .bar i{display:block;height:100%;border-radius:4px}
+.flow-row .v{text-align:right;font-weight:900;font-variant-numeric:tabular-nums}
+.flow-row.tot{border-top:1px dashed var(--bd);padding-top:6px;margin-top:2px}
+.flow-row.tot .l,.flow-row.tot .v{color:var(--tx)}
+.flow-note{font-size:10px;color:var(--mu);margin:-3px 0 2px 0}
+.flow-goal{margin-top:6px}
+.flow-goal-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;margin-bottom:6px;color:var(--mu2);font-weight:600}
+.flow-goal-top b{color:var(--tx)}
+.flow-eta{font-size:12px;color:var(--mu2);margin-top:6px}
+.flow-eta b{color:var(--pu);font-weight:900}
+.flow-check-top{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.flow-check-top span{font-size:12px;color:var(--mu2);font-weight:700}
+.flow-chips{font-size:11px;color:var(--mu);line-height:1.9}
+.flow-chip{display:inline-block;background:var(--sf3);color:var(--mu2);border-radius:10px;padding:1px 8px;margin:0 4px 0 0;font-weight:600}
+.flow-chk-hint{font-size:11px;color:var(--mu);margin-left:6px}
+.stk-ins{display:flex;flex-direction:column;gap:7px}
+.stk-ins-row{display:flex;gap:8px;font-size:13px;font-weight:600;line-height:1.5}
+.stk-ins-row .i{flex-shrink:0}
+.stk-ins-row b{font-weight:900}
+.stk-ins-row .m{color:var(--mu);font-weight:500;font-size:11px}
+.stk-note{font-size:10px;color:var(--mu);margin:-4px 2px 12px}
+.bs-projline{font-size:12px;font-weight:600;color:var(--mu2);margin-top:6px}
+.bs-projline b{font-weight:900}
+.bs-projline b.g{color:var(--gn)}
+.bs-projline b.y{color:var(--yw)}
+.bs-projline b.r{color:var(--rd)}
+.bs-projline .m{color:var(--mu);font-weight:500;font-size:11px}
 /* ── 모바일 사용성 보강 ── */
 @media(max-width:700px){
 .asset-item{flex-wrap:wrap;row-gap:8px}
@@ -326,6 +367,9 @@ input[type=number],input[type=date],select{min-height:36px}
 .inp-kpi-row>div:last-child{grid-column:1 / -1}
 /* 폰에서는 날짜 칸이 좁아 "지출 -3만"이 "지출 -3"으로 잘려 단위가 사라지므로, 접두어를 숨기고 금액만 보여준다(색으로 수입/지출 구분) */
 .cds-pre{display:none}
+.flow-row{grid-template-columns:1fr 70px;gap:2px 10px}
+.flow-row .bar{grid-column:1 / -1;grid-row:2}
+.flow-row.tot .bar,.flow-row:first-child .bar{display:none}
 .fxk-row .kl{font-size:10px;white-space:nowrap}
 .fxk-row .ks{font-size:10px}
 .donut-grid{grid-template-columns:1fr}
@@ -2055,7 +2099,23 @@ function getMonthSummary(ym){
   return{income:income,expense:expense,incomeFixed:incomeFixed,incomeVar:incomeVar,investLoss:investLoss,savingsRate:income>0?((income-expense)/income*100).toFixed(1):'0',byMid:byMid,evalMap:evalMap};
 }
 function getServerURL(){return localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;}
-function setSyncStatus(s,msg){var dot=document.getElementById('sync-dot');var txt=document.getElementById('sync-status');dot.className='sync-dot '+(s==='ok'?'ok':s==='err'?'err':s==='syn'?'syn':'');txt.textContent=msg;}
+// 마지막으로 서버 백업(POST)이 성공한 시각을 기억해서, 상태 표시줄에 "마지막 서버 백업 N분 전"으로 보여준다.
+// (데이터가 사라진 사고가 있었기 때문에, 백업이 오래 안 되고 있으면 눈에 띄게 알려준다)
+var LAST_BACKUP_KEY='gaegyebu_last_backup_ok';
+function lastBackupAgo(){
+  var t=Number(localStorage.getItem(LAST_BACKUP_KEY));
+  if(!t)return{text:'서버 백업 기록 없음',days:null};
+  var diff=Math.max(0,Date.now()-t),min=Math.floor(diff/60000);
+  return{text:'마지막 서버 백업 '+(min<1?'방금':min<60?min+'분 전':min<1440?Math.floor(min/60)+'시간 전':Math.floor(min/1440)+'일 전'),days:diff/86400000};
+}
+function setSyncStatus(s,msg){
+  var dot=document.getElementById('sync-dot');var txt=document.getElementById('sync-status');
+  dot.className='sync-dot '+(s==='ok'?'ok':s==='err'?'err':s==='syn'?'syn':'');
+  var ag=lastBackupAgo();
+  txt.textContent=(s==='syn'||msg.indexOf('동기화 완료')===0)?msg:msg+' · '+ag.text;
+  txt.title=ag.text;
+  txt.style.color=(s!=='syn'&&ag.days!==null&&ag.days>=2)?'var(--rd)':'';
+}
 function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(syncNow,3000);}
 function syncNow(){
   var url=getServerURL();if(!url)return;
@@ -2066,7 +2126,7 @@ function syncNow(){
   // (레이가 입력하는 모든 데이터가 이 브라우저에서만 손상돼도 복구할 방법이 서버엔 전혀 없었던 사고가 반복됐음)
   // 이제 loadDB() 결과에 다 얹어서 보내, 서버 백업(구글드라이브)에도 항상 같이 남게 한다.
   var payload=buildFullBackupPayload();
-  fetch(url,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(res){if(res.success)setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});
+  fetch(url,{method:'POST',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(res){if(res.success){localStorage.setItem(LAST_BACKUP_KEY,String(Date.now()));setSyncStatus('ok','동기화 완료 · '+new Date().toLocaleTimeString());}else setSyncStatus('err','동기화 실패');}).catch(function(){setSyncStatus('err','서버 연결 실패');});
 }
 // "🔄 동기화" 버튼을 직접 눌렀을 때만 호출되는 함수 - 그 시점을 "이전 기록"(체크포인트)에도 남긴다.
 // (자동 동기화(scheduleSync→syncNow)는 입력할 때마다 수시로 일어나니 매번 체크포인트를 찍으면 목록이 금방 꽉 차버림.
@@ -4977,15 +5037,24 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
     var remain0=expBudget-expActual;
     // 고정지출과 연계: 이번달에 아직 안 나간 고정지출(예정) 중 예산에 잡혀 있는 만큼은 이미 쓸 곳이 정해진 돈이다.
     // 소분류마다 "남은 예산"과 "예정 고정지출" 중 작은 쪽만 빼서(예산에 없는 고정지출은 빼지 않음) 이중 차감을 막는다.
-    var freeLine='';
+    var freeLine='',projLine='';
     if(inProgress){
-      var pendBySub={},actualSubAll={},pendTotal=0,reserved=0;
-      getFixedExpenseRows(ym).forEach(function(r){if(!r.done){var pk=r.fi.mid+'|'+r.fi.sub;pendBySub[pk]=(pendBySub[pk]||0)+r.amt;}});
+      var pendBySub={},actualSubAll={},pendTotal=0,reserved=0,doneFixedAmt=0;
+      getFixedExpenseRows(ym).forEach(function(r){if(!r.done){var pk=r.fi.mid+'|'+r.fi.sub;pendBySub[pk]=(pendBySub[pk]||0)+r.amt;}else doneFixedAmt+=r.amt;});
       getTxs(ym).forEach(function(t){if(t.type==='지출'&&!isInvestLossTx(t)){var ak=t.mid+'|'+t.sub;actualSubAll[ak]=(actualSubAll[ak]||0)+(Number(t.amount)||0);}});
       Object.keys(pendBySub).forEach(function(k){
         pendTotal+=pendBySub[k];
         reserved+=Math.min(Math.max(0,(ebExp.bySub[k]||0)-(actualSubAll[k]||0)),pendBySub[k]);
       });
+      // 월말 예상 지출 = 지금까지 + 예정 고정지출 + (변동지출 하루 평균 × 남은 일수). 변동지출 = 지금까지 쓴 돈 − 이미 나간 고정지출.
+      // 월 초반(5일 미만)은 하루 평균이 불안정해서 보여주지 않는다.
+      var dNow=now.getDate(),remDays=dim-dNow;
+      if(dNow>=5){
+        var perDay=Math.max(0,expActual-doneFixedAmt)/dNow;
+        var projTotal=expActual+pendTotal+Math.round(perDay*remDays);
+        var projPct=Math.round(projTotal/expBudget*100);
+        projLine='<div class="bs-projline" title="월말 예상 = 지금까지 '+ff(expActual)+' + 예정 고정지출 '+ff(pendTotal)+' + 변동지출 하루 평균 '+ff(Math.round(perDay))+' × 남은 '+remDays+'일 (단순 추정이에요)">📈 이 속도면 월말 지출 약 <b class="'+(projPct>100?'r':projPct>80?'y':'g')+'">'+ff(projTotal)+'</b> <span class="m">(예산의 '+projPct+'% · '+(projTotal>expBudget?ff(projTotal-expBudget)+' 초과 예상':ff(expBudget-projTotal)+' 여유 예상')+')</span></div>';
+      }
       if(pendTotal>0){
         var freeAmt=remain0-reserved;
         freeLine='<div class="bs-freeline" title="예정 고정지출 전체 '+ff(pendTotal)+' 중 예산에 잡혀 있는 '+ff(reserved)+'만 뺐어요">📌 자유롭게 쓸 수 있는 금액 <b class="'+(freeAmt>=0?'g':'r')+'">'+ff(Math.max(freeAmt,0))+'</b> <span class="m">(남은 예산 − 예정 고정지출 '+ff(reserved)+(freeAmt<0?' · '+ff(-freeAmt)+' 부족':'')+')</span></div>';
@@ -5001,7 +5070,7 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
     html+='<div class="bs-hero">'
       +'<div class="bs-hero-top"><div>'
         +'<div class="bs-title">'+(inProgress?'이번달':parseInt(p[1])+'월')+' 지출 예산 <span class="bs-chip" style="background:'+hs.bg+';color:'+hs.fg+'">'+hs.text+'</span></div>'
-        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 <b>'+ff(expActual)+' 사용</b> · '+(remain0>=0?'<b class="g">'+ff(remain0)+' 남음</b>':'<b class="r">'+ff(-remain0)+' 초과</b>')+'</div>'+freeLine+warnLine
+        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 <b>'+ff(expActual)+' 사용</b> · '+(remain0>=0?'<b class="g">'+ff(remain0)+' 남음</b>':'<b class="r">'+ff(-remain0)+' 초과</b>')+'</div>'+freeLine+projLine+warnLine
       +'</div><div class="bs-pct" style="color:'+hs.fg+'">'+expPct+'<small>%</small></div></div>'
       +'<div class="bs-bar"><div class="bs-bar-fill" style="width:'+Math.min(expPct,100)+'%;background:'+hs.color+'"></div>'
         +(elapsedPct!==null?'<div class="bs-bar-today" style="left:'+elapsedPct+'%"></div>':'')+'</div>'
@@ -5582,8 +5651,141 @@ function switchAstSub(name){
     var tab=document.getElementById('ast-sub-'+k);if(tab)tab.classList.toggle('on',k===name);
   });
 }
+// ── 자산 탭: 흐름(전월 대비 · 변화 원인 · 목표 · 입력 체크) ───────────────────────────
+function ymDiff(a,b){return(Number(b.slice(0,4))-Number(a.slice(0,4)))*12+(Number(b.slice(5,7))-Number(a.slice(5,7)));}
+function addMonthsYM(ym,n){var y=Number(ym.slice(0,4)),m=Number(ym.slice(5,7))-1+n;y+=Math.floor(m/12);m=((m%12)+12)%12;return y+'-'+pad2(m+1);}
+// ym보다 앞서 자산 값이 입력된 가장 가까운 달(전월에 입력이 없어도 그 이전 달을 찾는다)
+function getPrevAssetYM(ym){
+  var assets=loadDB().assets||{};
+  var ms=Object.keys(assets).filter(function(m){return m<ym&&Object.keys(assets[m]||{}).length;}).sort();
+  return ms.length?ms[ms.length-1]:null;
+}
+// 월별 순자산 시계열(자산 값이 입력된 달만, ym까지)
+function getNWSeries(ym){
+  var assets=loadDB().assets||{};
+  return Object.keys(assets).filter(function(m){return m<=ym&&Object.keys(assets[m]||{}).length;}).sort().map(function(m){
+    var r=calcNW(assets[m],m);return{ym:m,nw:r.nw,ta:r.ta,td:r.td};
+  });
+}
+function astKpiChg(cur,prev,invert,hasPrev){
+  if(!hasPrev||prev==null)return'';
+  var d=cur-prev;
+  if(!d)return'전월과 같아요';
+  var good=invert?d<0:d>0;
+  return'<span style="color:'+(good?'var(--gn)':'var(--rd)')+';font-weight:700">'+(d>0?'▲ +':'▼ −')+f(Math.abs(d))+'</span> 전월 대비'+(prev?' ('+(d>0?'+':'−')+Math.abs(d/prev*100).toFixed(1)+'%)':'');
+}
+// 순자산 흐름 카드: 지난달 → 이번달 변화를 "저축(수입−지출)"과 "자산 평가·기타 변동"으로 나누고, 목표 진행/도달 예상/추이 그래프를 보여준다.
+function renderAstFlowCard(ym,r,prevYM,prevR){
+  var series=getNWSeries(ym).slice(-12);
+  var am=getAssets(ym);
+  var hasSnap=Object.keys(am).length>0;
+  var missCount=0;
+  var h='<div class="flow-card"><div class="flow-title">📈 순자산 흐름 <span class="sub">· '+ym+' 기준</span></div>';
+  // ① 지난달 → 이번달 변화 분해
+  if(hasSnap&&prevYM&&prevR){
+    var months=getAllMonths().filter(function(m){return m>prevYM&&m<=ym;});
+    var inc=0,exp=0;months.forEach(function(m){var s=getMonthSummary(m);inc+=s.income;exp+=s.expense;});
+    var saving=inc-exp,dn=r.nw-prevR.nw;
+    var prevAm=getAssets(prevYM);
+    // 이 달에 아직 입력하지 않은 항목은 0으로 계산돼서, 지난 기록에 값이 있던 항목이 통째로 사라진 것처럼 순자산이 줄어 보인다.
+    // 이 착시를 "평가 변동"으로 잘못 설명하지 않도록 따로 떼어서 보여준다.
+    var missEffect=0;
+    AI.forEach(function(a){
+      if(a.autoSub)return;
+      if(am[a.n]===undefined&&prevAm[a.n]!==undefined){var pv0=Number(prevAm[a.n])||0;if(pv0){missEffect+=a.d?pv0:-pv0;missCount++;}}
+    });
+    var other=dn-saving-missEffect;
+    var stockD=(Number(am['주식계좌'])||0)-(Number(prevAm['주식계좌'])||0);
+    var mx=Math.max(Math.abs(saving),Math.abs(other),Math.abs(missEffect),1);
+    function brow(label,v,note,colorOverride){
+      var col=colorOverride||(v>=0?'var(--gn)':'var(--rd)');
+      return'<div class="flow-row"><span class="l">'+label+'</span><span class="bar"><i style="width:'+Math.round(Math.abs(v)/mx*100)+'%;background:'+col+'"></i></span><span class="v" style="color:'+col+'">'+(v>=0?'+':'−')+f(Math.abs(v))+'</span></div>'+(note?'<div class="flow-note">'+note+'</div>':'');
+    }
+    var dom=Math.abs(saving)>=Math.abs(other);
+    var msg=dn>=0
+      ?'순자산이 <b>'+f(dn)+'</b> 늘었어요 — '+(dom?'대부분 <b>저축(수입−지출)</b> 덕분이에요':'대부분 <b>자산 평가 변동</b> 덕분이에요')
+      :'순자산이 <b>'+f(-dn)+'</b> 줄었어요 — '+(dom?'<b>지출이 수입보다 많았기</b> 때문이에요':'대부분 <b>자산 평가 변동(주식 등)</b> 때문이에요');
+    if(missCount)msg=(dn>=0?'순자산이 <b>'+f(dn)+'</b> 늘어 보여요':'순자산이 <b>'+f(-dn)+'</b> 줄어 보여요')+' — 그런데 <b>아직 입력 안 한 항목 '+missCount+'개</b>(지난 기록 합계 '+f(Math.abs(missEffect))+')가 빠져 있어서 실제와 달라요. 위 <b>"채우기"</b>를 먼저 눌러보세요';
+    h+='<div class="flow-msg" style="border-color:'+(dn>=0?'var(--gn)':'var(--rd)')+'">'+(dn>=0?'📈 ':'📉 ')+msg+'</div>'
+      +'<div class="flow-bridge">'
+      +'<div class="flow-row"><span class="l">지난 기록('+prevYM+') 순자산</span><span class="bar"></span><span class="v">'+f(prevR.nw)+'</span></div>'
+      +brow('＋ 저축(수입 − 지출)',saving,'수입 '+f(inc)+' − 지출 '+f(exp)+(months.length>1?' ('+months.length+'개월 합계)':''))
+      +(missCount?brow('＋ 아직 입력 안 한 항목 '+missCount+'개',missEffect,'지난 기록 값이 빠져서 생긴 착시예요','var(--yw)'):'')
+      +brow('＋ 자산 평가·기타 변동',other,(stockD?'주식계좌 평가금액 변화 '+(stockD>0?'+':'−')+f(Math.abs(stockD))+' 포함 · ':'')+'주식·코인 시세, 가계부에 적지 않은 입출금 등이 섞여 있어요')
+      +'<div class="flow-row tot"><span class="l">＝ 이번 기록('+ym+') 순자산</span><span class="bar"></span><span class="v">'+f(r.nw)+'</span></div>'
+      +'</div>';
+  }else{
+    h+='<div class="flow-msg" style="border-color:var(--bd2)">'+(hasSnap?'비교할 지난 자산 기록이 없어요. 다음 달부터 변화 원인이 표시돼요.':'이 달 자산 값을 입력하면, 지난달 대비 변화 원인(저축 vs 평가 변동)이 여기 표시돼요.')+'</div>';
+  }
+  // ② 목표 진행 + 도달 예상
+  var goal=(typeof GOALS!=='undefined'?GOALS:[]).filter(function(g){return g.type==='networth'&&g.target>0;})[0];
+  var target=goal?goal.target:0;
+  if(goal&&hasSnap){
+    var pct=Math.max(0,Math.min(100,Math.round(r.nw/goal.target*100)));
+    var eta='';
+    if(r.nw>=goal.target)eta='🎉 목표를 달성했어요!';
+    else{
+      // 입력 전 항목이 있으면 이 달 값은 왜곡돼 있어서, 도달 예상은 그 이전 기록으로만 계산한다
+      var pts=(missCount>0&&series.length&&series[series.length-1].ym===ym?series.slice(0,-1):series).slice(-4);
+      if(pts.length>=2){
+        var span=ymDiff(pts[0].ym,pts[pts.length-1].ym);
+        var avg=span>0?(pts[pts.length-1].nw-pts[0].nw)/span:0;
+        if(avg>0){var nMo=Math.ceil((goal.target-r.nw)/avg);eta='최근 '+span+'개월 평균 <b>+'+f(Math.round(avg))+'/월</b> 기준 약 <b>'+nMo+'개월 후('+addMonthsYM(ym,nMo)+')</b> 도달 예상';}
+        else eta='최근 '+span+'개월 평균 순자산이 늘지 않고 있어서 도달 시점을 계산할 수 없어요';
+      }
+    }
+    h+='<div class="flow-goal"><div class="flow-goal-top"><span>🎯 '+escCatHtml(goal.label||'순자산 목표')+'</span><span><b>'+pct+'%</b> · 목표 '+f(goal.target)+' 중 '+f(Math.max(r.nw,0))+' · <b>'+(r.nw>=goal.target?'달성':f(goal.target-r.nw)+' 남음')+'</b></span></div>'
+      +'<div class="bs-bar" style="height:10px"><div class="bs-bar-fill" style="width:'+pct+'%;background:var(--pu)"></div></div>'
+      +(eta?'<div class="flow-eta">'+eta+'</div>':'')+'</div>';
+  }
+  // ③ 추이 그래프
+  if(series.length>=2){
+    var cid='astTrend_'+Date.now();
+    h+='<div style="position:relative;height:170px;margin-top:10px"><canvas id="'+cid+'"></canvas></div>';
+    window.__astTrend={id:cid,labels:series.map(function(x){return x.ym.slice(2).replace('-','/');}),values:series.map(function(x){return x.nw;}),target:target};
+  }else window.__astTrend=null;
+  return h+'</div>';
+}
+function drawAstTrendChart(){
+  var t=window.__astTrend;if(!t)return;
+  setTimeout(function(){
+    var cv=document.getElementById(t.id);if(!cv||typeof Chart==='undefined')return;
+    var ds=[{label:'순자산',data:t.values,borderColor:'#553c9a',backgroundColor:'rgba(85,60,154,.10)',fill:true,tension:.3,pointRadius:3,borderWidth:2.5}];
+    if(t.target)ds.push({label:'목표 '+f(t.target),data:t.labels.map(function(){return t.target;}),borderColor:'#d69e2e',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false});
+    new Chart(cv,{type:'line',data:{labels:t.labels,datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:!!t.target,position:'bottom',labels:{boxWidth:10,font:{size:10}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},scales:{y:{ticks:{color:'#4a6fa5',font:{size:10},callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},x:{ticks:{color:'#4a6fa5',font:{size:10}},grid:{display:false}}}}});
+  },80);
+}
+// 월말 자산 입력 체크리스트: 이 달에 아직 값을 안 넣은 항목을 보여주고, 지난 기록 값으로 한 번에 채울 수 있게 한다.
+function renderAstChecklist(ym){
+  var am=getAssets(ym);
+  var items=AI.filter(function(a){return!a.autoSub;});
+  var missing=items.filter(function(a){return am[a.n]===undefined;});
+  if(!items.length||!missing.length)return'';
+  var done=items.length-missing.length;
+  var prev=getPrevAssetYM(ym),pam=prev?getAssets(prev):{};
+  var copyable=prev?missing.filter(function(a){return pam[a.n]!==undefined;}).length:0;
+  var chips=missing.slice(0,8).map(function(a){return'<span class="flow-chip">'+escCatHtml(a.n)+'</span>';}).join('')+(missing.length>8?'<span class="flow-chip">외 '+(missing.length-8)+'개</span>':'');
+  return'<div class="flow-check"><div class="flow-check-top"><b>📝 '+parseInt(ym.slice(5,7))+'월 자산 입력</b><span>'+done+' / '+items.length+' 완료</span></div>'
+    +'<div class="bs-bar" style="height:8px;margin:6px 0"><div class="bs-bar-fill" style="width:'+Math.round(done/items.length*100)+'%;background:var(--bl)"></div></div>'
+    +'<div class="flow-chips">아직 입력 전: '+chips+'</div>'
+    +(copyable?'<div style="margin-top:8px"><button class="btn bp bsm" onclick="fillAssetsFromPrev(\''+ym+'\')">📋 지난 기록('+prev+') 값으로 빈 항목 '+copyable+'개 채우기</button><span class="flow-chk-hint"> 바뀐 항목만 직접 고치면 돼요</span></div>':'')
+    +'</div>';
+}
+function fillAssetsFromPrev(ym){
+  var prev=getPrevAssetYM(ym);
+  if(!prev){showToast('복사할 지난 자산 기록이 없어요.');return;}
+  var pam=getAssets(prev),am=getAssets(ym);
+  var list=AI.filter(function(a){return!a.autoSub&&am[a.n]===undefined&&pam[a.n]!==undefined;});
+  if(!list.length){showToast('채울 항목이 없어요.');return;}
+  if(!confirm(ym+'의 비어 있는 자산 항목 '+list.length+'개를 지난 기록('+prev+') 값으로 채울까요?\n(이미 입력한 항목은 건드리지 않아요. 직전 상태는 "이전 기록"에 자동 저장돼요)'))return;
+  saveCheckpoint('자산 전월 값 복사 직전('+ym+')');
+  list.forEach(function(a){saveAssetItem(ym,a.n,Number(pam[a.n])||0);});
+  renderAst();
+  showToast('✅ '+list.length+'개 항목을 지난 기록 값으로 채웠어요. 바뀐 항목만 고쳐주세요.');
+}
 function renderAst(){
   var ym=gYM();var am=getAssets(ym);var r=calcNW(am,ym);
+  var prevYMast=getPrevAssetYM(ym);var prevAm=prevYMast?getAssets(prevYMast):null;var prevR=prevYMast?calcNW(prevAm,prevYMast):null;
   renderLiquidityCard(am,r);
   renderDsrCard(ym);
   renderTaxLimitCard(ym);
@@ -5592,13 +5794,21 @@ function renderAst(){
   renderRefiCard();
   // KPI
   var kpiEl=document.getElementById('d-ast-kpi');kpiEl.innerHTML='';
-  function mkKpi(label,val,color){var d=document.createElement('div');d.className='kpi';d.innerHTML='<div class="kl">'+label+'</div><div class="kv" style="color:'+color+'">'+f(val)+'</div><div class="kb" style="background:'+color+'"></div>';kpiEl.appendChild(d);}
-  mkKpi('총 자산',r.ta,'var(--bl)');mkKpi('총 부채',r.td,'var(--rd)');mkKpi('순자산',r.nw,r.nw>=0?'var(--pu)':'var(--rd)');
+  function mkKpi(label,val,color,sub){var d=document.createElement('div');d.className='kpi';d.innerHTML='<div class="kl">'+label+'</div><div class="kv" style="color:'+color+'">'+f(val)+'</div>'+(sub?'<div class="ks">'+sub+'</div>':'')+'<div class="kb" style="background:'+color+'"></div>';kpiEl.appendChild(d);}
+  var hasPrevAst=!!prevR&&Object.keys(am).length>0;
+  mkKpi('총 자산',r.ta,'var(--bl)',astKpiChg(r.ta,prevR&&prevR.ta,false,hasPrevAst));mkKpi('총 부채',r.td,'var(--rd)',astKpiChg(r.td,prevR&&prevR.td,true,hasPrevAst));mkKpi('순자산',r.nw,r.nw>=0?'var(--pu)':'var(--rd)',astKpiChg(r.nw,prevR&&prevR.nw,false,hasPrevAst));
   // 자산 목록
   var groups={'투자/절세계좌':[],'연금':[],'저축/보험':[],'부동산':[],'기타':[],'부채':[]};
   var cg={'투자':'투자/절세계좌','절세계좌':'투자/절세계좌','연금':'연금','보험저축':'저축/보험','저축':'저축/보험','부동산':'부동산','기타':'기타','부채':'부채'};
   AI.forEach(function(a,i){var g=cg[a.cat]||'기타';if(groups[g])groups[g].push({a:a,i:i});});
   var container=document.getElementById('d-ast');container.innerHTML='';
+  // 흐름: 이 달 입력 체크리스트 → 순자산 흐름(변화 원인·목표·추이) → 구성(도넛) → 항목 목록
+  try{
+    var flowBox=document.createElement('div');flowBox.className='ast-flow-box';
+    flowBox.innerHTML=renderAstChecklist(ym)+renderAstFlowCard(ym,r,prevYMast,prevR);
+    container.appendChild(flowBox);
+    drawAstTrendChart();
+  }catch(err){console.error('astFlow error',err);}
   // 전체 탭에 있는 "자산 구성 현황"(자산 구성 / 순자산 vs 부채 도넛)을 자산 탭에서도 바로 볼 수 있게 맨 위에 둔다.
   try{
     var compBox=document.createElement('div');
@@ -5614,7 +5824,17 @@ function renderAst(){
     var gtitle=document.createElement('div');gtitle.className='asset-group-title';
     gtitle.textContent=gname+' ';
     var gamt=document.createElement('span');gamt.style.cssText='color:'+(isDebt?'var(--rd)':'var(--mu)')+';font-weight:400';gamt.textContent=ff(gtotal);
-    gtitle.appendChild(gamt);grp.appendChild(gtitle);
+    gtitle.appendChild(gamt);
+    if(prevYMast&&prevAm){
+      var gprev=items.reduce(function(s,o){return s+getAssetItemValue(o.a,prevAm,prevYMast);},0),gd=gtotal-gprev;
+      if(gd){var gchip=document.createElement('span');gchip.className='ast-chg '+((isDebt?gd<0:gd>0)?'up':'down');gchip.textContent='전월 '+(gd>0?'▲ +':'▼ −')+f(Math.abs(gd));gtitle.appendChild(gchip);}
+    }
+    if(isDebt){
+      // 부채 금리로 추정한 월 이자(마통 등): 매달 새는 돈이 얼마인지 바로 보이게
+      var monthInt=items.reduce(function(s,o){var v=getAssetItemValue(o.a,am,ym);return s+(o.a.rate>0?v*o.a.rate/100/12:0);},0);
+      if(monthInt>0){var ichip=document.createElement('span');ichip.className='ast-chg down';ichip.title='잔액 × 금리 ÷ 12 로 추정한 값이에요(실제 이자와 다를 수 있어요)';ichip.textContent='월 이자(추정) 약 '+ff(Math.round(monthInt));gtitle.appendChild(ichip);}
+    }
+    grp.appendChild(gtitle);
     items.forEach(function(o){
       var a=o.a,i=o.i;
       var val=getAssetItemValue(a,am,ym);
@@ -5628,6 +5848,11 @@ function renderAst(){
       var aname=document.createElement('div');aname.className='asset-name';aname.style.color=isDebt?'var(--rd)':'var(--tx)';aname.textContent=a.n;info.appendChild(aname);
       var acat=document.createElement('div');acat.className='asset-cat';acat.textContent=a.cat+(isDebt&&a.rate?' · 금리 '+a.rate+'%':'')+(!isDebt&&a.cat==='투자'?' · 이번달 말 기준 평가금액':'');
       if(val){acat.textContent+=' · ';var vspan=document.createElement('span');vspan.style.color=isDebt?'var(--rd)':'var(--gn)';vspan.textContent=ff(val);acat.appendChild(vspan);}
+      // 전월 대비 증감 칩(자산은 늘면 초록, 부채는 줄면 초록)
+      if(prevYMast&&prevAm){
+        var dv=val-getAssetItemValue(a,prevAm,prevYMast);
+        if(dv){var chip=document.createElement('span');chip.className='ast-chg '+((isDebt?dv<0:dv>0)?'up':'down');chip.textContent=(dv>0?'▲ +':'▼ −')+f(Math.abs(dv));chip.title='지난 기록('+prevYMast+') 대비';acat.appendChild(chip);}
+      }
       info.appendChild(acat);item.appendChild(info);
       if(a.autoSub){
         var abadge=document.createElement('span');abadge.className='bk bpu';abadge.style.cssText='font-size:10px;margin-right:6px;white-space:nowrap';abadge.title='"'+a.autoSub+'" 저축 거래 누적 합계 + 보정값이 자동으로 반영돼요';abadge.textContent='🔗 거래연동';
@@ -7344,6 +7569,37 @@ function onStockPrincipalChange(el,ym){
   if(curPage==='stk')renderStock();
   else if(curPage==='ast')renderRealPLCard();
 }
+// 주식 탭 "이번 달 한눈에": 숫자만 늘어놓는 대신 지금 상태를 문장으로 요약한다(고점 대비 · 연속 추세 · 올해 손익 · 하락 충격).
+function buildStockInsightHtml(hist,latestYM,stockVal,latestAm){
+  if(!hist.length)return'';
+  var cur=hist[hist.length-1],rows=[];
+  var peak=hist.reduce(function(m,x){return x.val>m.val?x:m;},hist[0]);
+  if(hist.length>1&&cur.val>=peak.val)rows.push({i:'🏆',c:'var(--gn)',t:'지금이 <b>역대 최고</b> 평가금액이에요 ('+ff(cur.val)+')'});
+  else if(peak.val>cur.val){var dd=cur.val-peak.val;rows.push({i:'⛰️',c:'var(--rd)',t:'고점(<b>'+peak.ym+'</b>, '+ff(peak.val)+') 대비 <b>'+ff(dd)+'</b> ('+(dd/peak.val*100).toFixed(1)+'%)'});}
+  var streak=0,dir=0,sum=0;
+  for(var k=hist.length-1;k>0;k--){var d=hist[k].val-hist[k-1].val;if(!d)break;var sg=d>0?1:-1;if(!dir)dir=sg;if(sg!==dir)break;streak++;sum+=d;}
+  if(streak>=2)rows.push({i:dir>0?'📈':'📉',c:dir>0?'var(--gn)':'var(--rd)',t:'<b>'+streak+'개월 연속 '+(dir>0?'상승':'하락')+'</b> (누적 '+(sum>0?'+':'')+ff(sum)+')'});
+  // 올해: 작년 마지막 기록(없으면 올해 첫 기록) 대비
+  var y=latestYM.slice(0,4);
+  var base=hist.filter(function(x){return x.ym<y+'-01';}).pop()||hist.filter(function(x){return x.ym>=y+'-01';})[0];
+  if(base&&base.ym!==cur.ym){
+    var delta=cur.val-base.val;
+    var prNow=getStockPrincipal(cur.ym),prBase=getStockPrincipal(base.ym);
+    if(prNow>0&&prBase>0){
+      var dep=prNow-prBase,mkt=delta-dep;
+      rows.push({i:'🗓️',c:mkt>=0?'var(--gn)':'var(--rd)',t:'올해('+base.ym+' 대비) 평가금액 '+(delta>=0?'+':'')+ff(delta)+' = 입금 '+(dep>=0?'+':'')+ff(dep)+' + <b>시장 손익 '+(mkt>=0?'+':'')+ff(mkt)+'</b>'});
+    }else{
+      rows.push({i:'🗓️',c:delta>=0?'var(--gn)':'var(--rd)',t:'올해('+base.ym+' 대비) 평가금액 '+(delta>=0?'+':'')+ff(delta)+(base.val>0?' ('+(delta/base.val*100).toFixed(1)+'%)':'')+' <span class="m">· 입금이 섞여 있어요. 원금을 입력하면 시장 손익을 따로 볼 수 있어요</span>'});
+    }
+  }
+  var prCur=getStockPrincipal(cur.ym);
+  if(prCur>0){var pl=cur.val-prCur;rows.push({i:'💰',c:pl>=0?'var(--gn)':'var(--rd)',t:'원금 '+ff(prCur)+' 대비 <b>'+(pl>=0?'+':'')+ff(pl)+'</b> ('+(pl>=0?'+':'')+(pl/prCur*100).toFixed(1)+'%)'});}
+  else rows.push({i:'✍️',c:'var(--mu2)',t:'아래 <b>"내가 넣은 원금"</b>을 입력하면 수익률과 입금/시장 손익이 자동으로 계산돼요'});
+  var nw=calcNW(latestAm,latestYM).nw;
+  if(stockVal>0&&nw>0){var loss=Math.round(stockVal*0.1);rows.push({i:'⚠️',c:'var(--yw)',t:'주식이 <b>10% 하락</b>하면 평가금액 −'+ff(loss)+' → 순자산의 <b>'+Math.round(loss/nw*100)+'%</b>가 사라져요'});}
+  return'<div class="card mb12"><div class="card-title">📌 이번 달 한눈에 <span class="sub">· '+latestYM+' 기준</span></div><div class="stk-ins">'
+    +rows.map(function(r){return'<div class="stk-ins-row"><span class="i">'+r.i+'</span><span style="color:'+r.c+'">'+r.t+'</span></div>';}).join('')+'</div></div>';
+}
 function renderStock(){
   var el=document.getElementById('d-stk');
   if(!el)return;
@@ -7396,6 +7652,8 @@ function renderStock(){
 
   var html='';
 
+  var peakVal=stockHist.reduce(function(m,x){return x.val>m?x.val:m;},0);
+  html+=buildStockInsightHtml(stockHist,latestYM,stockVal,latestAm);
   // KPI 카드 5개
   html+='<div class="stk-kpi-row">';
   function kpi(label,val,color,sub){
@@ -7411,6 +7669,7 @@ function renderStock(){
   html+=kpi('부채(빌린돈) 투입', ff(debtInStock), 'var(--rd)', leverageRatio+'% 레버리지');
   html+=kpi('실현수익 총액', ff(totalRealized), 'var(--yw)', investMonths.length+'개월 누적');
   html+='</div>';
+  html+='<div class="stk-note">※ "부채(빌린돈) 투입"은 총부채(마통·대출 등)가 모두 주식계좌에 들어갔다고 가정한 추정치예요.</div>';
 
   // 원금 대비 손익률
   var principal=getStockPrincipal(latestYM);
@@ -7432,7 +7691,7 @@ function renderStock(){
   html+='<div class="stock-2col-grid">';
 
   // 주식 성장 곡선
-  html+='<div class="card"><div class="card-title">📈 주식계좌 성장 곡선</div>';
+  html+='<div class="card"><div class="card-title">📈 주식계좌 성장 곡선 <span class="sub">· 점선 = 고점 '+f(peakVal)+'</span></div>';
   html+='<div style="position:relative;height:240px;width:100%;max-height:240px;overflow:hidden"><canvas id="'+cid1+'"></canvas></div></div>';
 
   // 순자산/부채 투입 비율 도넛
@@ -7474,7 +7733,7 @@ function renderStock(){
   // 월별 상세 테이블
   html+='<div class="card"><div class="card-title">📋 월별 주식계좌 변화 내역</div>';
   html+='<div class="ovx"><table class="tbl"><thead><tr>';
-  html+='<th>월</th><th class="tr">원금</th><th class="tr">평가금액</th><th class="tr">전월대비</th><th class="tr">원금대비 손익</th><th class="tr">실현수익</th>';
+  html+='<th>월</th><th class="tr">원금</th><th class="tr">평가금액</th><th class="tr">전월대비</th><th class="tr" title="원금이 늘어난 만큼(직접 입력한 원금 변화)">입금</th><th class="tr" title="전월대비 변화 − 입금">시장 손익</th><th class="tr">원금대비 손익</th><th class="tr">실현수익</th>';
   html+='</tr></thead><tbody>';
   stockHist.slice().reverse().forEach(function(x,idx){
     var realIdx=stockHist.length-1-idx;
@@ -7488,11 +7747,17 @@ function renderStock(){
     var prPL=pr>0?x.val-pr:null;
     var prPct=pr>0?((prPL/pr)*100).toFixed(1):null;
     var prColor=prPL!==null&&prPL>=0?'var(--gn)':'var(--rd)';
+    // 입금 = 원금이 늘어난 만큼, 시장 손익 = 전월대비 변화 − 입금 (원금을 안 바꾼 달은 입금 0으로 본다)
+    var prevPr=realIdx>0?getStockPrincipal(stockHist[realIdx-1].ym):0;
+    var dep=(realIdx>0&&pr>0&&prevPr>0)?pr-prevPr:null;
+    var mktPL=dep!==null?chg-dep:null;
     html+='<tr>'
       +'<td style="font-size:12px">'+x.ym.replace('-','년 ')+'월</td>'
       +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+(pr>0?ff(pr):'-')+'</td>'
       +'<td class="tr fw" style="font-size:12px">'+ff(x.val)+'</td>'
       +'<td class="tr" style="font-size:12px;color:'+chgColor+'">'+(chg>=0?'+':'')+ff(chg)+'</td>'
+      +'<td class="tr" style="font-size:12px;color:var(--mu2)">'+(dep!==null?((dep>=0?'+':'')+ff(dep)):'-')+'</td>'
+      +'<td class="tr" style="font-size:12px;font-weight:700;color:'+(mktPL===null?'var(--mu)':mktPL>=0?'var(--gn)':'var(--rd)')+'">'+(mktPL!==null?((mktPL>=0?'+':'')+ff(mktPL)):'-')+'</td>'
       +'<td class="tr" style="font-size:12px;color:'+(pr>0?prColor:'var(--mu)')+'">'+(pr>0?((prPL>=0?'+':'')+ff(prPL)+' ('+(prPL>=0?'+':'')+prPct+'%)'):'-')+'</td>'
       +'<td class="tr" style="font-size:12px;color:'+(hasRealized?realizedColor:'var(--mu)')+'">'+(hasRealized?((realized>=0?'+':'')+ff(realized)):'-')+'</td>'
       +'</tr>';
@@ -7523,10 +7788,11 @@ function renderStock(){
           borderColor:'#c53030',backgroundColor:'rgba(197,48,48,.18)',fill:'-1',tension:.3,pointRadius:0,spanGaps:true,order:2}
         ]:[]).concat([
           {label:'평가금액',data:stockHist.map(function(x){return x.val;}),
-          borderColor:'#553c9a',backgroundColor:'rgba(85,60,154,0)',fill:false,borderWidth:2.5,tension:.3,pointRadius:3,order:1}
+          borderColor:'#553c9a',backgroundColor:'rgba(85,60,154,0)',fill:false,borderWidth:2.5,tension:.3,pointRadius:3,order:1},
+          {label:'고점',data:stockHist.map(function(){return peakVal;}),borderColor:'#d69e2e',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false,order:0}
         ])
       },options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:hasPrincipalData,position:'top',labels:{boxWidth:10,font:{size:11}}}},
+        plugins:{legend:{display:true,position:'top',labels:{boxWidth:10,font:{size:11}}}},
         scales:{y:{ticks:{color:'#4a6fa5',callback:function(v){return f(v);}},grid:{color:'rgba(0,0,0,.06)'}},
                 x:{ticks:{color:'#4a6fa5'},grid:{display:false}}}}});
     }
