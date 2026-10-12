@@ -234,16 +234,22 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .tx-section{margin-bottom:14px}
 .tx-section-title{font-size:11px;font-weight:700;color:var(--mu);letter-spacing:.05em;text-transform:uppercase;padding:5px 0;border-bottom:1px solid var(--bd);margin-bottom:7px;display:flex;align-items:center;justify-content:space-between}
 /* 예산 카드 */
-.bud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
-.bud-card{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:14px}
+.bud-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:12px;align-items:stretch}
+.bud-card{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;min-width:0}
 .bud-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
 .bud-card-name{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px}
 .bud-card-total{font-size:12px;color:var(--mu2)}
-.bud-sub-row{display:flex;align-items:center;padding:5px 0;border-bottom:1px solid var(--bd)}
+.bud-sub-row{display:grid;grid-template-columns:minmax(0,1fr) 72px 88px 28px 28px;align-items:center;column-gap:5px;padding:7px 0;border-bottom:1px solid var(--bd)}
 .bud-sub-row:last-child{border-bottom:none}
-.bud-sub-name{font-size:12px;color:var(--mu2);flex:1;min-width:64px}
-.bud-sub-actual{font-size:12px;color:var(--bl);margin:0 6px;min-width:50px;text-align:right;font-weight:700;white-space:nowrap}
-.bud-sub-input{width:88px;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:4px 7px;border-radius:var(--rs);font-size:12px;font-weight:700;outline:none;text-align:right;font-family:inherit}
+.bud-sub-info{min-width:0}
+.bud-sub-l1{display:flex;align-items:center;gap:4px;min-width:0}
+.bud-sub-name{font-size:12.5px;font-weight:700;color:var(--tx);min-width:0;flex:0 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bud-tag{flex-shrink:0;font-size:11px;line-height:1;cursor:help}
+.bud-sub-avg{font-size:11px;color:var(--pu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.bud-legend{font-size:11px;color:var(--mu2);margin:0 2px 8px}
+.bud-ib{padding:0!important;width:28px;height:28px;min-width:0!important;min-height:0!important;display:inline-flex;align-items:center;justify-content:center;font-size:12px!important;margin:0!important}
+.bud-sub-actual{font-size:12px;color:var(--bl);margin:0;min-width:0;text-align:right;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bud-sub-input{width:100%;box-sizing:border-box;background:var(--sf3);border:1px solid var(--bd2);color:var(--tx);padding:4px 7px;border-radius:var(--rs);font-size:12px;font-weight:700;outline:none;text-align:right;font-variant-numeric:tabular-nums}
 .bud-sub-input:focus{border-color:var(--bl)}
 /* 고정입력 */
 .fxi{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--rs);padding:9px 11px;margin-bottom:5px}
@@ -373,6 +379,22 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .trend-grid .card{min-width:0}
 .chart-note{font-size:12px;color:var(--mu2);margin-top:8px;line-height:1.55}
 .chart-note b{color:var(--tx);font-weight:800}
+.stk-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+@media(max-width:1180px){.stk-cards{grid-template-columns:repeat(3,minmax(0,1fr))}.stk-cards .stk-ic:nth-child(4),.stk-cards .stk-ic:nth-child(5){grid-column:span 1}}
+@media(max-width:760px){.stk-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.stk-cards .stk-ic:last-child:nth-child(odd){grid-column:1 / -1}}
+@media(max-width:480px){.stk-cards{grid-template-columns:1fr}}
+.stk-ic{background:#fff;border:1px solid var(--bd);border-top:4px solid var(--ac,var(--bd));border-radius:var(--r);padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:7px}
+.stk-ic-h{font-size:12px;font-weight:800;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stk-ic-big{font-size:26px;font-weight:900;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.stk-ic-s{font-size:11.5px;color:var(--mu2);line-height:1.5}
+.stk-ic-s b{color:var(--tx);font-weight:800}
+.stk-meter{display:flex;height:12px;background:var(--sf3);border-radius:6px;overflow:hidden}
+.stk-meter i{display:block;height:100%}
+.stk-ends{display:flex;justify-content:space-between;gap:6px;font-size:11px;color:var(--mu2);font-weight:600;white-space:nowrap}
+.stk-chips{display:flex;gap:6px;flex-wrap:wrap}
+.stk-chip{font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px;background:var(--sf2);color:var(--mu2);white-space:nowrap}
+.stk-spark{height:48px}
+.stk-cta{align-self:flex-start;padding:6px 14px}
 /* ── 모바일 사용성 보강 ── */
 @media(max-width:700px){
 .asset-item{flex-wrap:wrap;row-gap:8px}
@@ -389,6 +411,12 @@ input[type=number],input[type=date],select{min-height:36px}
 .flow-row.tot .bar,.flow-row:first-child .bar{display:none}
 .trend-grid{grid-template-columns:1fr}
 .hl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* 폰: 이름·평균은 윗줄, 실적·입력·버튼은 아랫줄 */
+.bud-sub-row{grid-template-columns:minmax(0,1fr) 100px 34px 34px;row-gap:5px;padding:9px 0}
+.bud-sub-info{grid-column:1 / -1}
+.bud-sub-actual{text-align:left}
+.bud-sub-actual:not(:empty)::before{content:'실적 ';color:var(--mu);font-weight:600}
+.bud-ib{width:34px;height:34px}
 .hl-top{grid-template-columns:18px 1fr 80px 36px}
 .hl-top .bar{display:none}
 .fxk-row .kl{font-size:11px;white-space:nowrap}
@@ -460,7 +488,7 @@ input[type=number],input[type=date],select{min-height:36px}
   </script>
   <div class="sm">
     <button class="btn bpu2 bsm" onclick="openSetup()" title="서버 연결 설정" aria-label="서버 연결 설정">⚙️</button>
-    <button class="btn bg2 bsm" onclick="openPinSetup()" title="비밀번호 설정" aria-label="비밀번호 설정">🔒</button>
+    <button class="btn bg2 bsm" id="lock-btn" onclick="openPinSetup()" title="비밀번호 설정" aria-label="비밀번호 설정">🔒</button>
     <button class="btn bg2 bsm" onclick="manualSyncNow()">🔄 동기화</button>
     <button class="btn bg2 bsm" onclick="openVersionLog()" title="가져오기·중복정리 등 큰 작업 전 자동 저장된 체크포인트로 되돌리기">🕐 이전 기록</button>
     <button class="btn bg2 bsm" onclick="exportJSON()" title="백업 파일로 내보내기(JSON 저장)" aria-label="백업 파일로 내보내기">📤</button>
@@ -611,7 +639,8 @@ input[type=number],input[type=date],select{min-height:36px}
   <div id="d-bud-warn"></div>
   <div class="card">
     <div class="card-title">🎯 예산 설정 <span class="sub">· 파란숫자=이달실적 · 입력후포커스이동시자동저장</span><button onclick="fillMissingBudgetTemplatesManual()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px" title="데이트처럼 새로 생겼거나 예산이 아예 없는 카테고리에, 최근 6개월 평균 지출로 예산 초안을 채워요">📊 미설정 카테고리 채우기</button><button onclick="openBulkVarBudget()" class="btn bg2 bsm" style="padding:3px 9px;font-size:11px">🪄 전월 변동지출 95%</button><button onclick="openAddBudgetItem()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
-    <div class="bud-grid" id="d-bud"></div>
+    <div class="bud-legend">📌 기본값 적용 · 🔁 전월 기준으로 자동 채움 (아이콘에 마우스를 올리면 설명이 나와요)</div>
+<div class="bud-grid" id="d-bud"></div>
   </div>
 </div>
 <div class="pg" id="pg-ast">
@@ -2126,14 +2155,14 @@ function calcNW(am,ym){
 }
 function isInvestLossTx(t){return t.mid==='금융지출'&&t.sub==='투자손실';}
 function getMonthSummary(ym){
-  var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0,investLoss=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
+  var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0,investLoss=0,loanRepay=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
   txs.forEach(function(t){
     var a=Number(t.amount)||0;
     if(t.type==='수입'){
       income+=a;
       if(isFixedIncome(t))incomeFixed+=a;else incomeVar+=a;
     }
-    else if(t.type==='저축'){if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;}
+    else if(t.type==='저축'){if(t.sub==='대출상환')loanRepay+=a;if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;}
     else{
       // 투자손실(금융지출>투자손실)은 "실제 소비/생활비 실적"이 아니라 투자 손익이므로,
       // 예산 실적/카테고리 순위/이상치 감지 등 "지출 실적" 집계에서는 제외한다.
@@ -2144,7 +2173,7 @@ function getMonthSummary(ym){
       if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;
     }
   });
-  return{income:income,expense:expense,incomeFixed:incomeFixed,incomeVar:incomeVar,investLoss:investLoss,savingsRate:income>0?((income-expense)/income*100).toFixed(1):'0',byMid:byMid,evalMap:evalMap};
+  return{income:income,expense:expense,incomeFixed:incomeFixed,incomeVar:incomeVar,investLoss:investLoss,loanRepay:loanRepay,savingsRate:income>0?((income-expense)/income*100).toFixed(1):'0',byMid:byMid,evalMap:evalMap};
 }
 function getServerURL(){return localStorage.getItem(SERVER_URL_KEY)||DEFAULT_SERVER_URL;}
 // 마지막으로 서버 백업(POST)이 성공한 시각을 기억해서, 상태 표시줄에 "마지막 서버 백업 N분 전"으로 보여준다.
@@ -2382,10 +2411,47 @@ async function sha256(text){
   for(var i=0;i<text.length;i++){hash=((hash<<5)-hash+text.charCodeAt(i))|0;}
   return 'fb_'+Math.abs(hash).toString(16);
 }
+// ── 자동 잠금 ──────────────────────────────────────────────────────
+// 예전엔 한 번 풀면 같은 탭이 살아 있는 동안(폰에서 앱을 백그라운드에 뒀다 다시 열어도) 계속 열려 있었다.
+// 이제는 앱이 숨겨져 있거나 조작이 없는 시간이 LOCK_AFTER_MS 를 넘으면 다시 잠근다.
+// (PIN 은 이 브라우저/기기의 localStorage 에만 저장돼서, PIN 이 없는 기기는 잠금 없이 열린다 - 상단 버튼이 🔓 로 표시된다)
+var LOCK_AFTER_MS=5*60*1000;
+var LAST_ACTIVE_KEY='gaegyebu_last_active';
+function touchActive(force){
+  var n=Date.now();
+  if(!force&&n-(window.__lastTouch||0)<15000)return;
+  window.__lastTouch=n;
+  try{sessionStorage.setItem(LAST_ACTIVE_KEY,String(n));}catch(e){}
+}
 function isUnlocked(){
   var pinHash=localStorage.getItem(PIN_KEY);
   if(!pinHash)return true;
-  return sessionStorage.getItem(UNLOCK_SESSION_KEY)==='1';
+  if(sessionStorage.getItem(UNLOCK_SESSION_KEY)!=='1')return false;
+  var last=Number(sessionStorage.getItem(LAST_ACTIVE_KEY))||0;
+  if(last&&Date.now()-last>LOCK_AFTER_MS){sessionStorage.removeItem(UNLOCK_SESSION_KEY);return false;}
+  return true;
+}
+function lockIfNeeded(){
+  if(!localStorage.getItem(PIN_KEY))return;
+  if(!isUnlocked()){
+    var ls=document.getElementById('lock-screen');
+    if(ls&&ls.style.display!=='flex')showLockScreen();
+  }
+}
+['click','keydown','touchstart','scroll','mousemove'].forEach(function(ev){window.addEventListener(ev,function(){if(isUnlocked())touchActive(false);},{passive:true,capture:true});});
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='hidden'){if(isUnlocked())touchActive(true);}   // 숨겨지는 순간의 시각을 기록
+  else lockIfNeeded();                                                           // 다시 보일 때 오래 숨겨져 있었으면 잠금
+});
+window.addEventListener('pageshow',function(){lockIfNeeded();});
+setInterval(lockIfNeeded,30000);                                                 // 화면은 켜져 있지만 아무 조작도 없는 경우
+// 상단 🔒 버튼: PIN 이 설정된 기기 = 🔒, 아닌 기기 = 🔓 (눌러서 설정)
+function updateLockButton(){
+  var b=document.getElementById('lock-btn');if(!b)return;
+  var has=!!localStorage.getItem(PIN_KEY);
+  b.textContent=has?'🔒':'🔓';
+  b.title=has?'비밀번호 잠금이 켜져 있어요(이 기기). 눌러서 변경/해제':'이 기기에는 비밀번호가 없어요. 눌러서 설정(기기마다 따로 설정해야 해요)';
+  b.setAttribute('aria-label',b.title);
 }
 // ── 4자리 PIN 키패드 (잠금해제 / 잠금설정 공용) ──────────────────────
 var pinBuffer='';
@@ -2438,7 +2504,9 @@ async function tryUnlock(){
   var hash=await sha256(val);
   if(hash===localStorage.getItem(PIN_KEY)){
     sessionStorage.setItem(UNLOCK_SESSION_KEY,'1');
+    touchActive(true);
     document.getElementById('lock-screen').style.display='none';
+    if(window.__appInited)return;   // 앱이 이미 떠 있는 상태에서 다시 잠갔다 푼 경우엔 초기화를 다시 하지 않는다
     initApp();
   }else{
     var errEl=document.getElementById('lock-error');
@@ -2503,7 +2571,7 @@ async function advancePinSetup(){
       return;
     }
     var newHash=await sha256(setupNewPin);
-    localStorage.setItem(PIN_KEY,newHash);
+    localStorage.setItem(PIN_KEY,newHash);touchActive(true);sessionStorage.setItem(UNLOCK_SESSION_KEY,'1');updateLockButton();
     sessionStorage.setItem(UNLOCK_SESSION_KEY,'1');
     showToast('✅ 비밀번호가 설정됐어요.');
     var md=document.getElementById('pin-setup-md');if(md)md.remove();
@@ -2511,7 +2579,7 @@ async function advancePinSetup(){
 }
 function removePinLock(){
   if(!confirm('비밀번호 잠금을 없앨까요?'))return;
-  localStorage.removeItem(PIN_KEY);
+  localStorage.removeItem(PIN_KEY);updateLockButton();
   sessionStorage.removeItem(UNLOCK_SESSION_KEY);
   showToast('🔓 비밀번호 잠금이 해제됐어요.');
   var md=document.getElementById('pin-setup-md');if(md)md.remove();
@@ -2528,10 +2596,17 @@ document.addEventListener('keydown',function(e){
 });
 
 window.onload=function(){
+  updateLockButton();
   if(!isUnlocked()){showLockScreen();return;}
+  // 이 기기에 비밀번호가 없으면(폰/PC 를 같이 쓰거나 저장 데이터를 지운 경우) 처음 한 번만 알려준다
+  if(!localStorage.getItem(PIN_KEY)&&!localStorage.getItem('gaegyebu_pin_hint_shown')){
+    localStorage.setItem('gaegyebu_pin_hint_shown','1');
+    setTimeout(function(){if(typeof showToast==='function')showToast('🔓 이 기기에는 비밀번호 잠금이 없어요. 상단 🔓 버튼에서 설정할 수 있어요(기기마다 따로 설정).');},2500);
+  }
   initApp();
 };
 function initApp(){
+  window.__appInited=true;touchActive(true);
   // 구버전 FX 키 전부 삭제
   ['gaegyebu_fx','gaegyebu_fx_ver','gaegyebu_fx_removed','gaegyebu_fx_added','gaegyebu_fx_edited'].forEach(function(k){localStorage.removeItem(k);});
   // 주식 원금 히스토리 초기화(1회성): 마이그레이션 버그로 엉뚱한 달에 값이 박혔던 것을 사용자 요청으로 전부 정리.
@@ -4502,7 +4577,7 @@ function renderMonthlyReview(ym){
   var html='<div class="card mb12" style="border:2px solid '+(reviewed?'var(--bd)':'var(--pu)')+'">'
     +'<div class="card-title">📝 '+ym+' 총평'+(reviewed?' <span class="bk bg" style="font-size:11px;margin-left:6px;text-transform:none;letter-spacing:0">✓ 확인함</span>':'')+'</div>'
     +'<div style="font-size:13px;line-height:1.7;margin-bottom:10px">'
-    +'이번달 수입 <b>'+ff(sm.income)+'</b> · 지출 <b style="color:var(--rd)">'+ff(sm.expense)+'</b> · 저축률 <b style="color:var(--bl)">'+sm.savingsRate+'%</b>'
+    +'이번달 수입 <b>'+ff(sm.income)+'</b> · 지출 <b style="color:var(--rd)">'+ff(sm.expense)+'</b> · 저축률 <b style="color:var(--bl)">'+sm.savingsRate+'%</b>'+(sm.loanRepay>0?' <span style="color:var(--mu2)" title="저축률은 (수입−지출)÷수입이에요. 대출 상환은 지출이 아니라 저축 거래로 기록되니, 더하지 않아도 이미 지출에서 빠져 있어요.">(대출 상환 '+ff(sm.loanRepay)+'은 지출이 아니라 저축으로 기록)</span>':'')
     +(prevSm.income>0||prevSm.expense>0?(' (순저축 전월대비 '+(nsChange>=0?'+':'')+ff(nsChange)+')'):'')
     +'</div>'
     +(lines.length?lines.map(function(l){return'<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--bd);color:'+l.color+'">'+l.icon+' '+l.text+'</div>';}).join(''):'<div style="font-size:12px;color:var(--gn);padding:6px 0">👍 이번달은 예산초과·이상치 없이 무난하게 지나갔어요.</div>')
@@ -5550,28 +5625,26 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
     var act=0;
     monthTxs.forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type===sec.type)act+=Number(t.amount)||0;});
     var row=document.createElement('div');row.className='bud-sub-row';
-    var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub+' ';
-    if(r.autoTag==='prev95'){
-      var abk=document.createElement('span');abk.className='bk bcy';abk.style.fontSize='10.5px';abk.title='전월 실사용액의 95%로 자동 채워졌어요.';abk.textContent='🔁 전월 95%';
-      subName.appendChild(abk);
-    }else if(r.autoTag==='prev100'){
-      var pbk=document.createElement('span');pbk.className='bk bcy';pbk.style.fontSize='10.5px';pbk.title='전월 실적과 동일한 금액이 목표로 자동 채워졌어요.';pbk.textContent='🔁 전월과 동일';
-      subName.appendChild(pbk);
-    }else if(r.autoTag==='template'){
-      var tbk=document.createElement('span');tbk.className='bk bpu';tbk.style.fontSize='10.5px';tbk.title='설정해두신 기본값이 적용됐어요. 이번달만 다르게 하려면 값을 바꾸고 포커스를 옮기세요.';tbk.textContent='📌 기본값';
-      subName.appendChild(tbk);
-    }
-    row.appendChild(subName);
+    var info=document.createElement('div');info.className='bud-sub-info';
+    var l1=document.createElement('div');l1.className='bud-sub-l1';
+    var subName=document.createElement('span');subName.className='bud-sub-name';subName.textContent=r.sub;subName.title=r.sub;
+    l1.appendChild(subName);
+    // 배지는 아이콘만 보여서 줄바꿈이 생기지 않게 하고, 설명은 마우스를 올리면(폰은 길게 누르면) 툴팁으로 보여준다.
+    function addTag(icon,tip){var tg=document.createElement('span');tg.className='bud-tag';tg.textContent=icon;tg.title=tip;l1.appendChild(tg);}
+    if(r.autoTag==='prev95')addTag('🔁','전월 실사용액의 95%로 자동 채워졌어요.');
+    else if(r.autoTag==='prev100')addTag('🔁','전월 실적과 동일한 금액이 목표로 자동 채워졌어요.');
+    else if(r.autoTag==='template')addTag('📌','설정해두신 기본값이 적용됐어요. 이번달만 다르게 하려면 값을 바꾸고 포커스를 옮기세요.');
+    info.appendChild(l1);
+    row.appendChild(info);
     var histAvg=getHistAvg(m,r.sub,sec.type);
     if(histAvg>0){
-      var avgEl=document.createElement('span');
-      avgEl.style.cssText='font-size:10.5px;color:var(--pu);display:block;margin-top:1px';
+      var avgEl=document.createElement('div');avgEl.className='bud-sub-avg';
       avgEl.title='올해('+curYear+') 데이터 기준 월평균 (예산 잡을 때 참고하세요)';
       avgEl.textContent='평균 '+ff(histAvg);
-      subName.appendChild(avgEl);
+      info.appendChild(avgEl);
     }
     var actEl=document.createElement('span');actEl.className='bud-sub-actual';if(act)actEl.textContent=ff(act);row.appendChild(actEl);
-    var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder=isExpense?'예산':'목표';inp.min='0';inp.className='bud-sub-input';
+    var inp=document.createElement('input');inp.type='number';inp.value=r.amount||'';inp.placeholder=isExpense?'예산':'목표';inp.min='0';inp.className='bud-sub-input';inp.setAttribute('inputmode','numeric');
     if(r.autoTag)inp.style.borderColor='rgba(8,151,160,.4)';
     (function(ym2,m2,s2){
       inp.onfocus=function(){this.style.borderColor='var(--bl)';};
@@ -5581,7 +5654,7 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
     // BT에 아직 등록 안 된 소분류(r.i===-1)여도, 이제 다른 항목들과 똑같이 수정/삭제 버튼을 항상 보여준다.
     // (예전엔 "지울 항목 자체가 없다"는 이유로 숨겼는데, 사용자 입장에선 카드마다 버튼이 있다 없다 하는 게 더 헷갈렸음)
     // 클릭하는 순간, 아직 BT 항목이 없으면 그 자리에서 하나 만들어서(지금 입력값 또는 0원) 정상적인 수정/삭제 흐름을 타게 한다.
-    var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:11px;flex-shrink:0';
+    var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';editBtn.classList.add('bud-ib');editBtn.title='항목 수정';
     (function(ii,mid2,sub2,curAmt){
       editBtn.onclick=function(){
         var realIdx=ii;
@@ -5593,7 +5666,7 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
       };
     })(r.i,m,r.sub,r.amount);
     row.appendChild(editBtn);
-    var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.style.cssText='padding:3px 5px;margin-left:3px;font-size:11px;flex-shrink:0';
+    var delBtn=document.createElement('button');delBtn.className='btn bg2 bsm';delBtn.textContent='🗑️';delBtn.classList.add('bud-ib');delBtn.title='항목 삭제';
     // 🗑️는 이제 "카테고리 완전 삭제"(내역은 다른 카테고리로 이동) 또는 "예산 설정만 삭제" 중에서 고르는 창을 연다.
     // (예전엔 예산 금액 항목만 지워서, 카테고리 목록에 행이 그대로 남아 "삭제가 안 되는" 것처럼 보였음)
     (function(mid2,sub2){
@@ -7885,36 +7958,107 @@ function onStockPrincipalChange(el,ym){
   if(curPage==='stk')renderStock();
   else if(curPage==='ast')renderRealPLCard();
 }
-// 주식 탭 "이번 달 한눈에": 숫자만 늘어놓는 대신 지금 상태를 문장으로 요약한다(고점 대비 · 연속 추세 · 올해 손익 · 하락 충격).
+// 주식 탭 "이번 달 한눈에": 문장 대신 카드 5장(고점 대비 게이지 · 월간 변화 막대 · 올해 입금/시장 손익 막대 · 원금 대비 · 하락 충격)
+function stkSpark(ch){
+  var n=ch.length,bw=16,gap=6,W=n*bw+(n-1)*gap,H=48,mid=H/2;
+  var mx=Math.max.apply(null,ch.map(function(v){return Math.abs(v.d);}).concat([1]));
+  var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" preserveAspectRatio="xMidYMid meet" role="img" aria-label="월간 평가금액 변화">'
+    +'<line x1="0" x2="'+W+'" y1="'+mid+'" y2="'+mid+'" stroke="#7bc0ef" stroke-width="1"/>';
+  ch.forEach(function(v,i){
+    var h=Math.max(2,Math.abs(v.d)/mx*(mid-3));
+    s+='<rect class="spk-bar" data-v="'+v.d+'" x="'+(i*(bw+gap))+'" y="'+(v.d>=0?mid-h:mid)+'" width="'+bw+'" height="'+h+'" rx="2" fill="'+(v.d>=0?'#276749':'#c53030')+'"><title>'+v.ym+' '+(v.d>=0?'+':'')+ff(v.d)+'</title></rect>';
+  });
+  return s+'</svg>';
+}
 function buildStockInsightHtml(hist,latestYM,stockVal,latestAm){
   if(!hist.length)return'';
-  var cur=hist[hist.length-1],rows=[];
+  var cur=hist[hist.length-1],cards=[],info={};
   var peak=hist.reduce(function(m,x){return x.val>m.val?x:m;},hist[0]);
-  if(hist.length>1&&cur.val>=peak.val)rows.push({i:'🏆',c:'var(--gn)',t:'지금이 <b>역대 최고</b> 평가금액이에요 ('+ff(cur.val)+')'});
-  else if(peak.val>cur.val){var dd=cur.val-peak.val;rows.push({i:'⛰️',c:'var(--rd)',t:'고점(<b>'+peak.ym+'</b>, '+ff(peak.val)+') 대비 <b>'+ff(dd)+'</b> ('+(dd/peak.val*100).toFixed(1)+'%)'});}
-  var streak=0,dir=0,sum=0;
-  for(var k=hist.length-1;k>0;k--){var d=hist[k].val-hist[k-1].val;if(!d)break;var sg=d>0?1:-1;if(!dir)dir=sg;if(sg!==dir)break;streak++;sum+=d;}
-  if(streak>=2)rows.push({i:dir>0?'📈':'📉',c:dir>0?'var(--gn)':'var(--rd)',t:'<b>'+streak+'개월 연속 '+(dir>0?'상승':'하락')+'</b> (누적 '+(sum>0?'+':'')+ff(sum)+')'});
-  // 올해: 작년 마지막 기록(없으면 올해 첫 기록) 대비
+  function card(k,accent,head,big,bigColor,visual,cap){
+    return'<div class="stk-ic" data-k="'+k+'" style="--ac:'+accent+'"><div class="stk-ic-h">'+head+'</div>'
+      +'<div class="stk-ic-big" style="color:'+bigColor+'">'+big+'</div>'+(visual||'')+'<div class="stk-ic-s">'+cap+'</div></div>';
+  }
+  // ① 고점 대비
+  var atPeak=hist.length>1&&cur.val>=peak.val;
+  if(atPeak){
+    info.peak={atPeak:true};
+    cards.push(card('peak','var(--gn)','🏆 고점 대비','역대 최고','var(--gn)','<div class="stk-meter"><i style="width:100%;background:var(--gn)"></i></div>','지금이 <b>역대 최고</b> 평가금액이에요 ('+ff(cur.val)+')'));
+  }else if(peak.val>cur.val){
+    var dd=cur.val-peak.val,ddPct=dd/peak.val*100,fill=Math.max(2,Math.round(cur.val/peak.val*100));
+    var ac=ddPct<=-20?'var(--rd)':ddPct<=-10?'var(--yw)':'var(--gn)';
+    info.peak={atPeak:false,peakYM:peak.ym,peakVal:peak.val,dd:dd,ddPct:Math.round(ddPct*10)/10,fill:fill};
+    cards.push(card('peak',ac,'⛰️ 고점 대비',(ddPct>0?'+':'−')+Math.abs(ddPct).toFixed(1)+'%',ac,
+      '<div class="stk-meter"><i style="width:'+fill+'%;background:'+ac+'"></i></div><div class="stk-ends"><span>지금 '+f(cur.val)+'</span><span>고점 '+f(peak.val)+' ('+peak.ym.slice(2).replace('-','/')+')</span></div>',
+      '고점까지 <b>+'+ff(peak.val-cur.val)+'</b> (+'+((peak.val/cur.val-1)*100).toFixed(1)+'%) 오르면 회복'));
+  }
+  // ② 월간 변화 + 연속 추세
+  var chs=[];for(var q=Math.max(1,hist.length-8);q<hist.length;q++)chs.push({ym:hist[q].ym,d:hist[q].val-hist[q-1].val});
+  var streak=0,dir=0,ssum=0;
+  for(var k=hist.length-1;k>0;k--){var d=hist[k].val-hist[k-1].val;if(!d)break;var sg=d>0?1:-1;if(!dir)dir=sg;if(sg!==dir)break;streak++;ssum+=d;}
+  if(chs.length){
+    var last=chs[chs.length-1];
+    var tc=streak>=2?(dir>0?'var(--gn)':'var(--rd)'):(last.d>=0?'var(--gn)':'var(--rd)');
+    info.trend={streak:streak,dir:dir,sum:ssum,n:chs.length};
+    cards.push(card('trend',tc,'📊 최근 월간 변화',streak>=2?streak+'개월 연속 '+(dir>0?'상승':'하락'):('이번 달 '+(last.d>=0?'+':'−')+f(Math.abs(last.d))),tc,
+      '<div class="stk-spark">'+stkSpark(chs)+'</div>',
+      streak>=2?'누적 <b>'+(ssum>0?'+':'−')+ff(Math.abs(ssum))+'</b> · 최근 '+chs.length+'개월 막대(초록=상승, 빨강=하락)':'최근 '+chs.length+'개월 월간 변화 막대(초록=상승, 빨강=하락)'));
+  }
+  // ③ 올해 (작년 마지막 기록 대비)
   var y=latestYM.slice(0,4);
   var base=hist.filter(function(x){return x.ym<y+'-01';}).pop()||hist.filter(function(x){return x.ym>=y+'-01';})[0];
+  var prNow=getStockPrincipal(cur.ym),prCur=prNow;
   if(base&&base.ym!==cur.ym){
-    var delta=cur.val-base.val;
-    var prNow=getStockPrincipal(cur.ym),prBase=getStockPrincipal(base.ym);
+    var delta=cur.val-base.val,prBase=getStockPrincipal(base.ym);
     if(prNow>0&&prBase>0){
-      var dep=prNow-prBase,mkt=delta-dep;
-      rows.push({i:'🗓️',c:mkt>=0?'var(--gn)':'var(--rd)',t:'올해('+base.ym+' 대비) 평가금액 '+(delta>=0?'+':'')+ff(delta)+' = 입금 '+(dep>=0?'+':'')+ff(dep)+' + <b>시장 손익 '+(mkt>=0?'+':'')+ff(mkt)+'</b>'});
+      var dep=prNow-prBase,mkt=delta-dep,tot=Math.abs(dep)+Math.abs(mkt)||1;
+      var mc=mkt>=0?'var(--gn)':'var(--rd)';
+      info.ytd={base:base.ym,delta:delta,dep:dep,mkt:mkt};
+      cards.push(card('ytd',mc,'🗓️ 올해 손익('+base.ym+' 대비)',(mkt>=0?'+':'−')+f(Math.abs(mkt)),mc,
+        '<div class="stk-meter"><i style="width:'+Math.round(Math.abs(dep)/tot*100)+'%;background:#5b7fd6"></i><i style="width:'+Math.round(Math.abs(mkt)/tot*100)+'%;background:'+(mkt>=0?'#276749':'#c53030')+'"></i></div>'
+        +'<div class="stk-chips"><span class="stk-chip" style="color:#3b5bb5">■ 입금 '+(dep>=0?'+':'−')+f(Math.abs(dep))+'</span><span class="stk-chip" style="color:'+mc+'">■ 시장 손익 '+(mkt>=0?'+':'−')+f(Math.abs(mkt))+'</span></div>',
+        '평가금액 '+(delta>=0?'+':'−')+ff(Math.abs(delta))+' = 입금 + <b>시장 손익</b>'));
     }else{
-      rows.push({i:'🗓️',c:delta>=0?'var(--gn)':'var(--rd)',t:'올해('+base.ym+' 대비) 평가금액 '+(delta>=0?'+':'')+ff(delta)+(base.val>0?' ('+(delta/base.val*100).toFixed(1)+'%)':'')+' <span class="m">· 입금이 섞여 있어요. 원금을 입력하면 시장 손익을 따로 볼 수 있어요</span>'});
+      var dc=delta>=0?'var(--gn)':'var(--rd)';
+      info.ytd={base:base.ym,delta:delta,noPrincipal:true};
+      cards.push(card('ytd',dc,'🗓️ 올해 평가금액 변화',(delta>=0?'+':'−')+f(Math.abs(delta)),dc,
+        '<div class="stk-chips"><span class="stk-chip">'+base.ym+' → '+latestYM+'</span>'+(base.val>0?'<span class="stk-chip" style="color:'+dc+'">'+(delta>=0?'+':'')+(delta/base.val*100).toFixed(1)+'%</span>':'')+'</div>',
+        '입금이 섞여 있어요. <b>원금을 입력</b>하면 시장 손익만 따로 볼 수 있어요'));
     }
   }
-  var prCur=getStockPrincipal(cur.ym);
-  if(prCur>0){var pl=cur.val-prCur;rows.push({i:'💰',c:pl>=0?'var(--gn)':'var(--rd)',t:'원금 '+ff(prCur)+' 대비 <b>'+(pl>=0?'+':'')+ff(pl)+'</b> ('+(pl>=0?'+':'')+(pl/prCur*100).toFixed(1)+'%)'});}
-  else rows.push({i:'✍️',c:'var(--mu2)',t:'아래 <b>"내가 넣은 원금"</b>을 입력하면 수익률과 입금/시장 손익이 자동으로 계산돼요'});
+  // ④ 원금 대비
+  if(prCur>0){
+    var pl=cur.val-prCur,pc=pl>=0?'var(--gn)':'var(--rd)',totalW=Math.max(prCur,cur.val);
+    var blueW=Math.round(Math.min(cur.val,prCur)/totalW*100),extraW=100-blueW;
+    info.principal={principal:prCur,pl:pl,pct:Math.round(pl/prCur*1000)/10};
+    cards.push(card('principal',pc,'💰 원금 대비',(pl>=0?'+':'−')+Math.abs(pl/prCur*100).toFixed(1)+'%',pc,
+      '<div class="stk-meter"><i style="width:'+blueW+'%;background:#5b7fd6"></i>'+(extraW?'<i style="width:'+extraW+'%;background:'+(pl>=0?'#276749':'repeating-linear-gradient(45deg,#c53030,#c53030 4px,#e8a0a0 4px,#e8a0a0 8px)')+'"></i>':'')+'</div>'
+      +'<div class="stk-ends"><span>원금 '+f(prCur)+'</span><span>평가 '+f(cur.val)+'</span></div>',
+      '<b>'+(pl>=0?'+':'−')+ff(Math.abs(pl))+'</b> '+(pl>=0?'수익(초록 구간)':'손실(빗금 구간)')));
+  }else{
+    info.principal={missing:true};
+    cards.push(card('principal','var(--bd2)','✍️ 원금 대비','원금 입력','var(--mu2)',
+      '<button class="btn bp bsm stk-cta" onclick="focusStockPrincipal()">원금 입력하러 가기</button>',
+      '내가 넣은 원금을 입력하면 <b>수익률</b>과 입금/시장 손익이 계산돼요'));
+  }
+  // ⑤ 하락 충격: 주식이 10%/20% 빠지면 순자산이 얼마나 줄어드는지
   var nw=calcNW(latestAm,latestYM).nw;
-  if(stockVal>0&&nw>0){var loss=Math.round(stockVal*0.1);rows.push({i:'⚠️',c:'var(--yw)',t:'주식이 <b>10% 하락</b>하면 평가금액 −'+ff(loss)+' → 순자산의 <b>'+Math.round(loss/nw*100)+'%</b>가 사라져요'});}
-  return'<div class="card mb12"><div class="card-title">📌 이번 달 한눈에 <span class="sub">· '+latestYM+' 기준</span></div><div class="stk-ins">'
-    +rows.map(function(r){return'<div class="stk-ins-row"><span class="i">'+r.i+'</span><span style="color:'+r.c+'">'+r.t+'</span></div>';}).join('')+'</div></div>';
+  if(stockVal>0&&nw>0){
+    var l10=Math.round(stockVal*0.1),l20=Math.round(stockVal*0.2);
+    var s10=Math.round(l10/nw*100),s20=Math.round(l20/nw*100);
+    info.shock={l10:l10,l20:l20,s10:s10,s20:s20,stockShare:Math.round(stockVal/nw*100)};
+    cards.push(card('shock','var(--yw)','⚠️ 하락 충격','−'+f(l10),'var(--yw)',
+      '<div class="stk-meter"><i style="width:'+Math.min(100,s10)+'%;background:#c53030"></i><i style="width:'+Math.max(0,Math.min(100,s20)-Math.min(100,s10))+'%;background:#e8a0a0"></i></div>'
+      +'<div class="stk-chips"><span class="stk-chip" style="color:#c53030">■ −10% = 순자산의 '+s10+'%</span><span class="stk-chip" style="color:#b05555">■ −20% = −'+f(l20)+' ('+s20+'%)</span></div>',
+      '주식 평가금액이 순자산의 <b>'+Math.round(stockVal/nw*100)+'%</b>예요'+(stockVal>nw?'(빌린 돈이 섞인 레버리지)':'')));
+  }
+  window.__stkInsight=info;
+  return'<div class="card mb12"><div class="card-title">📌 이번 달 한눈에 <span class="sub">· '+latestYM+' 기준</span></div><div class="stk-cards">'+cards.join('')+'</div></div>';
+}
+function focusStockPrincipal(){
+  var inp=document.querySelector('#d-stk input[placeholder^="예: 50000000"]');
+  if(!inp)return;
+  inp.scrollIntoView({block:'center',behavior:'smooth'});
+  setTimeout(function(){inp.focus();},350);
 }
 function renderStock(){
   scheduleChartPrune();
