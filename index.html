@@ -102,21 +102,11 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 @media(max-width:700px){.inc-grid{grid-template-columns:1fr}.inc-big{font-size:26px}.inc-row{grid-template-columns:1fr 62px 38px;gap:2px 10px}.inc-bar{grid-column:1 / -1;grid-row:2;height:6px}.inc-avg{grid-column:1 / -1;text-align:left;font-size:11px}.inc-avg:empty{display:none}}
 /* ── 예산 탭 결산(월 요약) / 전체 탭 기간 안내 ── */
 .bs-hero{background:linear-gradient(180deg,#fff 0%,var(--sf2) 100%);border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;margin-bottom:12px}
-.bs-hero-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .bs-title{font-size:14px;font-weight:800;color:var(--tx);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.bs-hint{font-size:13px;color:var(--mu2);margin-top:8px;font-weight:600;line-height:1.5}
-.bs-hint b{font-weight:800;color:var(--tx);white-space:nowrap}
-.bs-hint b.g{color:var(--gn)}
-.bs-hint b.r{color:var(--rd)}
-.bs-hero-top + .bs-bar{margin-top:14px}
-.bs-pct{font-size:40px;font-weight:900;line-height:1;letter-spacing:-1px;font-variant-numeric:tabular-nums}
-.bs-pct small{font-size:18px;font-weight:800;margin-left:1px}
 .bs-chip{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:20px;white-space:nowrap}
 .bs-bar{position:relative;height:14px;background:var(--sf3);border-radius:7px}
 .bs-bar-fill{height:100%;border-radius:7px;transition:width .5s}
 .bs-bar-today{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--tx);border-radius:2px;transform:translateX(-1px)}
-.bs-bar-legend{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--mu2);margin-top:9px;flex-wrap:wrap}
-.bs-pace{font-weight:800}
 .bs-goalbox{margin-top:14px;padding-top:12px;border-top:1px dashed var(--bd);display:flex;flex-direction:column;gap:10px}
 .bs-goalbox.solo{margin-top:0;padding-top:0;border-top:none}
 .bs-grow{display:grid;grid-template-columns:104px 1fr 52px 240px;align-items:center;gap:12px}
@@ -179,7 +169,7 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .bs-m-sub.pos{color:var(--gn)}
 .bs-m-sub.neg{color:var(--rd)}
 @media(max-width:700px){
-.bs-pct{font-size:32px}.bs-hero{padding:14px}
+.bs-hero{padding:14px}
 .bs-grow{grid-template-columns:92px 1fr 46px;gap:6px 10px}
 .bs-grow-n{grid-column:1 / -1;text-align:left}
 .bs-grow-e{grid-column:2 / -1}
@@ -311,15 +301,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .fxk-cash b{font-weight:900}
 .fxk-cash.good{border-color:rgba(39,103,73,.45);color:var(--gn)}
 .fxk-cash.bad{border-color:rgba(197,48,48,.5);color:var(--rd)}
-.bs-freeline{font-size:12px;font-weight:600;color:var(--mu2);margin-top:6px}
-.bs-freeline b{font-weight:900}
-.bs-freeline b.g{color:var(--gn)}
-.bs-freeline b.r{color:var(--rd)}
-.bs-freeline .m{color:var(--mu);font-weight:500;font-size:11px}
-.bs-warnline{font-size:12px;font-weight:700;margin-top:5px}
-.bs-warnline b{font-weight:900}
-.bs-warnline.bad{color:var(--rd)}
-.bs-warnline.good{color:var(--gn)}
 .ast-comp-box{margin-bottom:16px;padding-bottom:14px;border-bottom:1px dashed var(--bd)}
 .ast-chg{display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:1px 7px;margin-left:6px;white-space:nowrap}
 .ast-chg.up{background:rgba(39,103,73,.12);color:var(--gn)}
@@ -356,25 +337,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .stk-ins-row b{font-weight:900}
 .stk-ins-row .m{color:var(--mu);font-weight:500;font-size:11px}
 .stk-note{font-size:11px;color:var(--mu);margin:-4px 2px 12px}
-.bs-projline{font-size:12px;font-weight:600;color:var(--mu2);margin-top:6px}
-.bs-projline b{font-weight:900}
-.bs-projline b.g{color:var(--gn)}
-.bs-projline b.y{color:var(--yw)}
-.bs-projline b.r{color:var(--rd)}
-.bs-projline .m{color:var(--mu);font-weight:500;font-size:11px}
-.hl-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
-.hl-stat{background:#fff;border:1px solid var(--bd);border-top:3px solid var(--bd);border-radius:var(--rs);padding:9px 12px;min-width:0}
-.hl-stat .l{font-size:11px;font-weight:700;color:var(--mu)}
-.hl-stat .v{font-size:20px;font-weight:900;margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap}
-.hl-stat .s{font-size:11px;color:var(--mu2);margin-top:1px}
-.hl-top-title{font-size:12px;font-weight:700;color:var(--mu2);margin:4px 0 6px}
-.hl-top{display:grid;grid-template-columns:20px 130px 1fr 90px 40px;align-items:center;gap:10px;font-size:12px;margin-bottom:5px}
-.hl-top .n{font-weight:900;color:var(--mu)}
-.hl-top .k{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hl-top .bar{height:8px;background:var(--sf3);border-radius:4px;overflow:hidden}
-.hl-top .bar i{display:block;height:100%;background:var(--rd);border-radius:4px}
-.hl-top .a{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
-.hl-top .p{text-align:right;color:var(--mu2);font-weight:700}
 .trend-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
 .trend-grid .card{min-width:0}
 .chart-note{font-size:12px;color:var(--mu2);margin-top:8px;line-height:1.55}
@@ -395,6 +357,56 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .stk-chip{font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px;background:var(--sf2);color:var(--mu2);white-space:nowrap}
 .stk-spark{height:48px}
 .stk-cta{align-self:flex-start;padding:6px 14px}
+.bs-hero-grid{display:grid;grid-template-columns:132px minmax(0,1fr);gap:18px;align-items:center}
+.bs-ring-wrap{display:flex;align-items:center;justify-content:center}
+.bs-hero-main{min-width:0}
+.bs-hero-top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.bs-budget-lbl{font-size:12px;color:var(--mu2);font-weight:600}
+.bs-budget-lbl b{font-size:17px;color:var(--tx);font-weight:900;font-variant-numeric:tabular-nums}
+.bs-pills{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:11px}
+.bs-pill,.bs-warnline{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:700;border-radius:14px;padding:3px 10px;background:var(--sf3);color:var(--mu2);white-space:nowrap}
+.bs-pill.bad,.bs-warnline.bad{background:rgba(197,48,48,.12);color:var(--rd)}
+.bs-pill.good,.bs-warnline.good{background:rgba(39,103,73,.13);color:var(--gn)}
+.bs-warnline b{font-weight:900}
+.bs-seg{position:relative;display:flex;height:16px;background:var(--sf3);border-radius:8px}
+.bs-seg i{display:block;height:100%}
+.bs-seg .s-used{border-radius:8px 0 0 8px}
+.bs-seg .s-res{background:repeating-linear-gradient(45deg,#d69e2e,#d69e2e 4px,#f0d28c 4px,#f0d28c 8px)}
+.bs-seg .s-free{background:#bfe3cf;border-radius:0 8px 8px 0}
+.bs-seg .s-used:only-child{border-radius:8px}
+.bs-bar-budget{position:absolute;top:-4px;bottom:-4px;width:0;border-left:2px dashed var(--tx)}
+.bs-seg-legend{font-size:11px;color:var(--mu2);margin-top:8px;display:flex;align-items:center;gap:6px}
+.bs-seg-legend .tick{display:inline-block;width:3px;height:11px;background:var(--tx);border-radius:2px}
+.bs-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:14px}
+.bs-tile{background:#fff;border:1px solid var(--bd);border-left:4px solid var(--ac,var(--bd));border-radius:var(--rs);padding:9px 12px;min-width:0}
+.bs-tile .t-l{font-size:11.5px;font-weight:700;color:var(--mu2);white-space:nowrap}
+.bs-tile .t-v{font-size:19px;font-weight:900;margin-top:2px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--ac,var(--tx))}
+.bs-tile .t-s{font-size:11px;color:var(--mu);margin-top:1px;line-height:1.4}
+.sec-sub-t{font-size:13px;font-weight:800;color:var(--tx);margin:2px 2px 8px}
+.sec-sub-t .sub{font-weight:500;font-size:11px;color:var(--mu)}
+.hl-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.hl-card{background:#fff;border:1px solid var(--bd);border-top:4px solid var(--ac,var(--bd));border-radius:var(--r);padding:12px 14px;min-width:0;display:flex;flex-direction:column}
+.hl-card-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;font-weight:800;margin-bottom:6px}
+.hl-card-h .s{font-size:10.5px;font-weight:600;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-row{display:grid;grid-template-columns:50px minmax(0,1fr);gap:10px;align-items:start;padding:9px 0;border-top:1px dashed var(--bd)}
+.hl-badge{font-size:11px;font-weight:800;border-radius:10px;padding:3px 0;text-align:center;white-space:nowrap;margin-top:3px}
+.hl-main{min-width:0}
+.hl-line{display:flex;align-items:baseline;gap:8px;min-width:0}
+.hl-m{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums}
+.hl-amt{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hl-net{margin-left:auto;font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hl-meter{height:7px;background:var(--sf3);border-radius:4px;overflow:hidden;margin:5px 0 4px}
+.hl-meter i{display:block;height:100%;border-radius:4px}
+.hl-sub{font-size:11px;color:var(--mu2);line-height:1.5}
+.hl-warn{color:var(--yw);font-weight:600}
+.hl-spark{margin-top:auto;padding-top:8px;border-top:1px dashed var(--bd)}
+.hl-spark-cap{font-size:10.5px;color:var(--mu);margin-top:3px;text-align:center}
+.hl-empty{font-size:12px;color:var(--mu);padding:18px 4px;text-align:center}
+.hl-t-row{padding:7px 0;border-top:1px dashed var(--bd)}
+.hl-medal{font-size:15px}
+.hl-tk{font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hl-t-row .hl-amt{margin-left:auto;font-size:14px}
+.hl-p{font-size:11.5px;font-weight:700;color:var(--mu2);min-width:32px;text-align:right}
 /* ── 모바일 사용성 보강 ── */
 @media(max-width:700px){
 .asset-item{flex-wrap:wrap;row-gap:8px}
@@ -410,15 +422,20 @@ input[type=number],input[type=date],select{min-height:36px}
 .flow-row .bar{grid-column:1 / -1;grid-row:2}
 .flow-row.tot .bar,.flow-row:first-child .bar{display:none}
 .trend-grid{grid-template-columns:1fr}
-.hl-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hl-cards{grid-template-columns:1fr}
+.bs-hero-grid{grid-template-columns:100px minmax(0,1fr);gap:12px}
+.bs-ring-wrap svg{width:100px;height:100px}
+.bs-pill,.bs-warnline{font-size:11px;padding:3px 8px;white-space:normal}
+.bs-pills{gap:5px}
+.bs-budget-lbl b{font-size:14px}
+.bs-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.bs-tile .t-v{font-size:16px}
 /* 폰: 이름·평균은 윗줄, 실적·입력·버튼은 아랫줄 */
 .bud-sub-row{grid-template-columns:minmax(0,1fr) 100px 34px 34px;row-gap:5px;padding:9px 0}
 .bud-sub-info{grid-column:1 / -1}
 .bud-sub-actual{text-align:left}
 .bud-sub-actual:not(:empty)::before{content:'실적 ';color:var(--mu);font-weight:600}
 .bud-ib{width:34px;height:34px}
-.hl-top{grid-template-columns:18px 1fr 80px 36px}
-.hl-top .bar{display:none}
 .fxk-row .kl{font-size:11px;white-space:nowrap}
 .fxk-row .ks{font-size:11px}
 .donut-grid{grid-template-columns:1fr}
@@ -4768,39 +4785,84 @@ function applyDashCustomRange(){
   window.__dashRangeOpen=true;
   setDashRangeMode('range:'+a+':'+b);
 }
-// 기간 누적 하이라이트: 선택한 기간(2개월 이상)의 최다/최소 지출 달, 저축률 최고 달, 월평균, 누적 지출 TOP3 카테고리.
+// 기간 누적 하이라이트(2개월 이상): ① 지출 하이라이트(최다·최소 달) ② 저축 하이라이트(최고·최소 달: 저축률 % + 금액) ③ 누적 지출 TOP 3
+function hlBars(vals,hiIdx,loIdx,hiCol,loCol,mode){
+  var n=vals.length,bw=Math.max(6,Math.min(18,Math.floor(210/n)-3)),gap=3,W=n*(bw+gap)-gap,H=44;
+  var net=(mode==='net'),mid=net?H/2:H-1;
+  var mx=Math.max.apply(null,vals.map(function(v){return Math.abs(v);}).concat([1]));
+  var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" preserveAspectRatio="xMidYMid meet" role="img">'+(net?'<line x1="0" x2="'+W+'" y1="'+mid+'" y2="'+mid+'" stroke="#7bc0ef" stroke-width="1"/>':'');
+  vals.forEach(function(v,i){
+    var h=Math.max(2,Math.abs(v)/mx*(net?mid-2:H-4));
+    var y=net?(v>=0?mid-h:mid):(H-1-h);
+    var col=i===hiIdx?hiCol:i===loIdx?loCol:'#c3d6ec';
+    s+='<rect class="hl-bar'+(i===hiIdx?' hi':i===loIdx?' lo':'')+'" data-i="'+i+'" data-v="'+v+'" x="'+(i*(bw+gap))+'" y="'+y.toFixed(1)+'" width="'+bw+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'"/>';
+  });
+  return s+'</svg>';
+}
 function renderDashHighlightsHtml(months){
   var meta=dashPeriodMeta(months);
   if(meta.isMonth||months.length<2)return'';
   var curMonth=localToday().slice(0,7);
-  var sums=months.map(function(ym){var s=getMonthSummary(ym);return{ym:ym,income:s.income,expense:s.expense,byMid:s.byMid||{}};});
-  // 아직 끝나지 않은 달은 일부만 쌓여 있어서 "최다/최소/저축률" 비교에서 뺀다(누적 합계에는 포함)
-  var full=sums.filter(function(x){return x.ym<curMonth&&x.expense>0;});
+  var sums=months.map(function(ym){var s=getMonthSummary(ym);return{ym:ym,income:s.income,expense:s.expense,net:s.income-s.expense,byMid:s.byMid||{}};});
+  // 아직 끝나지 않은 달은 일부만 쌓여 있어서 최다/최소/저축률 비교에서 뺀다(누적 합계에는 포함)
   var excluded=sums.some(function(x){return x.ym>=curMonth;});
-  var totExp=sums.reduce(function(a,x){return a+x.expense;},0);
+  var fullExp=sums.filter(function(x){return x.ym<curMonth&&x.expense>0;});
+  var fullSav=sums.filter(function(x){return x.ym<curMonth&&x.income>0;});
   function mlabel(ym){return ym.slice(2).replace('-','/');}
-  var stats=[];
-  if(full.length>=2){
-    var mx=full.reduce(function(a,x){return x.expense>a.expense?x:a;},full[0]);
-    var mn=full.reduce(function(a,x){return x.expense<a.expense?x:a;},full[0]);
-    stats.push({l:'지출 최다 달',v:mlabel(mx.ym),s:f(mx.expense),c:'var(--rd)'});
-    stats.push({l:'지출 최소 달',v:mlabel(mn.ym),s:f(mn.expense),c:'var(--gn)'});
-    var withInc=full.filter(function(x){return x.income>0;});
-    if(withInc.length){
-      var br=withInc.reduce(function(a,x){return(x.income-x.expense)/x.income>(a.income-a.expense)/a.income?x:a;},withInc[0]);
-      stats.push({l:'저축률 최고 달',v:mlabel(br.ym),s:((br.income-br.expense)/br.income*100).toFixed(1)+'%',c:'var(--bl)'});
+  function pctTxt(v){return(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(1)+'%';}
+  var note=excluded?'진행 중인 달은 비교에서 제외':'';
+  // ① 지출 하이라이트
+  var expCard='';
+  if(fullExp.length>=2){
+    var mx=fullExp.reduce(function(a,x){return x.expense>a.expense?x:a;},fullExp[0]);
+    var mn=fullExp.reduce(function(a,x){return x.expense<a.expense?x:a;},fullExp[0]);
+    var avg=fullExp.reduce(function(s,x){return s+x.expense;},0)/fullExp.length;
+    var iMx=sums.indexOf(mx),iMn=sums.indexOf(mn);
+    function expRow(k,badge,col,bg,x,widthBase){
+      var dv=(x.expense/avg-1)*100;
+      return'<div class="hl-row" data-k="'+k+'" data-ym="'+x.ym+'" data-v="'+x.expense+'"><div class="hl-badge" style="background:'+bg+';color:'+col+'">'+badge+'</div><div class="hl-main">'
+        +'<div class="hl-line"><span class="hl-m">'+mlabel(x.ym)+'</span><span class="hl-amt" style="color:'+col+'">'+f(x.expense)+'</span></div>'
+        +'<div class="hl-meter"><i style="width:'+Math.round(x.expense/widthBase*100)+'%;background:'+col+'"></i></div>'
+        +'<div class="hl-sub">평균보다 <b style="color:'+col+'">'+pctTxt(dv)+'</b> · '+ff(x.expense)+'</div></div></div>';
     }
+    expCard='<div class="hl-card" data-k="exp" style="--ac:var(--rd)"><div class="hl-card-h"><span>💸 지출 하이라이트</span><span class="s">'+note+'</span></div>'
+      +expRow('exp-max','▲ 최다','var(--rd)','rgba(197,48,48,.12)',mx,mx.expense)
+      +expRow('exp-min','▼ 최소','var(--gn)','rgba(39,103,73,.13)',mn,mx.expense)
+      +'<div class="hl-spark">'+hlBars(sums.map(function(x){return x.expense;}),iMx,iMn,'#c53030','#276749','pos')+'<div class="hl-spark-cap">월별 지출 · 빨강=최다 · 초록=최소</div></div></div>';
+  }else{
+    expCard='<div class="hl-card" data-k="exp" style="--ac:var(--bd2)"><div class="hl-card-h"><span>💸 지출 하이라이트</span></div><div class="hl-empty">완료된 달이 2개월 이상이어야 최다·최소 달을 비교해요</div></div>';
   }
-  stats.push({l:'월평균 지출',v:f(Math.round(totExp/months.length)),s:months.length+'개월 기준',c:'var(--pu)'});
+  // ② 저축 하이라이트: 저축률(%)과 순저축 금액(수입−지출)을 함께
+  var savCard='';
+  if(fullSav.length>=2){
+    function rate(x){return(x.income-x.expense)/x.income*100;}
+    var bst=fullSav.reduce(function(a,x){return rate(x)>rate(a)?x:a;},fullSav[0]);
+    var wst=fullSav.reduce(function(a,x){return rate(x)<rate(a)?x:a;},fullSav[0]);
+    var iB=sums.indexOf(bst),iW=sums.indexOf(wst);
+    function savRow(k,badge,x){
+      var r=rate(x),col=r>=0?'var(--gn)':'var(--rd)',bg=r>=0?'rgba(39,103,73,.13)':'rgba(197,48,48,.12)';
+      return'<div class="hl-row" data-k="'+k+'" data-ym="'+x.ym+'" data-rate="'+(Math.round(r*10)/10)+'" data-v="'+x.net+'"><div class="hl-badge" style="background:'+bg+';color:'+col+'">'+badge+'</div><div class="hl-main">'
+        +'<div class="hl-line"><span class="hl-m">'+mlabel(x.ym)+'</span><span class="hl-amt" style="color:'+col+'">'+pctTxt(r)+'</span><span class="hl-net" style="color:'+col+'">'+(x.net>=0?'+':'−')+f(Math.abs(x.net))+'</span></div>'
+        +'<div class="hl-meter"><i style="width:'+Math.min(100,Math.round(Math.abs(r)))+'%;background:'+col+'"></i></div>'
+        +'<div class="hl-sub">수입 '+f(x.income)+' − 지출 '+f(x.expense)+' = '+(x.net>=0?'+':'−')+ff(Math.abs(x.net))+(Math.abs(r)>100?' <span class="hl-warn">· 수입이 적어 비율이 크게 나왔어요</span>':'')+'</div></div></div>';
+    }
+    savCard='<div class="hl-card" data-k="sav" style="--ac:var(--bl)"><div class="hl-card-h"><span>🏦 저축 하이라이트</span><span class="s">저축률 · 순저축</span></div>'
+      +savRow('sav-max','▲ 최고',bst)+savRow('sav-min','▼ 최소',wst)
+      +'<div class="hl-spark">'+hlBars(sums.map(function(x){return x.income>0?Math.max(-100,Math.min(100,(x.income-x.expense)/x.income*100)):0;}),iB,iW,'#276749','#c53030','net')+'<div class="hl-spark-cap">월별 저축률 · 초록=최고 · 빨강=최소 (±100%에서 표시 제한)</div></div></div>';
+  }else{
+    savCard='<div class="hl-card" data-k="sav" style="--ac:var(--bd2)"><div class="hl-card-h"><span>🏦 저축 하이라이트</span></div><div class="hl-empty">수입이 있는 완료된 달이 2개월 이상이어야 비교해요</div></div>';
+  }
+  // ③ 누적 지출 TOP 3 카테고리
   var cat={};sums.forEach(function(x){Object.keys(x.byMid).forEach(function(k){cat[k]=(cat[k]||0)+(Number(x.byMid[k])||0);});});
   var catTot=Object.keys(cat).reduce(function(a,k){return a+cat[k];},0);
   var top=Object.keys(cat).map(function(k){return{k:k,v:cat[k]};}).sort(function(a,b){return b.v-a.v;}).slice(0,3);
-  var topMax=top.length?top[0].v:1;
-  return'<div class="card mb12"><div class="card-title">🏁 기간 누적 하이라이트 <span class="sub">· '+months[0]+' ~ '+months[months.length-1]+(excluded?' · 진행 중인 달은 최다/최소 비교에서 제외':'')+'</span></div>'
-    +'<div class="hl-grid">'+stats.map(function(s){return'<div class="hl-stat" style="border-top-color:'+s.c+'"><div class="l">'+s.l+'</div><div class="v" style="color:'+s.c+'">'+s.v+'</div><div class="s">'+s.s+'</div></div>';}).join('')+'</div>'
-    +(top.length?'<div class="hl-top-title">누적 지출 TOP 3 카테고리</div>'+top.map(function(t,i){
-      return'<div class="hl-top"><span class="n">'+(i+1)+'</span><span class="k">'+(CE[t.k]||'')+' '+escCatHtml(t.k)+'</span><span class="bar"><i style="width:'+Math.round(t.v/topMax*100)+'%"></i></span><span class="a">'+f(t.v)+'</span><span class="p">'+(catTot>0?Math.round(t.v/catTot*100)+'%':'')+'</span></div>';}).join(''):'')
+  var topMax=top.length?top[0].v:1,medals=['🥇','🥈','🥉'];
+  var topCard='<div class="hl-card" data-k="top" style="--ac:var(--pu)"><div class="hl-card-h"><span>🏁 누적 지출 TOP 3</span><span class="s">카테고리</span></div>'
+    +(top.length?top.map(function(t,i){
+      return'<div class="hl-t-row" data-k="'+escCatHtml(t.k)+'" data-v="'+t.v+'"><div class="hl-line"><span class="hl-medal">'+medals[i]+'</span><span class="hl-tk">'+(CE[t.k]||'')+' '+escCatHtml(t.k)+'</span><span class="hl-amt">'+f(t.v)+'</span><span class="hl-p">'+(catTot>0?Math.round(t.v/catTot*100)+'%':'')+'</span></div>'
+        +'<div class="hl-meter"><i style="width:'+Math.round(t.v/topMax*100)+'%;background:var(--pu)"></i></div></div>';}).join(''):'<div class="hl-empty">지출 데이터가 없어요</div>')
     +'</div>';
+  return'<div class="sec-sub-t">🏁 기간 누적 하이라이트 <span class="sub">· '+months[0]+' ~ '+months[months.length-1]+' ('+months.length+'개월)</span></div><div class="hl-cards">'+expCard+savCard+topCard+'</div>';
 }
 // 전체 탭 "스냅샷"/"수입 구조" 카드의 문구를 집계 기간(이번달/연도/전체)에 맞춰 만든다.
 // (예전엔 기간과 상관없이 "누적 수입" + "이번달 이전 누적 기준"이라고 써서, '이번달'을 고르면 1개월치만 보이는데도
@@ -5455,54 +5517,78 @@ function renderBudMonthSummary(ym,eb,sm,savActual){
       :'<div class="bs-note good" title="'+calc+'">✅ 수입 목표로 지출 예산과 저축 목표를 채우고 <b>'+ff(leftover)+'</b>이 남아요</div>';
     // 같은 내용을 제목 줄 바로 아래 한 줄로도 만든다(지출 예산 카드 안에서 바로 보이도록 - 별도 박스는 지출 예산이 없을 때만 쓴다)
     warnLine=leftover<0
-      ?'<div class="bs-warnline bad" title="'+calc+'">⚠️ 수입 목표로는 지출 예산과 저축 목표를 <b>'+ff(-leftover)+'</b> 못 채워요</div>'
-      :'<div class="bs-warnline good" title="'+calc+'">✅ 수입 목표로 지출 예산과 저축 목표를 채우고 <b>'+ff(leftover)+'</b>이 남아요</div>';
+      ?'<span class="bs-warnline bad" title="'+calc+'">⚠️ 수입 목표 대비 <b>'+ff(-leftover)+'</b> 부족</span>'
+      :'<span class="bs-warnline good" title="'+calc+'">✅ 수입 목표 대비 <b>'+ff(leftover)+'</b> 여윳돈</span>';
   }
   if(expBudget){
     var hs=stateOf(expPct,true);
     var remain0=expBudget-expActual;
     // 고정지출과 연계: 이번달에 아직 안 나간 고정지출(예정) 중 예산에 잡혀 있는 만큼은 이미 쓸 곳이 정해진 돈이다.
     // 소분류마다 "남은 예산"과 "예정 고정지출" 중 작은 쪽만 빼서(예산에 없는 고정지출은 빼지 않음) 이중 차감을 막는다.
-    var freeLine='',projLine='';
+    var pendTotal=0,reserved=0,doneFixedAmt=0,pendCnt=0,projTotal=null,projPct=null,perDay=0,remDays=0;
     if(inProgress){
-      var pendBySub={},actualSubAll={},pendTotal=0,reserved=0,doneFixedAmt=0;
-      getFixedExpenseRows(ym).forEach(function(r){if(!r.done){var pk=r.fi.mid+'|'+r.fi.sub;pendBySub[pk]=(pendBySub[pk]||0)+r.amt;}else doneFixedAmt+=r.amt;});
+      var pendBySub={},actualSubAll={};
+      getFixedExpenseRows(ym).forEach(function(r){if(!r.done){var pk=r.fi.mid+'|'+r.fi.sub;pendBySub[pk]=(pendBySub[pk]||0)+r.amt;pendCnt++;}else doneFixedAmt+=r.amt;});
       getTxs(ym).forEach(function(t){if(t.type==='지출'&&!isInvestLossTx(t)){var ak=t.mid+'|'+t.sub;actualSubAll[ak]=(actualSubAll[ak]||0)+(Number(t.amount)||0);}});
       Object.keys(pendBySub).forEach(function(k){
         pendTotal+=pendBySub[k];
         reserved+=Math.min(Math.max(0,(ebExp.bySub[k]||0)-(actualSubAll[k]||0)),pendBySub[k]);
       });
-      // 월말 예상 지출 = 지금까지 + 예정 고정지출 + (변동지출 하루 평균 × 남은 일수). 변동지출 = 지금까지 쓴 돈 − 이미 나간 고정지출.
-      // 월 초반(5일 미만)은 하루 평균이 불안정해서 보여주지 않는다.
-      var dNow=now.getDate(),remDays=dim-dNow;
+      // 월말 예상 지출 = 지금까지 + 예정 고정지출 + (변동지출 하루 평균 × 남은 일수). 월 초반(5일 미만)은 하루 평균이 불안정해서 계산하지 않는다.
+      var dNow=now.getDate();remDays=dim-dNow;
       if(dNow>=5){
-        var perDay=Math.max(0,expActual-doneFixedAmt)/dNow;
-        var projTotal=expActual+pendTotal+Math.round(perDay*remDays);
-        var projPct=Math.round(projTotal/expBudget*100);
-        projLine='<div class="bs-projline" title="월말 예상 = 지금까지 '+ff(expActual)+' + 예정 고정지출 '+ff(pendTotal)+' + 변동지출 하루 평균 '+ff(Math.round(perDay))+' × 남은 '+remDays+'일 (단순 추정이에요)">📈 이 속도면 월말 지출 약 <b class="'+(projPct>100?'r':projPct>80?'y':'g')+'">'+ff(projTotal)+'</b> <span class="m">(예산의 '+projPct+'% · '+(projTotal>expBudget?ff(projTotal-expBudget)+' 초과 예상':ff(expBudget-projTotal)+' 여유 예상')+')</span></div>';
-      }
-      if(pendTotal>0){
-        var freeAmt=remain0-reserved;
-        freeLine='<div class="bs-freeline" title="예정 고정지출 전체 '+ff(pendTotal)+' 중 예산에 잡혀 있는 '+ff(reserved)+'만 뺐어요">📌 자유롭게 쓸 수 있는 금액 <b class="'+(freeAmt>=0?'g':'r')+'">'+ff(Math.max(freeAmt,0))+'</b> <span class="m">(남은 예산 − 예정 고정지출 '+ff(reserved)+(freeAmt<0?' · '+ff(-freeAmt)+' 부족':'')+')</span></div>';
+        perDay=Math.max(0,expActual-doneFixedAmt)/dNow;
+        projTotal=expActual+pendTotal+Math.round(perDay*remDays);
+        projPct=Math.round(projTotal/expBudget*100);
       }
     }
-    var paceHtml='';
+    var freeAmt=remain0-(inProgress?reserved:0);
+    // 구간 막대: [쓴 금액][예정 고정지출(예산 반영분)][자유 예산] — 예산을 넘겼으면 쓴 금액이 막대 전체
+    var resShown=inProgress?Math.min(reserved,Math.max(0,remain0)):0;
+    var barTotal=Math.max(expBudget,expActual);
+    var wUsed=expActual/barTotal*100,wRes=resShown/barTotal*100,wFree=Math.max(0,remain0-resShown)/barTotal*100;
+    var seg='<i class="s-used" style="width:'+wUsed.toFixed(2)+'%;background:'+hs.color+'"></i>'
+      +(wRes>0?'<i class="s-res" style="width:'+wRes.toFixed(2)+'%"></i>':'')
+      +(wFree>0?'<i class="s-free" style="width:'+wFree.toFixed(2)+'%"></i>':'')
+      +(elapsedPct!==null?'<div class="bs-bar-today" style="left:'+(elapsedPct/100*expBudget/barTotal*100).toFixed(2)+'%"></div>':'')
+      +(expActual>expBudget?'<div class="bs-bar-budget" style="left:'+(expBudget/barTotal*100).toFixed(2)+'%" title="예산"></div>':'');
+    // 사용률 링: 시계 12시부터 사용률만큼 채우고, 오늘이 월의 몇 % 지점인지 눈금으로 표시
+    var R=44,C=2*Math.PI*R,ringTick='';
+    if(elapsedPct!==null){var ang=(-90+360*elapsedPct/100)*Math.PI/180;ringTick='<line x1="'+(55+(R-10)*Math.cos(ang)).toFixed(1)+'" y1="'+(55+(R-10)*Math.sin(ang)).toFixed(1)+'" x2="'+(55+(R+9)*Math.cos(ang)).toFixed(1)+'" y2="'+(55+(R+9)*Math.sin(ang)).toFixed(1)+'" stroke="#1a3a5c" stroke-width="3" stroke-linecap="round"/>';}
+    var ring='<svg viewBox="0 0 110 110" width="124" height="124" role="img" aria-label="예산 사용률 '+expPct+'%"><circle cx="55" cy="55" r="'+R+'" fill="none" stroke="#c9ddf2" stroke-width="12"/>'
+      +'<circle cx="55" cy="55" r="'+R+'" fill="none" stroke="'+hs.color+'" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+(C*Math.min(expPct,100)/100).toFixed(1)+' '+C.toFixed(1)+'" transform="rotate(-90 55 55)"/>'+ringTick
+      +'<text x="55" y="'+(expPct>=100?56:58)+'" text-anchor="middle" font-size="'+(expPct>=100?24:27)+'" font-weight="900" fill="'+hs.fg+'">'+expPct+'%</text><text x="55" y="75" text-anchor="middle" font-size="10.5" font-weight="700" fill="#486ca1">예산 사용</text></svg>';
+    // 숫자 카드(막대의 범례 역할: 카드 왼쪽 색 띠 = 막대 구간 색)
+    function tile(k,color,label,val,sub,v,tip){return'<div class="bs-tile" data-k="'+k+'" data-v="'+v+'" style="--ac:'+color+'"'+(tip?' title="'+tip+'"':'')+'><div class="t-l">'+label+'</div><div class="t-v">'+ff(val)+'</div><div class="t-s">'+sub+'</div></div>';}
+    var tiles=tile('used',hs.color,'💸 쓴 금액',expActual,'예산의 '+expPct+'% 사용',expActual);
+    if(inProgress){
+      if(pendTotal>0)tiles+=tile('reserved','#b7791f','📌 예정 고정지출',reserved,'미결제 '+pendCnt+'건 중 예산 반영분',reserved,'예정 고정지출 전체 '+ff(pendTotal)+' 중 예산에 잡혀 있는 '+ff(reserved)+'만 계산했어요');
+      tiles+=tile('free',freeAmt>=0?'var(--gn)':'var(--rd)','🟢 자유 예산',Math.max(freeAmt,0),freeAmt<0?ff(-freeAmt)+' 부족':(pendTotal>0?'남은 예산 − 예정 고정지출':'남은 예산'),freeAmt);
+      if(projTotal!==null)tiles+=tile('proj',projPct>100?'var(--rd)':projPct>80?'var(--yw)':'var(--gn)','📈 월말 예상',projTotal,'예산의 '+projPct+'% · '+(projTotal>expBudget?ff(projTotal-expBudget)+' 초과 예상':ff(expBudget-projTotal)+' 여유 예상'),projTotal,'월말 예상 = 지금까지 '+ff(expActual)+' + 예정 고정지출 '+ff(pendTotal)+' + 변동지출 하루 평균 '+ff(Math.round(perDay))+' × 남은 '+remDays+'일 (단순 추정이에요)');
+    }else{
+      tiles+=tile('free',remain0>=0?'var(--gn)':'var(--rd)',remain0>=0?'🟢 남은 예산':'🔴 초과한 금액',Math.abs(remain0),remain0>=0?'예산의 '+(100-expPct)+'%':'예산의 '+(expPct-100)+'% 초과',remain0);
+    }
+    var pills='';
     if(elapsedPct!==null){
       var diff=expPct-elapsedPct;
-      paceHtml=diff>5?'<span class="bs-pace" style="color:var(--rd)">⚠️ 월 진행률보다 '+diff+'%p 빠르게 쓰는 중</span>'
-              :diff<-5?'<span class="bs-pace" style="color:var(--gn)">👍 월 진행률보다 '+(-diff)+'%p 여유 있어요</span>'
-              :'<span class="bs-pace" style="color:var(--mu2)">월 진행률과 비슷하게 쓰는 중</span>';
+      pills+='<span class="bs-pill '+(diff>5?'bad':diff<-5?'good':'')+'" data-k="pace">'+(diff>5?'⚠️ 월 진행률 '+elapsedPct+'%보다 '+diff+'%p 빠름':diff<-5?'👍 월 진행률 '+elapsedPct+'%보다 '+(-diff)+'%p 여유':'월 진행률 '+elapsedPct+'%와 비슷')+'</span>';
     }
+    pills+=warnLine;
     html+='<div class="bs-hero">'
-      +'<div class="bs-hero-top"><div>'
-        +'<div class="bs-title">'+(inProgress?'이번달':parseInt(p[1])+'월')+' 지출 예산 <span class="bs-chip" style="background:'+hs.bg+';color:'+hs.fg+'">'+hs.text+'</span></div>'
-        +'<div class="bs-hint">예산 '+ff(expBudget)+' 중 <b>'+ff(expActual)+' 사용</b> · '+(remain0>=0?'<b class="g">'+ff(remain0)+' 남음</b>':'<b class="r">'+ff(-remain0)+' 초과</b>')+'</div>'+freeLine+projLine+warnLine
-      +'</div><div class="bs-pct" style="color:'+hs.fg+'">'+expPct+'<small>%</small></div></div>'
-      +'<div class="bs-bar"><div class="bs-bar-fill" style="width:'+Math.min(expPct,100)+'%;background:'+hs.color+'"></div>'
-        +(elapsedPct!==null?'<div class="bs-bar-today" style="left:'+elapsedPct+'%"></div>':'')+'</div>'
-      +(elapsedPct!==null?'<div class="bs-bar-legend"><span><span style="display:inline-block;width:3px;height:11px;background:var(--tx);vertical-align:-2px;margin-right:6px;border-radius:2px"></span>오늘 ('+(now.getMonth()+1)+'/'+now.getDate()+') · 월 '+elapsedPct+'% 경과</span>'+paceHtml+'</div>':'')
+      +'<div class="bs-hero-grid">'
+        +'<div class="bs-ring-wrap" data-pct="'+expPct+'">'+ring+'</div>'
+        +'<div class="bs-hero-main">'
+          +'<div class="bs-hero-top"><div class="bs-title">'+(inProgress?'이번달':parseInt(p[1])+'월')+' 지출 예산 <span class="bs-chip" style="background:'+hs.bg+';color:'+hs.fg+'">'+hs.text+'</span></div>'
+          +'<div class="bs-budget-lbl" data-v="'+expBudget+'">예산 <b>'+ff(expBudget)+'</b></div></div>'
+          +(pills?'<div class="bs-pills">'+pills+'</div>':'')
+          +'<div class="bs-seg">'+seg+'</div>'
+          +(elapsedPct!==null?'<div class="bs-seg-legend"><span class="tick"></span>오늘 ('+(now.getMonth()+1)+'/'+now.getDate()+') · 월 '+elapsedPct+'% 경과 지점</div>':'')
+        +'</div>'
+      +'</div>'
+      +'<div class="bs-tiles">'+tiles+'</div>'
       +goalsHtml
       +'</div>';
+
   }else if(goalsHtml||noteHtml){
     // 지출 예산이 없을 때(드문 경우)는 목표 달성 막대만 한 카드로 보여준다
     html+='<div class="bs-hero"><div class="bs-title" style="margin-bottom:12px">이번달 목표</div>'+goalsHtml+noteHtml+'</div>';
