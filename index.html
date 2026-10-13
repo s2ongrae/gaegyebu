@@ -399,8 +399,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .hl-meter i{display:block;height:100%;border-radius:4px}
 .hl-sub{font-size:11px;color:var(--mu2);line-height:1.5}
 .hl-warn{color:var(--yw);font-weight:600}
-.hl-spark{margin-top:auto;padding-top:8px;border-top:1px dashed var(--bd)}
-.hl-spark-cap{font-size:10.5px;color:var(--mu);margin-top:3px;text-align:center}
 .hl-empty{font-size:12px;color:var(--mu);padding:18px 4px;text-align:center}
 .hl-t-row{padding:7px 0;border-top:1px dashed var(--bd)}
 .hl-medal{font-size:15px}
@@ -4786,19 +4784,6 @@ function applyDashCustomRange(){
   setDashRangeMode('range:'+a+':'+b);
 }
 // 기간 누적 하이라이트(2개월 이상): ① 지출 하이라이트(최다·최소 달) ② 저축 하이라이트(최고·최소 달: 저축률 % + 금액) ③ 누적 지출 TOP 3
-function hlBars(vals,hiIdx,loIdx,hiCol,loCol,mode){
-  var n=vals.length,bw=Math.max(6,Math.min(18,Math.floor(210/n)-3)),gap=3,W=n*(bw+gap)-gap,H=44;
-  var net=(mode==='net'),mid=net?H/2:H-1;
-  var mx=Math.max.apply(null,vals.map(function(v){return Math.abs(v);}).concat([1]));
-  var s='<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="'+H+'" preserveAspectRatio="xMidYMid meet" role="img">'+(net?'<line x1="0" x2="'+W+'" y1="'+mid+'" y2="'+mid+'" stroke="#7bc0ef" stroke-width="1"/>':'');
-  vals.forEach(function(v,i){
-    var h=Math.max(2,Math.abs(v)/mx*(net?mid-2:H-4));
-    var y=net?(v>=0?mid-h:mid):(H-1-h);
-    var col=i===hiIdx?hiCol:i===loIdx?loCol:'#c3d6ec';
-    s+='<rect class="hl-bar'+(i===hiIdx?' hi':i===loIdx?' lo':'')+'" data-i="'+i+'" data-v="'+v+'" x="'+(i*(bw+gap))+'" y="'+y.toFixed(1)+'" width="'+bw+'" height="'+h.toFixed(1)+'" rx="2" fill="'+col+'"/>';
-  });
-  return s+'</svg>';
-}
 function renderDashHighlightsHtml(months){
   var meta=dashPeriodMeta(months);
   if(meta.isMonth||months.length<2)return'';
@@ -4817,7 +4802,6 @@ function renderDashHighlightsHtml(months){
     var mx=fullExp.reduce(function(a,x){return x.expense>a.expense?x:a;},fullExp[0]);
     var mn=fullExp.reduce(function(a,x){return x.expense<a.expense?x:a;},fullExp[0]);
     var avg=fullExp.reduce(function(s,x){return s+x.expense;},0)/fullExp.length;
-    var iMx=sums.indexOf(mx),iMn=sums.indexOf(mn);
     function expRow(k,badge,col,bg,x,widthBase){
       var dv=(x.expense/avg-1)*100;
       return'<div class="hl-row" data-k="'+k+'" data-ym="'+x.ym+'" data-v="'+x.expense+'"><div class="hl-badge" style="background:'+bg+';color:'+col+'">'+badge+'</div><div class="hl-main">'
@@ -4828,7 +4812,7 @@ function renderDashHighlightsHtml(months){
     expCard='<div class="hl-card" data-k="exp" style="--ac:var(--rd)"><div class="hl-card-h"><span>💸 지출 하이라이트</span><span class="s">'+note+'</span></div>'
       +expRow('exp-max','▲ 최다','var(--rd)','rgba(197,48,48,.12)',mx,mx.expense)
       +expRow('exp-min','▼ 최소','var(--gn)','rgba(39,103,73,.13)',mn,mx.expense)
-      +'<div class="hl-spark">'+hlBars(sums.map(function(x){return x.expense;}),iMx,iMn,'#c53030','#276749','pos')+'<div class="hl-spark-cap">월별 지출 · 빨강=최다 · 초록=최소</div></div></div>';
+      +'</div>';
   }else{
     expCard='<div class="hl-card" data-k="exp" style="--ac:var(--bd2)"><div class="hl-card-h"><span>💸 지출 하이라이트</span></div><div class="hl-empty">완료된 달이 2개월 이상이어야 최다·최소 달을 비교해요</div></div>';
   }
@@ -4838,7 +4822,6 @@ function renderDashHighlightsHtml(months){
     function rate(x){return(x.income-x.expense)/x.income*100;}
     var bst=fullSav.reduce(function(a,x){return rate(x)>rate(a)?x:a;},fullSav[0]);
     var wst=fullSav.reduce(function(a,x){return rate(x)<rate(a)?x:a;},fullSav[0]);
-    var iB=sums.indexOf(bst),iW=sums.indexOf(wst);
     function savRow(k,badge,x){
       var r=rate(x),col=r>=0?'var(--gn)':'var(--rd)',bg=r>=0?'rgba(39,103,73,.13)':'rgba(197,48,48,.12)';
       return'<div class="hl-row" data-k="'+k+'" data-ym="'+x.ym+'" data-rate="'+(Math.round(r*10)/10)+'" data-v="'+x.net+'"><div class="hl-badge" style="background:'+bg+';color:'+col+'">'+badge+'</div><div class="hl-main">'
@@ -4848,7 +4831,7 @@ function renderDashHighlightsHtml(months){
     }
     savCard='<div class="hl-card" data-k="sav" style="--ac:var(--bl)"><div class="hl-card-h"><span>🏦 저축 하이라이트</span><span class="s">저축률 · 순저축</span></div>'
       +savRow('sav-max','▲ 최고',bst)+savRow('sav-min','▼ 최소',wst)
-      +'<div class="hl-spark">'+hlBars(sums.map(function(x){return x.income>0?Math.max(-100,Math.min(100,(x.income-x.expense)/x.income*100)):0;}),iB,iW,'#276749','#c53030','net')+'<div class="hl-spark-cap">월별 저축률 · 초록=최고 · 빨강=최소 (±100%에서 표시 제한)</div></div></div>';
+      +'</div>';
   }else{
     savCard='<div class="hl-card" data-k="sav" style="--ac:var(--bd2)"><div class="hl-card-h"><span>🏦 저축 하이라이트</span></div><div class="hl-empty">수입이 있는 완료된 달이 2개월 이상이어야 비교해요</div></div>';
   }
