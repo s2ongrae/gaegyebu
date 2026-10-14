@@ -405,6 +405,20 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .hl-tk{font-size:13px;font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hl-t-row .hl-amt{margin-left:auto;font-size:14px}
 .hl-p{font-size:11.5px;font-weight:700;color:var(--mu2);min-width:32px;text-align:right}
+.fxk-cash{padding:0!important;border:none!important;background:none!important;margin-bottom:12px}
+.fxk-flow{display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}
+.fxk-flow .ft{flex:1 1 140px;min-width:0;background:#fff;border:1px solid var(--bd);border-radius:var(--rs);padding:8px 11px}
+.fxk-flow .ft .l{display:block;font-size:11px;font-weight:700;color:var(--mu2)}
+.fxk-flow .ft b{display:block;font-size:15px;font-weight:900;font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:1px}
+.fxk-flow .ft .s{display:block;font-size:10.5px;color:var(--mu);margin-top:1px}
+.fxk-flow .op{align-self:center;font-size:16px;font-weight:900;color:var(--mu)}
+.fxk-cash.good .ft.res{border-color:rgba(39,103,73,.5);background:rgba(39,103,73,.06)}
+.fxk-cash.good .ft.res b{color:var(--gn)}
+.fxk-cash.bad .ft.res{border-color:rgba(197,48,48,.5);background:rgba(197,48,48,.06)}
+.fxk-cash.bad .ft.res b{color:var(--rd)}
+.cum-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.cum-chip{font-size:12px;font-weight:700;background:var(--sf2);border-radius:14px;padding:4px 12px;white-space:nowrap}
+.cum-chip b{font-weight:900}
 /* ── 모바일 사용성 보강 ── */
 @media(max-width:700px){
 .asset-item{flex-wrap:wrap;row-gap:8px}
@@ -542,6 +556,7 @@ input[type=number],input[type=date],select{min-height:36px}
   </div>
 
   <div id="d-mon-cum"></div>
+<div id="d-fixedinc" class="mb12"></div>
 <div id="d-fixedexp" class="mb12"></div>
   <div id="d-cardperf" class="mb12"></div>
   <div id="mon-extra"></div>
@@ -3945,24 +3960,57 @@ function renderCardPerf(ym){
 // (수입/저축 고정거래는 "입력/내역" 탭의 고정거래 관리에서 이미 다루므로 여기선 지출만 대상으로 함)
 // 이번달 고정지출 행 목록(월별 탭 카드와 예산 탭 "자유 예산" 계산이 같은 기준을 쓰도록 공용으로 분리).
 // done=이번달 결제(입력) 여부, amt=결제 금액(미결제면 고정거래에 등록한 금액), date=결제일(미결제면 과거 이력으로 추정한 예정일)
-function getFixedExpenseRows(ym){
-  var items=FX.filter(function(fi){return fi.type==='지출';});
-  var doneMap={};
+// 등록 금액이 0원인 고정거래(급여·관리비·전기요금 등)는 "최근 3개월 실제 평균"으로 예정 금액을 추정한다.
+// unique=같은 소분류에 고정거래 항목이 하나뿐이면 메모가 달라도 같은 항목으로 본다.
+function estimateFixedAmount(fi,ym,unique){
+  var reg=Number(fi.amt)||0;
+  if(reg>0)return{amt:reg,est:false};
+  var ms=getAllMonths().filter(function(m){return m<ym;}).slice(-3),sums=[];
+  ms.forEach(function(m){
+    var s=0;
+    getTxs(m).forEach(function(t){
+      if(t.type!==fi.type||t.mid!==fi.mid||t.sub!==fi.sub)return;
+      if(!unique&&(t.memo||'')!==(fi.memo||''))return;
+      s+=Number(t.amount)||0;
+    });
+    if(s>0)sums.push(s);
+  });
+  var avg=sums.length?Math.round(sums.reduce(function(a,b){return a+b;},0)/sums.length):0;
+  return{amt:avg,est:avg>0};
+}
+// 이번달 고정거래 행(type='지출' 또는 '수입'). done=결제/입금 확인 여부, est=금액이 추정치인지
+function getFixedRows(ym,type){
+  var items=FX.filter(function(fi){return fi.type===type;});
+  var doneMap={},byK2={};
   getTxs(ym).forEach(function(t){
     var k=t.mid+'|'+t.sub+'|'+(t.memo||'');
     doneMap[k]=t;
     var k2=t.mid+'|'+t.sub;
     if(!doneMap[k2])doneMap[k2]=t;
+    (byK2[k2]=byK2[k2]||[]).push(t);
   });
   return items.map(function(fi){
     var k=fi.mid+'|'+fi.sub+'|'+(fi.memo||'');
     var k2=fi.mid+'|'+fi.sub;
     var sameCount=items.filter(function(f){return f.mid===fi.mid&&f.sub===fi.sub;}).length;
-    var tx=doneMap[k]||((!fi.memo&&sameCount===1)?doneMap[k2]:null)||null;
-    var done=!!tx;
-    return{fi:fi,done:done,amt:done?(Number(tx.amount)||0):(fi.amt||0),date:done?(tx.date||null):getFixedExpectedDate(fi,ym)};
+    // 수입 항목은 메모가 "고정수입" 같은 설명인 경우가 많아서, 같은 소분류 항목이 하나뿐이면 소분류만으로 입금 여부를 판단한다.
+    var tx=doneMap[k]||(((!fi.memo||type==='수입')&&sameCount===1)?doneMap[k2]:null)||null;
+    var done=!!tx,amt,date,est=false;
+    if(done){
+      amt=Number(tx.amount)||0;date=tx.date||null;
+      // 수입은 한 달에 여러 번 나눠 들어오는 경우(배당·돌보미 등)가 많아서, 같은 소분류가 하나뿐이면 그 달 입금 합계로 본다.
+      if(type==='수입'&&sameCount===1&&byK2[k2]){
+        amt=byK2[k2].reduce(function(s,t2){return s+(Number(t2.amount)||0);},0);
+        date=byK2[k2].reduce(function(d,t2){return(t2.date||'')>d?(t2.date||''):d;},'')||date;
+      }
+    }else{
+      var e=estimateFixedAmount(fi,ym,sameCount===1);
+      amt=e.amt;est=e.est;date=getFixedExpectedDate(fi,ym);
+    }
+    return{fi:fi,done:done,amt:amt,est:est,date:date};
   });
 }
+function getFixedExpenseRows(ym){return getFixedRows(ym,'지출');}
 // 정렬: 미결제(예정일 빠른 순, 예정일을 모르면 맨 뒤) → 결제 완료(결제일 순). 같은 날이면 금액 큰 순.
 function cmpFixedRow(a,b){
   if(a.done!==b.done)return a.done-b.done;
@@ -3983,12 +4031,18 @@ function getCashAssets(ym){
   }
   return null;
 }
-function renderFixedExpenseCard(ym){
-  var wrap=document.getElementById('d-fixedexp');
+function renderFixedExpenseCard(ym){renderFixedFlowCard(ym,'지출');}
+function renderFixedIncomeCard(ym){renderFixedFlowCard(ym,'수입');}
+function renderFixedFlowCard(ym,type){
+  var isInc=(type==='수입');
+  var wrap=document.getElementById(isInc?'d-fixedinc':'d-fixedexp');
   if(!wrap)return;
-  var rows=getFixedExpenseRows(ym);
+  var rows=getFixedRows(ym,type);
   if(!rows.length){wrap.innerHTML='';return;}
   rows.sort(cmpFixedRow);
+  var V=isInc
+    ?{icon:'💵',name:'고정수입',desc:'급여·배당·부수입 등 정기적으로 들어오는 돈',doneWord:'입금',total:'총 고정수입',doneL:'들어온 고정수입',pendL:'예정 고정수입',doneCol:'var(--gn)',cardBg:'rgba(39,103,73,.10)',cardBd:'rgba(39,103,73,.35)',statusCol:'var(--gn)'}
+    :{icon:'🔁',name:'고정지출',desc:'구독료·통신비·보험료·월세 등 매달 나가는 지출',doneWord:'결제',total:'총 고정지출',doneL:'나간 고정지출',pendL:'예정 고정지출',doneCol:'var(--bl)',cardBg:'rgba(37,99,235,.10)',cardBd:'rgba(37,99,235,.35)',statusCol:'var(--bl)'};
 
   var today=localToday();
   var isCur=(ym===today.slice(0,7));
@@ -4019,26 +4073,25 @@ function renderFixedExpenseCard(ym){
     if(group.length>=MIN_GROUP_SIZE)sections.push({title:mid,icon:CE[mid]||'',rows:group.slice().sort(cmpFixedRow)});
     else etcRows=etcRows.concat(group);
   });
-  // 섹션 순서: 아직 낼 게 있는 카테고리를 먼저(가장 빠른 예정일 순), 전부 결제된 카테고리는 뒤로. 같으면 총액 큰 순.
+  // 섹션 순서: 아직 남은 게 있는 카테고리를 먼저(가장 빠른 예정일 순), 전부 끝난 카테고리는 뒤로. 같으면 총액 큰 순.
   function secKey(sec){var p=sec.rows.filter(function(r){return !r.done;});return p.length?(p[0].date||'9999-99-98'):'9999-99-99';}
   function secSum(sec){return sec.rows.reduce(function(s2,r){return s2+r.amt;},0);}
-  // "기타"는 여러 카테고리를 이어 붙인 것이라 반드시 다시 정렬해야 한다(안 하면 결제 완료가 중간에 끼어 있게 됨).
-  // 또 기타도 다른 섹션과 똑같이 "가장 이른 미결제 예정일" 기준으로 순서에 참여시킨다(예전엔 무조건 맨 뒤라서, 이미 지난 항목이 기타에 있으면 화면 맨 아래에 숨었음).
+  // "기타"는 여러 카테고리를 이어 붙인 것이라 반드시 다시 정렬해야 한다. 기타도 다른 섹션과 같은 기준(가장 이른 미결제 예정일)으로 순서에 참여한다.
   if(etcRows.length)sections.push({title:'기타',icon:'🔹',rows:etcRows.slice().sort(cmpFixedRow)});
   sections.sort(function(a,b){
     var ka=secKey(a),kb=secKey(b);
     if(ka!==kb)return ka<kb?-1:1;
-    if((a.title==='기타')!==(b.title==='기타'))return a.title==='기타'?1:-1; // 날짜가 같으면 기타는 뒤로
+    if((a.title==='기타')!==(b.title==='기타'))return a.title==='기타'?1:-1;
     return secSum(b)-secSum(a);
   });
 
   function renderCard(r){
     var fi=r.fi;
     var icon=CE[fi.mid]||'';
-    var cardStyle=r.done?'background:rgba(37,99,235,.10);border:1px solid rgba(37,99,235,.35)':'background:var(--sf);border:1px solid var(--bd)';
+    var cardStyle=r.done?'background:'+V.cardBg+';border:1px solid '+V.cardBd:'background:var(--sf);border:1px solid var(--bd)';
     var statusText,statusColor;
     if(r.done){
-      statusText='✅ '+(r.date?md(r.date)+' 결제':'결제 완료');statusColor='var(--bl)';
+      statusText='✅ '+(r.date?md(r.date)+' '+V.doneWord:V.doneWord+' 완료');statusColor=V.statusCol;
     }else if(isCur&&r.date){
       var dd=dayDiff(today,r.date);
       var late=dd<0;
@@ -4047,35 +4100,43 @@ function renderFixedExpenseCard(ym){
     }else{
       statusText='⏳ 미확인';statusColor='var(--mu)';
     }
-    return'<div class="fx-card" data-done="'+(r.done?1:0)+'" data-date="'+(r.date||'')+'" style="'+cardStyle+';border-radius:var(--rs);padding:9px 10px">'
+    return'<div class="fx-card" data-done="'+(r.done?1:0)+'" data-date="'+(r.date||'')+'" data-est="'+(r.est?1:0)+'" data-amt="'+r.amt+'" style="'+cardStyle+';border-radius:var(--rs);padding:9px 10px">'
       +'<div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+icon+' '+escCatHtml(fi.memo||fi.sub)+'</div>'
       +'<div style="font-size:10.5px;color:var(--mu);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escCatHtml(fi.mid)+' &gt; '+escCatHtml(fi.sub)+'</div>'
-      +'<div style="font-size:13px;font-weight:900;margin-top:5px">'+ff(r.amt)+'</div>'
+      +'<div style="font-size:13px;font-weight:900;margin-top:5px"'+(r.est?' title="등록된 금액이 없어서 최근 3개월 실제 평균으로 추정했어요"':'')+'>'+(r.est?'≈ ':'')+ff(r.amt)+'</div>'
       +'<div style="font-size:11px;color:'+statusColor+';font-weight:700;margin-top:3px">'+statusText+'</div>'
       +'</div>';
   }
 
-  // 예정 고정지출을 낼 수 있는지: 현금성 자산(현금/예금 등)과 바로 비교
-  var cashHtml='';
-  var cash=getCashAssets(ym);
-  if(pendAmt>0&&cash&&ym>=today.slice(0,7)){
-    var diff=cash.cash-pendAmt;
-    cashHtml='<div class="fxk-cash '+(diff>=0?'good':'bad')+'">'+(diff>=0
-      ?'💵 현금성 자산 <b>'+ff(cash.cash)+'</b>('+cash.ym+' 기준)으로 예정 고정지출 <b>'+ff(pendAmt)+'</b>을 모두 낼 수 있어요 · 여유 <b>'+ff(diff)+'</b>'
-      :'⚠️ 현금성 자산 <b>'+ff(cash.cash)+'</b>('+cash.ym+' 기준)으로는 예정 고정지출 <b>'+ff(pendAmt)+'</b>에 <b>'+ff(-diff)+'</b> 부족해요')+'</div>';
+  // 현금 흐름(고정지출 카드에만): 현금성 자산 + 예정 고정수입 − 예정 고정지출 = 정리 후 현금
+  var flowHtml='';
+  if(!isInc){
+    var cash=getCashAssets(ym);
+    var pendIncRows=getFixedRows(ym,'수입').filter(function(r){return !r.done;});
+    var pendInc=pendIncRows.reduce(function(s,r){return s+r.amt;},0);
+    if(cash&&ym>=today.slice(0,7)&&(pendAmt>0||pendInc>0)){
+      var after=cash.cash+pendInc-pendAmt;
+      var ft=function(l,v,s){return'<div class="ft"><span class="l">'+l+'</span><b>'+v+'</b><span class="s">'+s+'</span></div>';};
+      flowHtml='<div class="fxk-cash '+(after>=0?'good':'bad')+'" data-cash="'+cash.cash+'" data-pi="'+pendInc+'" data-pe="'+pendAmt+'" data-after="'+after+'"><div class="fxk-flow">'
+        +ft('💵 현금성 자산',ff(cash.cash),'('+cash.ym+' 기준)')+'<span class="op">＋</span>'
+        +ft('예정 고정수입',ff(pendInc),'미입금 '+pendIncRows.length+'건'+(pendIncRows.some(function(r){return r.est;})?' · ≈추정 포함':''))+'<span class="op">−</span>'
+        +ft('예정 고정지출',ff(pendAmt),'미결제 '+pendCount+'건')+'<span class="op">＝</span>'
+        +'<div class="ft res"><span class="l">정리 후 현금</span><b>'+(after<0?'−':'')+ff(Math.abs(after))+'</b><span class="s">'+(after>=0?'변동지출 쓰기 전 · 여유':'⚠️ 부족해요')+'</span></div>'
+        +'</div></div>';
+    }
   }
   function kpi(label,val,color,sub){return'<div class="kpi"><div class="kl">'+label+'</div><div class="kv" style="font-size:18px;color:'+color+'">'+val+'</div><div class="ks">'+sub+'</div><div class="kb" style="background:'+color+'"></div></div>';}
   var pendSub=pendCount+'건'+(lateCount?' · <span style="color:var(--rd);font-weight:700">'+lateCount+'건 지남</span>':'')+(soonCount?' · 7일 내 '+soonCount+'건 '+f(soonAmt):'');
 
-  var html='<div class="card"><div class="card-title">🔁 이번달 고정지출 <span class="sub">· 구독료·통신비·보험료·월세 등 매달 나가는 지출 · '+doneCount+'/'+rows.length+'건 결제 확인됨</span></div>'
+  var html='<div class="card"><div class="card-title">'+V.icon+' 이번달 '+V.name+' <span class="sub">· '+V.desc+' · '+doneCount+'/'+rows.length+'건 '+V.doneWord+' 확인됨</span></div>'
     +'<div class="fxk-row">'
-      +kpi('총 고정지출',f(total),'var(--pu)',rows.length+'건')
-      +kpi('나간 고정지출',f(doneAmt),'var(--bl)',doneCount+'건 · '+donePct+'%')
-      +kpi('예정 고정지출',f(pendAmt),'var(--yw)',pendSub)
+      +kpi(V.total,f(total),'var(--pu)',rows.length+'건')
+      +kpi(V.doneL,f(doneAmt),V.doneCol,doneCount+'건 · '+donePct+'%')
+      +kpi(V.pendL,f(pendAmt),'var(--yw)',pendSub)
     +'</div>'
-    +'<div class="bs-bar" style="height:8px;margin:2px 0 4px"><div class="bs-bar-fill" style="width:'+donePct+'%;background:var(--bl)"></div></div>'
-    +'<div style="font-size:11px;color:var(--mu);margin-bottom:8px">금액 기준 '+donePct+'% 결제 · 미결제 금액은 고정거래에 등록한 금액(예상)이에요</div>'
-    +cashHtml
+    +'<div class="bs-bar" style="height:8px;margin:2px 0 4px"><div class="bs-bar-fill" style="width:'+donePct+'%;background:'+V.doneCol+'"></div></div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-bottom:8px">금액 기준 '+donePct+'% '+V.doneWord+' · 미'+V.doneWord+' 금액은 등록한 금액이고, 등록 금액이 없으면 최근 3개월 평균(≈ 표시, 추정)이에요</div>'
+    +flowHtml
     +sections.map(function(sec,si){
       return(si>0?'<div style="margin-top:14px"></div>':'')
         +'<div style="font-size:11px;font-weight:700;color:var(--mu2);margin-bottom:6px">'+sec.icon+' '+sec.title+' <span style="font-weight:400;color:var(--mu)">('+sec.rows.length+'건 · '+ff(secSum(sec))+')</span></div>'
@@ -4091,22 +4152,47 @@ function renderCal(){
   document.getElementById('cal-title').textContent=y+'년 '+m+'월';
   var sm=getMonthSummary(calYM);var ns=sm.income-sm.expense;
   renderCardPerf(calYM);
+  renderFixedIncomeCard(calYM);
   renderFixedExpenseCard(calYM);
   renderMonCumulative(calYM);
   renderMonthlyReview(calYM);
   // KPI
   var kpiEl=document.getElementById('cal-kpi');
   kpiEl.innerHTML='';
-  function mkKpi(label,val,color,raw){
+  function mkKpi(label,val,color,raw,sub){
     var d=document.createElement('div');d.className='kpi';
     var displayVal=raw?val:f(val);
-    d.innerHTML='<div class="kl">'+label+'</div><div class="kv" style="color:'+color+'">'+displayVal+'</div><div class="kb" style="background:'+color+'"></div>';
+    d.innerHTML='<div class="kl">'+label+'</div><div class="kv" style="color:'+color+'">'+displayVal+'</div>'+(sub?'<div class="ks">'+sub+'</div>':'')+'<div class="kb" style="background:'+color+'"></div>';
     kpiEl.appendChild(d);
   }
-  mkKpi('이달 수입',sm.income,'var(--gn)');
-  mkKpi('이달 지출',sm.expense,'var(--rd)');
-  mkKpi('순저축',ns,ns>=0?'var(--bl)':'var(--rd)');
-  mkKpi('저축률',sm.savingsRate+'%','var(--yw)',true);
+  // 전월 대비: 이번 달이 진행 중이면 "전월 같은 날까지"와 비교하고(동기 대비), 끝난 달이면 전월 전체와 비교한다.
+  var kpiToday=localToday(),isCurM=(calYM===kpiToday.slice(0,7)),prevYM2=addMonthsYM(calYM,-1);
+  function sumUpTo(mm,day){
+    var inc=0,exp=0;
+    getTxs(mm).forEach(function(t){
+      var dd=Number((t.date||'').slice(8,10));if(dd>day)return;
+      var a=Number(t.amount)||0;
+      if(t.type==='수입')inc+=a;else if(t.type==='지출'&&!isInvestLossTx(t))exp+=a;
+    });
+    return{income:inc,expense:exp};
+  }
+  var pv=sumUpTo(prevYM2,isCurM?Number(kpiToday.slice(8,10)):99),hasPrevM=(pv.income>0||pv.expense>0);
+  var cmpLabel=isCurM?'전월 동기 대비':'전월 대비';
+  function dl(cur,prev,invert){
+    if(!hasPrevM)return'';
+    var d=cur-prev;if(!d)return cmpLabel+' 같아요';
+    var good=invert?d<0:d>0;
+    return'<span style="color:'+(good?'var(--gn)':'var(--rd)')+';font-weight:700">'+(d>0?'▲ +':'▼ −')+f(Math.abs(d))+'</span> '+cmpLabel;
+  }
+  var rateSub='';
+  if(!isCurM&&pv.income>0&&sm.income>0){
+    var dpp=(ns/sm.income*100)-((pv.income-pv.expense)/pv.income*100);
+    rateSub='<span style="color:'+(dpp>=0?'var(--gn)':'var(--rd)')+';font-weight:700">'+(dpp>=0?'▲ +':'▼ −')+Math.abs(dpp).toFixed(1)+'%p</span> '+cmpLabel;
+  }
+  mkKpi('이달 수입',sm.income,'var(--gn)',false,dl(sm.income,pv.income,false));
+  mkKpi('이달 지출',sm.expense,'var(--rd)',false,dl(sm.expense,pv.expense,true));
+  mkKpi('순저축',ns,ns>=0?'var(--bl)':'var(--rd)',false,dl(ns,pv.income-pv.expense,false));
+  mkKpi('저축률',sm.savingsRate+'%','var(--yw)',true,rateSub);
   // 날짜별 집계
   var txs=getTxs(calYM);var byDate={};
   txs.forEach(function(t){
@@ -5064,59 +5150,104 @@ function renderDashTrendCharts(months){
     +chartCard('💳 결제수단별 지출 추이',subRange,idPay,210,payNote)
     +'</div>';
 }
-// ② 예산 탭: 최근 12개월 예산 대비 실적
+// ② 예산 탭: 최근 12개월 예산 대비 실적 + 수입(지출을 수입이 감당했는지)
 function renderBudTrendHtml(ym){
   var all=getAllMonths().filter(function(m){return m<=ym;}).slice(-12);
   if(all.length<2)return'';
   var curMonth=localToday().slice(0,7);
-  var rows=all.map(function(m){return{ym:m,actual:getMonthSummary(m).expense,budget:getEffectiveBudget(m,'지출').total};});
+  var rows=all.map(function(m){var s0=getMonthSummary(m);return{ym:m,actual:s0.expense,income:s0.income,budget:getEffectiveBudget(m,'지출').total};});
   var done=rows.filter(function(r){return r.budget>0&&r.ym<curMonth;});
   var ok=done.filter(function(r){return r.actual<=r.budget;}).length;
   var avgUse=done.length?Math.round(done.reduce(function(s,r){return s+r.actual/r.budget;},0)/done.length*100):null;
-  var note=done.length?'예산을 지킨 달 <b>'+ok+' / '+done.length+'개월</b> · 평균 사용률 '+avgUse+'% · 진행 중인 달 제외':'예산이 설정된 지난 달이 아직 없어요';
-  window.__chartData.budTrend={labels:rows.map(function(r){return mLabel(r.ym);}),actual:rows.map(function(r){return r.actual;}),budget:rows.map(function(r){return r.budget;})};
+  var fullM=rows.filter(function(r){return r.ym<curMonth&&(r.income>0||r.actual>0);});
+  var cover=fullM.filter(function(r){return r.income>=r.actual;}).length;
+  var note=(done.length?'예산을 지킨 달 <b>'+ok+' / '+done.length+'개월</b> · 평균 사용률 '+avgUse+'%':'예산이 설정된 지난 달이 아직 없어요')
+    +(fullM.length?' · 수입이 지출 이상이었던 달 <b>'+cover+' / '+fullM.length+'개월</b>':'')+' · 진행 중인 달 제외';
+  window.__chartData.budTrend={labels:rows.map(function(r){return mLabel(r.ym);}),actual:rows.map(function(r){return r.actual;}),budget:rows.map(function(r){return r.budget;}),income:rows.map(function(r){return r.income;})};
   var id='budTr_'+Date.now();
   queueChart(id,function(cv){
-    new Chart(cv,{data:{labels:rows.map(function(r){return mLabel(r.ym);}),datasets:[
-      {type:'bar',label:'실적',data:rows.map(function(r){return r.actual;}),backgroundColor:rows.map(function(r){return(r.budget>0&&r.actual>r.budget)?'#e08b6d':'#5b7fd6';}),borderRadius:3,order:2},
-      {type:'line',label:'예산',data:rows.map(function(r){return r.budget>0?r.budget:null;}),borderColor:'#9a7bc4',borderWidth:2,borderDash:[6,4],pointRadius:3,fill:false,spanGaps:false,order:1}
+    new Chart(cv,{type:'bar',data:{labels:rows.map(function(r){return mLabel(r.ym);}),datasets:[
+      {type:'bar',label:'지출 실적',data:rows.map(function(r){return r.actual;}),backgroundColor:rows.map(function(r){return(r.budget>0&&r.actual>r.budget)?'#e08b6d':'#5b7fd6';}),borderRadius:3,order:3},
+      {type:'line',label:'지출 예산',data:rows.map(function(r){return r.budget>0?r.budget:null;}),borderColor:'#9a7bc4',borderWidth:2,borderDash:[6,4],pointRadius:3,fill:false,spanGaps:false,order:2},
+      {type:'line',label:'수입',data:rows.map(function(r){return r.income;}),borderColor:'#276749',backgroundColor:'#276749',borderWidth:2.5,pointRadius:3,fill:false,tension:.2,order:1}
     ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},scales:trScales(false,false)}});
   });
-  return chartCard('📊 예산 대비 실적','최근 '+rows.length+'개월 · 빨간 막대 = 예산 초과',id,220,note,'mb12');
+  return chartCard('📊 예산 대비 실적','최근 '+rows.length+'개월 · 빨간 막대 = 예산 초과 · 초록 선 = 수입',id,230,note,'mb12');
 }
-// ③ 월별 탭: 일별 누적 지출(이 달 vs 지난달)
+// ③ 월별 탭: 일별 누적 수입·지출(이 달) + 지난달 지출 곡선 + 예산. 수입선과 지출선 사이는 흑자(초록)/적자(빨강) 영역으로 칠한다.
 function renderMonCumulative(ym){
   var host=document.getElementById('d-mon-cum');if(!host)return;
   var today=localToday(),curMonth=today.slice(0,7);
   if(ym>curMonth){host.innerHTML='';return;}
   var dim=new Date(Number(ym.slice(0,4)),Number(ym.slice(5,7)),0).getDate();
   var prevYM=addMonthsYM(ym,-1),dimP=new Date(Number(prevYM.slice(0,4)),Number(prevYM.slice(5,7)),0).getDate();
-  function cum(m,days){
+  function cum(m,days,kind){
     var arr=[];for(var i=0;i<days;i++)arr.push(0);
-    getTxs(m).forEach(function(t){if(t.type!=='지출'||isInvestLossTx(t))return;var d=Number((t.date||'').slice(8,10));if(d>=1&&d<=days)arr[d-1]+=Number(t.amount)||0;});
+    getTxs(m).forEach(function(t){
+      if(kind==='지출'){if(t.type!=='지출'||isInvestLossTx(t))return;}
+      else if(t.type!=='수입')return;
+      var d=Number((t.date||'').slice(8,10));if(d>=1&&d<=days)arr[d-1]+=Number(t.amount)||0;
+    });
     for(var k=1;k<days;k++)arr[k]+=arr[k-1];
     return arr;
   }
-  var cur=cum(ym,dim),prev=cum(prevYM,dimP);
-  if(!cur[dim-1]&&!prev[dimP-1]){host.innerHTML='';return;}
+  var cur=cum(ym,dim,'지출'),inc=cum(ym,dim,'수입'),prev=cum(prevYM,dimP,'지출');
+  if(!cur[dim-1]&&!inc[dim-1]&&!prev[dimP-1]){host.innerHTML='';return;}
   var upTo=(ym===curMonth)?Number(today.slice(8,10)):dim;
-  var curData=cur.map(function(v,i){return i<upTo?v:null;});
+  var curData=cur.map(function(v,i){return i<upTo?v:null;}),incData=inc.map(function(v,i){return i<upTo?v:null;});
   var budget=getEffectiveBudget(ym,'지출').total;
   var days=[];for(var d=1;d<=dim;d++)days.push(d);
   var cmpDay=Math.min(upTo,dimP);
   var diff=cur[upTo-1]-prev[cmpDay-1];
-  var note=(ym===curMonth?'<b>'+upTo+'일</b> 기준':'<b>월 전체</b>')+' 지난달 같은 날보다 <b style="color:'+(diff>0?'var(--rd)':'var(--gn)')+'">'+(diff>0?'+':'−')+ff(Math.abs(diff))+'</b> '+(diff>0?'더 썼어요':'덜 썼어요')+' (이번 '+ff(cur[upTo-1])+' / 지난달 '+ff(prev[cmpDay-1])+')'+(budget>0?' · 예산 '+ff(budget):'');
-  window.__chartData.cum={ym:ym,days:days,cur:cur,prev:prev,upTo:upTo,budget:budget,diff:diff};
+  var net=inc[upTo-1]-cur[upTo-1];
+  var chips='<div class="cum-chips">'
+    +'<span class="cum-chip" data-k="inc" style="color:var(--gn)">💰 누적 수입 <b>'+ff(inc[upTo-1])+'</b></span>'
+    +'<span class="cum-chip" data-k="exp" style="color:var(--bl)">💸 누적 지출 <b>'+ff(cur[upTo-1])+'</b></span>'
+    +'<span class="cum-chip" data-k="net" style="color:'+(net>=0?'var(--gn)':'var(--rd)')+'">'+(net>=0?'🟢 흑자':'🔴 적자')+' <b>'+(net>=0?'+':'−')+ff(Math.abs(net))+'</b></span></div>';
+  var note=chips+(ym===curMonth?'<b>'+upTo+'일</b> 기준':'<b>월 전체</b>')+' 지난달 같은 날보다 <b style="color:'+(diff>0?'var(--rd)':'var(--gn)')+'">'+(diff>0?'+':'−')+ff(Math.abs(diff))+'</b> '+(diff>0?'더 썼어요':'덜 썼어요')+' (이번 '+ff(cur[upTo-1])+' / 지난달 '+ff(prev[cmpDay-1])+')'+(budget>0?' · 예산 '+ff(budget):'');
+  window.__chartData.cum={ym:ym,days:days,cur:cur,prev:prev,inc:inc,upTo:upTo,budget:budget,diff:diff,net:net};
   var id='monCum_'+Date.now();
-  host.innerHTML=chartCard('📈 일별 누적 지출',parseInt(ym.slice(5))+'월 vs 지난달',id,220,note,'mb12');
+  host.innerHTML=chartCard('📈 일별 누적 수입·지출',parseInt(ym.slice(5))+'월 vs 지난달 지출',id,230,note,'mb12');
   queueChart(id,function(cv){
+    var m=parseInt(ym.slice(5));
     var ds=[
-      {label:parseInt(ym.slice(5))+'월',data:curData,borderColor:'#5b7fd6',backgroundColor:'rgba(91,127,214,.12)',fill:true,tension:.15,pointRadius:0,borderWidth:2.5,spanGaps:false},
-      {label:'지난달',data:days.map(function(d){return d<=dimP?prev[d-1]:null;}),borderColor:'#a0aec0',borderDash:[5,4],borderWidth:1.8,pointRadius:0,fill:false}
+      {label:m+'월 누적 수입',data:incData,borderColor:'#276749',backgroundColor:'rgba(39,103,73,.10)',fill:false,tension:.1,pointRadius:0,borderWidth:2.5,spanGaps:false,order:2},
+      {label:m+'월 누적 지출',data:curData,borderColor:'#5b7fd6',fill:{target:'-1',above:'rgba(197,48,48,.14)',below:'rgba(39,103,73,.14)'},tension:.1,pointRadius:0,borderWidth:2.5,spanGaps:false,order:1},
+      {label:'지난달 지출',data:days.map(function(d){return d<=dimP?prev[d-1]:null;}),borderColor:'#a0aec0',borderDash:[5,4],borderWidth:1.8,pointRadius:0,fill:false,order:3}
     ];
-    if(budget>0)ds.push({label:'예산',data:days.map(function(){return budget;}),borderColor:'#e08b6d',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false});
+    if(budget>0)ds.push({label:'지출 예산',data:days.map(function(){return budget;}),borderColor:'#e08b6d',borderDash:[6,4],borderWidth:1.5,pointRadius:0,fill:false,order:4});
     new Chart(cv,{type:'line',data:{labels:days.map(function(d){return d+'일';}),datasets:ds},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},scales:trScales(false,false)}});
   });
+}
+// ④-1 자산 탭: 그룹별 자산 추이(아래 부채 추이의 짝). 항목 합계가 총자산과 정확히 같도록 남는 차이는 '기타'에 넣는다.
+function renderAstAssetTrendHtml(ym){
+  var assets=loadDBRO().assets||{};
+  var ms=Object.keys(assets).filter(function(m){return m<=ym&&Object.keys(assets[m]||{}).length;}).sort().slice(-12);
+  if(ms.length<2)return'';
+  var cg={'투자':'투자/절세계좌','절세계좌':'투자/절세계좌','연금':'연금','보험저축':'저축/보험','저축':'저축/보험','부동산':'부동산','기타':'기타'};
+  var GROUPS=['투자/절세계좌','연금','저축/보험','부동산','기타'];
+  var vals={};GROUPS.forEach(function(g){vals[g]=ms.map(function(){return 0;});});
+  var totals=ms.map(function(m){return calcNW(assets[m],m).ta;});
+  ms.forEach(function(m,i){
+    AI.forEach(function(a){
+      if(a.d)return;
+      var g=cg[a.cat]||'기타';if(!vals[g])g='기타';
+      vals[g][i]+=getAssetItemValue(a,assets[m],m);
+    });
+  });
+  ms.forEach(function(m,i){var s=0;GROUPS.forEach(function(g){s+=vals[g][i];});vals['기타'][i]+=Math.round(totals[i]-s);});
+  var n=ms.length,last=n-1;
+  var series=GROUPS.map(function(g){return{name:g,vals:vals[g]};}).filter(function(s){return s.vals.some(function(v){return v>0;});})
+    .sort(function(a,b){return b.vals[last]-a.vals[last];});
+  if(!series.length)return'';
+  var chg=totals[last]-totals[0],top=series[0],topShare=totals[last]>0?Math.round(top.vals[last]/totals[last]*100):0;
+  var note='총자산 <b>'+f(totals[last])+'</b> · '+n+'개월 전('+mLabel(ms[0])+') 대비 <b style="color:'+(chg>=0?'var(--gn)':'var(--rd)')+'">'+(chg>=0?'+':'−')+f(Math.abs(chg))+'</b> · 가장 큰 그룹 <b>'+escCatHtml(top.name)+'</b> '+topShare+'%';
+  window.__chartData.asset={labels:ms.map(mLabel),series:series,totals:totals};
+  var id='astAsset_'+Date.now();
+  queueChart(id,function(cv){
+    new Chart(cv,{type:'bar',data:{labels:ms.map(mLabel),datasets:series.map(function(s,i){return{label:s.name,data:s.vals,backgroundColor:trColor(s.name,i),borderRadius:2};})},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},scales:trScales(true,false)}});
+  });
+  return'<div class="flow-card"><div class="flow-title">📈 자산 추이 <span class="sub">· 최근 '+n+'개월 · 그룹별</span></div><div style="position:relative;height:210px"><canvas id="'+id+'"></canvas></div><div class="chart-note">'+note+'</div></div>';
 }
 // ④ 자산 탭: 부채 추이(항목별 쌓은 막대)
 function renderAstDebtTrendHtml(ym){
@@ -6299,7 +6430,7 @@ function renderAst(){
   // 흐름: 이 달 입력 체크리스트 → 순자산 흐름(변화 원인·목표·추이) → 구성(도넛) → 항목 목록
   try{
     var flowBox=document.createElement('div');flowBox.className='ast-flow-box';
-    flowBox.innerHTML=renderAstChecklist(ym)+renderAstFlowCard(ym,r,prevYMast,prevR)+renderAstDebtTrendHtml(ym);
+    flowBox.innerHTML=renderAstChecklist(ym)+renderAstFlowCard(ym,r,prevYMast,prevR)+renderAstAssetTrendHtml(ym)+renderAstDebtTrendHtml(ym);
     container.appendChild(flowBox);
     drawAstTrendChart();
   }catch(err){console.error('astFlow error',err);}
