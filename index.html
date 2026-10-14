@@ -419,6 +419,10 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .cum-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
 .cum-chip{font-size:12px;font-weight:700;background:var(--sf2);border-radius:14px;padding:4px 12px;white-space:nowrap}
 .cum-chip b{font-weight:900}
+.lg-chip{display:inline-block;background:var(--sf3);color:var(--tx);border-radius:12px;padding:4px 11px;margin:0 6px 4px 0;font-size:12px;font-weight:600}
+.lg-chip b{font-weight:900}
+.lg-chip .s{font-size:10.5px;color:var(--mu);font-weight:500;margin-left:4px}
+.lg-chip.dim{opacity:.65}
 /* ── 모바일 사용성 보강 ── */
 @media(max-width:700px){
 .asset-item{flex-wrap:wrap;row-gap:8px}
@@ -2169,17 +2173,37 @@ function calibrateAutoAsset(i){
   renderAst();
   showToast('✅ 보정 완료! 이제부터 이 차이만큼 자동으로 더해서 보여드려요.');
 }
+// ── 과거 이름으로 남은 부채 ──────────────────────────────────────────────
+// 이름이 바뀌거나 구조가 바뀌어서 지금 자산 목록엔 없지만, 과거 자산 스냅샷에 남아 있는 "부채" 기록들.
+// 순자산에 포함하되, 같은 부채를 두 번 세지 않도록 달마다 한쪽만 쓴다.
+//  · 신용카드 미결제: 지금은 카드별 항목으로 쪼개져 있다. 그 달에 카드별 항목에 값이 있으면 같은 부채라서 옛 값은 쓰지 않는다.
+//  · 자동차 할부 잔액: 지금은 할부 계산기(G80)가 대신한다. 옛 값이 있는 달은 계산 대신 직접 적은 옛 값을 쓴다(같은 대출).
+var LEGACY_CARD_NAME='신용카드 미결제';
+var LEGACY_CARD_NEW=['하나카드 결제금액','신한카드 결제금액','롯데카드 결제금액'];
+var LEGACY_CAR_NAME='자동차 할부 잔액';
+var LEGACY_CAR_INSTALLMENT='G80 자동차 할부';
+function getLegacyDebts(am){
+  am=am||{};
+  var card=Number(am[LEGACY_CARD_NAME])||0,car=Number(am[LEGACY_CAR_NAME])||0;
+  var newHas=LEGACY_CARD_NEW.some(function(n){return(Number(am[n])||0)>0;});
+  return{card:(card>0&&!newHas)?card:0,cardRaw:card,cardDup:card>0&&newHas,car:car>0?car:0};
+}
 function calcNW(am,ym){
   var ta=AI.filter(function(a){return!a.d;}).reduce(function(s,a){return s+getAssetItemValue(a,am,ym);},0);
   var td=AI.filter(function(a){return a.d;}).reduce(function(s,a){return s+getAssetItemValue(a,am,ym);},0);
+  var lg=getLegacyDebts(am);
   var insDebt=0;
   if(ym&&typeof INSTALLMENTS!=='undefined'){
     INSTALLMENTS.forEach(function(item){
-      insDebt+=getInsStatus(item,ym).remaining;
+      var st=getInsStatus(item,ym);
+      // 직접 적어둔 옛 자동차 할부 잔액이 있는 달은 그 값을 쓴다(할부 계산과 더하면 같은 대출이 두 번 잡힘)
+      if(lg.car>0&&item.name===LEGACY_CAR_INSTALLMENT)insDebt+=lg.car;
+      // 할부가 시작되기 전 달에는 아직 대출이 없으므로 0원(예전엔 원금 전액이 과거 모든 달의 부채로 잡혔다)
+      else insDebt+=st.notStarted?0:st.remaining;
     });
   }
-  td+=insDebt;
-  return{ta:ta,td:td,nw:ta-td,insDebt:insDebt};
+  td+=insDebt+lg.card;
+  return{ta:ta,td:td,nw:ta-td,insDebt:insDebt,legacyCard:lg.card,legacyCar:lg.car};
 }
 function isInvestLossTx(t){return t.mid==='금융지출'&&t.sub==='투자손실';}
 function getMonthSummary(ym){
@@ -5059,7 +5083,12 @@ function chartCard(title,sub,id,height,note,cls){
     +(note?'<div class="chart-note">'+note+'</div>':'')+'</div>';
 }
 var TR_COLORS=['#5b7fd6','#e08b6d','#58a98f','#e3b75a','#9a7bc4','#a0aec0','#d9778f','#4aa3b5'];
-function trColor(name,i){return name==='할부 잔액'?'#4aa3b5':TR_COLORS[i%TR_COLORS.length];}
+var TR_FIXED={'할부 잔액':'#4aa3b5','신용카드 미결제(옛 기록)':'#8a6d3b'};
+function trColor(name,i){
+  if(TR_FIXED[name])return TR_FIXED[name];
+  var pal=TR_COLORS.filter(function(x){return Object.keys(TR_FIXED).every(function(k){return TR_FIXED[k]!==x;});});
+  return pal[i%pal.length];
+}
 function trScales(stacked,pct){
   var tick={color:'#486ca1',font:{size:11}};
   return{
@@ -5256,9 +5285,11 @@ function renderAstDebtTrendHtml(ym){
     return{name:a.n,rate:a.rate||0,vals:ms.map(function(m){return Number(assets[m][a.n])||0;})};
   }).filter(function(s){return s.vals.some(function(v){return v>0;});});
   var totals=ms.map(function(m){return calcNW(assets[m],m).td;});
-  // 총부채와 항목 합계의 차이 = 할부 잔액 등(자동 계산되는 부채)
-  var inst=totals.map(function(t,i){var s=0;series.forEach(function(x){s+=x.vals[i];});return Math.max(0,Math.round(t-s));});
+  // 옛 이름으로 남은 신용카드 미결제는 따로 보여주고, 총부채에서 남는 차이 = 할부 잔액(계산 또는 옛 자동차 할부 잔액)
+  var legacyCardArr=ms.map(function(m){return getLegacyDebts(assets[m]).card;});
+  var inst=totals.map(function(t,i){var s=legacyCardArr[i];series.forEach(function(x){s+=x.vals[i];});return Math.max(0,Math.round(t-s));});
   if(inst.some(function(v){return v>0;}))series.push({name:'할부 잔액',rate:0,vals:inst});
+  if(legacyCardArr.some(function(v){return v>0;}))series.push({name:'신용카드 미결제(옛 기록)',rate:0,vals:legacyCardArr});
   if(!series.length)return'';
   var n=totals.length,chg=totals[n-1]-totals[0];
   var intr=0;series.forEach(function(s){if(s.rate>0)intr+=s.vals[n-1]*s.rate/100/12;});
@@ -6273,6 +6304,16 @@ function switchAstSub(name){
     var tab=document.getElementById('ast-sub-'+k);if(tab)tab.classList.toggle('on',k===name);
   });
 }
+// 자산 탭 맨 위 안내: 이 달 순자산에 "과거 이름으로 남은 부채"가 어떻게 반영됐는지(없으면 표시 안 함)
+function renderAstLegacyNote(ym,am){
+  var lg=getLegacyDebts(am);
+  if(!(lg.card>0||lg.car>0||lg.cardDup))return'';
+  var rows=[];
+  if(lg.card>0)rows.push('<span class="lg-chip">💳 신용카드 미결제 <b>'+ff(lg.card)+'</b> <span class="s">카드별 항목이 생기기 전 기록 · 부채에 포함</span></span>');
+  if(lg.cardDup)rows.push('<span class="lg-chip dim">💳 신용카드 미결제 '+ff(lg.cardRaw)+' <span class="s">카드별 항목과 같은 부채라 중복 제외</span></span>');
+  if(lg.car>0)rows.push('<span class="lg-chip">🚗 자동차 할부 잔액 <b>'+ff(lg.car)+'</b> <span class="s">할부 계산 대신 이 값을 부채로 사용</span></span>');
+  return'<div class="flow-check lg-note" data-card="'+lg.card+'" data-car="'+lg.car+'"><div class="flow-check-top"><b>📜 과거 이름으로 기록된 부채 반영</b></div><div class="flow-chips" style="margin-top:6px">'+rows.join('')+'</div></div>';
+}
 // ── 자산 탭: 흐름(전월 대비 · 변화 원인 · 목표 · 입력 체크) ───────────────────────────
 function ymDiff(a,b){return(Number(b.slice(0,4))-Number(a.slice(0,4)))*12+(Number(b.slice(5,7))-Number(a.slice(5,7)));}
 function addMonthsYM(ym,n){var y=Number(ym.slice(0,4)),m=Number(ym.slice(5,7))-1+n;y+=Math.floor(m/12);m=((m%12)+12)%12;return y+'-'+pad2(m+1);}
@@ -6428,7 +6469,7 @@ function renderAst(){
   // 흐름: 이 달 입력 체크리스트 → 순자산 흐름(변화 원인·목표·추이) → 구성(도넛) → 항목 목록
   try{
     var flowBox=document.createElement('div');flowBox.className='ast-flow-box';
-    flowBox.innerHTML=renderAstChecklist(ym)+renderAstFlowCard(ym,r,prevYMast,prevR)+renderAstAssetTrendHtml(ym)+renderAstDebtTrendHtml(ym);
+    flowBox.innerHTML=renderAstChecklist(ym)+renderAstLegacyNote(ym,am)+renderAstFlowCard(ym,r,prevYMast,prevR)+renderAstAssetTrendHtml(ym)+renderAstDebtTrendHtml(ym);
     container.appendChild(flowBox);
     drawAstTrendChart();
   }catch(err){console.error('astFlow error',err);}
