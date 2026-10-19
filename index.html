@@ -1512,6 +1512,36 @@ function loadBT(){
 // 대분류 자체가 없어진 경우(진짜 카테고리 개편)는 기존 "사라진 예산 항목" 안내로 남겨둬야 하므로 건드리지 않는다.
 // 수입/저축 거래에 남아있는 지출유형(eval)을 비운다. 앱 시작 시 + 서버에서 데이터를 받은 직후에 호출한다.
 // (서버 데이터가 로컬을 덮어쓰기 때문에, 시작 시 한 번만 정리하면 서버에 남은 오염 값이 다시 살아난다)
+// 날짜 형식 검사: YYYY-MM-DD 이고 실제 달력에 있는 날짜인지(연도는 4자리, 1990~2099).
+// 날짜칸(type=date)은 연도를 5자리까지 받아서 '32026-09-30' 같은 값이 저장되면 그 거래는 어느 달에도 잡히지 않았다.
+function isValidYMD(s){
+  if(typeof s!=='string'||!/^(19[9]\d|20\d\d)-\d{2}-\d{2}$/.test(s))return false;
+  var y=+s.slice(0,4),m=+s.slice(5,7),d=+s.slice(8,10);
+  if(m<1||m>12||d<1)return false;
+  return d<=new Date(y,m,0).getDate();
+}
+// 자동차 할부 상환은 지출로 기록하되 성격은 '저축'으로 본다(갚은 원금만큼 부채가 줄어드는 상환이라, 대출 순상환과 같은 원칙).
+// 저축률(수입−지출)은 type 기준이라 이 성격 값으로는 바뀌지 않는다.
+function isCarLoanCat(mid,sub){return mid==='자동차'&&sub==='자동차 할부';}
+// 2026-10-19 확인된 잘못 입력 거래 바로잡기(레이 확인). 잘못된 값과 정확히 같을 때만 고치므로 여러 번 실행해도 안전하다.
+var KNOWN_TX_FIXES=[
+  {id:'msh8mcvyngq6',field:'date',from:'2025-10-10470',to:'2025-09-30'}, // 가스비 21,880원: 메모 '9월 1일 / 9월 30일 두개'의 두 번째 결제
+  {id:'mung8qdxg3r5',field:'date',from:'32026-09-30',to:'2026-09-30'},    // 커피 2,000원(레이 확인)
+  {id:'msh8lr6v9ztq',field:'date',from:'2025-04-31',to:'2025-04-30'},     // 런닝 27,000원: 없는 날짜(4/31). 실제 날짜를 몰라 같은 달 마지막 날로(4월 합계는 그대로)
+  {id:'ms8ar588fgpi',field:'memo',from:'G80 자동차 할부 할부(4/48)',to:'G80 자동차 할부 할부(3/48)'} // 2026-07은 3회차(시작월 2026-05)
+];
+function repairKnownTxs(){
+  var db=loadDB();var changed=false;
+  (db.txs||[]).forEach(function(t){
+    KNOWN_TX_FIXES.forEach(function(f){if(t.id===f.id&&t[f.field]===f.from){t[f.field]=f.to;changed=true;}});
+    if(t.type==='지출'&&isCarLoanCat(t.mid,t.sub)&&t.eval!=='저축'){t.eval='저축';changed=true;}
+  });
+  if(changed){localStorage.setItem(DB_KEY,JSON.stringify(db));scheduleSync();}
+  var fxChanged=false;
+  if(Array.isArray(FX))FX.forEach(function(fi){if(fi.type==='지출'&&isCarLoanCat(fi.mid,fi.sub)&&fi.eval!=='저축'){fi.eval='저축';fxChanged=true;}});
+  if(fxChanged)saveFX();
+  return changed||fxChanged;
+}
 function normalizeEvalOfIncomeSaving(){
   var db=loadDB();var changed=false;
   (db.txs||[]).forEach(function(t){
@@ -2323,6 +2353,7 @@ function loadFromServer(){
       localStorage.setItem(DB_KEY,JSON.stringify(data));
       applyServerBackup(data);
       normalizeEvalOfIncomeSaving();
+      repairKnownTxs();
       enforceDeletedCats();
       syncAutoMarTongSavings();
       setSyncStatus('ok','로드 완료');go(curPage);showToast('✅ 서버에서 데이터 불러옴!');
@@ -2734,6 +2765,7 @@ function initApp(){
     if(insChanged)saveIns();
   })();
   normalizeEvalOfIncomeSaving(); // 수입/저축 거래의 eval 정리 (서버 데이터를 받은 직후에도 다시 호출됨)
+  repairKnownTxs();
   var now=new Date();
   curYM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   calYM=curYM;
@@ -2759,6 +2791,7 @@ function initApp(){
         // 서버 백업분과 병합(둘 중 한쪽만 비어있거나 손상됐을 때 서로 안전망이 되도록).
         applyServerBackup(data);
         normalizeEvalOfIncomeSaving(); // 서버 데이터가 로컬을 덮어쓰므로, 받은 직후에도 정리해야 오염 값이 다시 살아나지 않는다
+        repairKnownTxs();
         enforceDeletedCats(); // 서버의 오래된 거래/예산이 삭제한 카테고리를 되살리지 못하게
         syncAutoMarTongSavings();
         setSyncStatus('ok','서버 연결됨 · '+new Date().toLocaleTimeString());
@@ -2971,6 +3004,7 @@ function saveTx(){
   // 직전에 골랐던 값(낭비 등)이 그대로 남아 있어서 같이 저장되던 문제를 입력 시점에서 막는다.
   if(tx.type==='수입')tx.eval='';
   if(!tx.date||!tx.mid||!tx.amount){document.getElementById('ti-res').innerHTML='<div class="al wrn">⚠️ 날짜, 카테고리, 금액은 필수예요.</div>';btn.disabled=false;return;}
+  if(!isValidYMD(tx.date)){document.getElementById('ti-res').innerHTML='<div class="al wrn">⚠️ 날짜가 이상해요('+escCatHtml(tx.date)+'). 연도는 4자리로 입력해 주세요.</div>';btn.disabled=false;return;}
 
   if(ptype==='할부'&&!id){
     var principal=Number(document.getElementById('ti-inst-principal').value)||0;
@@ -3033,6 +3067,7 @@ function saveEdit(){
   var tx={date:document.getElementById('em-date').value,mid:document.getElementById('em-mid').value,sub:document.getElementById('em-sub').value,type:document.getElementById('em-type').value,amount:Number(document.getElementById('em-amt').value)||0,memo:document.getElementById('em-memo').value,payment:document.getElementById('em-pay').value,eval:document.getElementById('em-ev').value};
   // 수정 모달은 eval이 비어 있으면 '소비'로 채워서 보여주기 때문에, 수입 거래를 수정만 해도 '소비'가 붙던 문제를 막는다.
   if(tx.type==='수입')tx.eval='';
+  if(!isValidYMD(tx.date)){showToast('⚠️ 날짜가 이상해요('+tx.date+'). 연도는 4자리로 입력해 주세요.');return;}
   updateTx(editId,tx);
   // "고정지출로 등록" 체크박스가 켜져 있고, 아직 등록 안 된 경우에만 FX에 새로 추가
   var mkFixed=document.getElementById('em-mkfixed');
@@ -3153,7 +3188,7 @@ function recordInsPayment(i){
   var day=item.billingDay||1;
   var daysInMonth=new Date(Number(ym.split('-')[0]),Number(ym.split('-')[1]),0).getDate();
   var date=ym+'-'+String(Math.min(day,daysInMonth)).padStart(2,'0');
-  addTx({date:date,mid:item.mid,sub:item.sub,type:'지출',amount:st.amount,memo:item.name+' 할부('+st.num+'/'+item.totalMonths+')',payment:item.payment,eval:'소비',fixed:false,installmentId:item.id});
+  addTx({date:date,mid:item.mid,sub:item.sub,type:'지출',amount:st.amount,memo:item.name+' 할부('+st.num+'/'+item.totalMonths+')',payment:item.payment,eval:isCarLoanCat(item.mid,item.sub)?'저축':'소비',fixed:false,installmentId:item.id});
   renderInsList();renderHis();
   showToast('✅ '+item.name+' '+st.num+'회차 기록됐어요!');
 }
@@ -5138,23 +5173,23 @@ function renderDashTrendCharts(months){
       var real=rates[c.dataIndex];return '저축률: '+real+'%'+(isOut[c.dataIndex]?' (범위를 벗어나 가장자리에 표시)':'');}}}},scales:sc}});
   });
   // 지출 성격(소비/투자/낭비) - 투자손실은 지출 성격 분석에서 제외(지출 통계와 같은 기준)
-  var EV=['소비','투자','낭비','기타'],evBy=EV.map(function(){return list.map(function(){return 0;});});
+  var EV=['소비','투자','낭비','저축','기타'],evBy=EV.map(function(){return list.map(function(){return 0;});});
   var payTot={},payBy={};
   getTxs().forEach(function(t){
     if(t.type!=='지출'||isInvestLossTx(t))return;
     var i=idx[(t.date||'').slice(0,7)];if(i===undefined)return;
     var amt=Number(t.amount)||0;
-    var ek=(t.eval==='소비'||t.eval==='투자'||t.eval==='낭비')?t.eval:'기타';
+    var ek=(t.eval==='소비'||t.eval==='투자'||t.eval==='낭비'||t.eval==='저축')?t.eval:'기타';
     evBy[EV.indexOf(ek)][i]+=amt;
     var pk=t.payment||'미지정';payTot[pk]=(payTot[pk]||0)+amt;
     (payBy[pk]=payBy[pk]||list.map(function(){return 0;}))[i]+=amt;
   });
-  var wasteSum=0,allSum=0;list.forEach(function(m,i){if(m>=curMonth)return;var tot=evBy[0][i]+evBy[1][i]+evBy[2][i]+evBy[3][i];wasteSum+=evBy[2][i];allSum+=tot;});
+  var wasteSum=0,allSum=0;list.forEach(function(m,i){if(m>=curMonth)return;var tot=evBy.reduce(function(s,a){return s+a[i];},0);wasteSum+=evBy[2][i];allSum+=tot;});
   var lastFull=-1;list.forEach(function(m,i){if(m<curMonth)lastFull=i;});
-  var lastTot=lastFull>=0?evBy[0][lastFull]+evBy[1][lastFull]+evBy[2][lastFull]+evBy[3][lastFull]:0;
+  var lastTot=lastFull>=0?evBy.reduce(function(s,a){return s+a[lastFull];},0):0;
   var evNote=allSum>0?'낭비 비중 평균 <b>'+Math.round(wasteSum/allSum*100)+'%</b>'+(lastFull>=0&&lastTot>0?' · 최근 완료한 달('+mLabel(list[lastFull])+') '+Math.round(evBy[2][lastFull]/lastTot*100)+'%':'')+' · 진행 중인 달 제외':'지출 데이터가 없어요';
   window.__chartData.eval={labels:labels,cats:EV,series:evBy};
-  var idEv='trEval_'+stamp,evColors={소비:'#5b7fd6',투자:'#58a98f',낭비:'#e08b6d',기타:'#a0aec0'};
+  var idEv='trEval_'+stamp,evColors={소비:'#5b7fd6',투자:'#58a98f',낭비:'#e08b6d',저축:'#8b7fd6',기타:'#a0aec0'};
   queueChart(idEv,function(cv){
     new Chart(cv,{type:'bar',data:{labels:labels,datasets:EV.map(function(k,i){return{label:k,data:evBy[i],backgroundColor:evColors[k],borderRadius:2};})},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+': '+ff(c.raw);}}}},scales:trScales(true,false)}});
   });
@@ -7769,15 +7804,16 @@ function confirmBsImport(){
   // 중복 체크 (날짜+금액+대분류+소분류+메모 - 메모까지 다 같아야 중복으로 봄)
   var existKeys={};
   db.txs.forEach(function(t){existKeys[t.date+'|'+t.amount+'|'+t.mid+'|'+t.sub+'|'+t.memo]=true;});
-  var added=0;
+  var added=0,badDate=0;
   txs.forEach(function(t){
+    if(!isValidYMD(t.date)){badDate++;return;}
     var key=t.date+'|'+t.amount+'|'+t.mid+'|'+t.sub+'|'+t.memo;
     if(!existKeys[key]){db.txs.push(t);added++;}
   });
   saveDB(db);
   enforceDeletedCats(); // 삭제한 카테고리로 매핑된 거래가 들어와도 옮겨진 카테고리로 정리
   document.getElementById('bs-preview-md').remove();
-  showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added)+'건 스킵)'+(added>0?' · 실수했으면 ⋮더보기 > "이전 기록으로 돌리기"로 되돌릴 수 있어요':''));
+  showToast('✅ '+added+'건 가져오기 완료! (중복 '+(txs.length-added-badDate)+'건 스킵'+(badDate?', 날짜 오류 '+badDate+'건 제외':'')+')'+(added>0?' · 실수했으면 ⋮더보기 > "이전 기록으로 돌리기"로 되돌릴 수 있어요':''));
   if(curPage==='inp'){renderInpDash();renderHis();}
   else if(curPage==='dash')renderDash();
 }
