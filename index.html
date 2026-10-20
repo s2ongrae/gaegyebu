@@ -701,7 +701,7 @@ input[type=number],input[type=date],select{min-height:36px}
     <div class="sec-divider">🏦 자산 현황</div>
     <div id="d-ast-kpi" class="g3 mb12"></div>
     <div class="card">
-      <div class="card-title">🏦 자산 현황 <span class="sub">· 포커스 이동 시 자동 저장</span><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px">＋ 항목추가</button></div>
+      <div class="card-title">🏦 자산 현황 <span class="sub">· 포커스 이동 시 자동 저장</span><button onclick="toggleAstReorder()" id="ast-reorder-btn" class="btn bg2 bsm" style="padding:3px 9px;font-size:11px;margin-left:auto" title="항목 순서 바꾸기">↕ 순서</button><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px;margin-left:4px">＋ 항목추가</button></div>
       <div id="d-ast"></div>
     </div>
   </div>
@@ -1056,6 +1056,33 @@ function loadAI(){
 }
 function saveAI(){localStorage.setItem(AI_KEY,JSON.stringify(AI));scheduleSync();}
 function addAssetItem(item){AI.push(item);saveAI();}
+// ── 자산 항목 순서 바꾸기 ──────────────────────────────────────
+// 순서는 AI 배열의 순서 그대로다(=화면 순서). 그룹(투자/연금/부채…)은 항목의 cat으로 정해지므로
+// 옮기기는 "같은 그룹 안에서만" 한다. 그래야 순서를 바꾸다 항목이 다른 그룹으로 튀지 않는다.
+var astReorder=false;
+function toggleAstReorder(){astReorder=!astReorder;renderAst();}
+function astGroupOf(a){
+  var cg={'투자':'투자/절세계좌','절세계좌':'투자/절세계좌','연금':'연금','보험저축':'저축/보험','저축':'저축/보험','부동산':'부동산','기타':'기타','부채':'부채'};
+  return cg[a.cat]||'기타';
+}
+// i번 항목을 같은 그룹의 이웃 항목과 자리만 맞바꾼다(dir: -1 위, +1 아래).
+function moveAssetItem(i,dir){
+  if(!AI[i])return;
+  var g=astGroupOf(AI[i]);
+  var idxs=[];AI.forEach(function(a,k){if(astGroupOf(a)===g)idxs.push(k);});
+  var at=idxs.indexOf(i),to=at+dir;
+  if(at<0||to<0||to>=idxs.length)return;
+  var j=idxs[to],t=AI[i];AI[i]=AI[j];AI[j]=t;
+  saveAI();renderAst();
+}
+function resetAssetOrder(){
+  AI.sort(function(a,b){
+    var order=['투자/절세계좌','연금','저축/보험','부동산','기타','부채'];
+    var d=order.indexOf(astGroupOf(a))-order.indexOf(astGroupOf(b));
+    return d!==0?d:a.n.localeCompare(b.n,'ko');
+  });
+  saveAI();renderAst();showToast('자산 항목을 그룹별 이름순으로 정리했어요.');
+}
 function updateAssetItem(i,item){
   var oldName=AI[i]?AI[i].n:null;
   AI[i]=item;saveAI();
@@ -6501,6 +6528,14 @@ function renderAst(){
   var cg={'투자':'투자/절세계좌','절세계좌':'투자/절세계좌','연금':'연금','보험저축':'저축/보험','저축':'저축/보험','부동산':'부동산','기타':'기타','부채':'부채'};
   AI.forEach(function(a,i){var g=cg[a.cat]||'기타';if(groups[g])groups[g].push({a:a,i:i});});
   var container=document.getElementById('d-ast');container.innerHTML='';
+  var roBtn=document.getElementById('ast-reorder-btn');
+  if(roBtn){roBtn.textContent=astReorder?'✓ 순서 완료':'↕ 순서';roBtn.className='btn '+(astReorder?'bp':'bg2')+' bsm';}
+  if(astReorder){
+    var roTip=document.createElement('div');roTip.className='al pur mb12';roTip.id='ast-reorder-tip';
+    roTip.innerHTML='▲▼로 항목 순서를 바꿔요. 같은 묶음(투자·연금·부채 등) 안에서만 옮겨집니다. 순서는 모든 기기에 함께 저장돼요. '
+      +'<button class="btn bg2 bsm" style="margin-left:6px;padding:3px 8px;font-size:11px" onclick="resetAssetOrder()">이름순 정리</button>';
+    container.appendChild(roTip);
+  }
   // 흐름: 이 달 입력 체크리스트 → 순자산 흐름(변화 원인·목표·추이) → 구성(도넛) → 항목 목록
   try{
     var flowBox=document.createElement('div');flowBox.className='ast-flow-box';
@@ -6568,6 +6603,18 @@ function renderAst(){
         inp.onfocus=function(){this.style.borderColor='var(--bl)';};
         (function(ym2,n2){inp.onblur=function(){onAst(this,ym2,n2);};})(ym,a.n);
         item.appendChild(inp);
+      }
+      // 순서 바꾸기: 같은 그룹 안에서 위/아래로
+      if(astReorder){
+        var gIdx=items.indexOf(o);
+        var upBtn=document.createElement('button');upBtn.className='btn bg2 bsm';upBtn.textContent='▲';
+        upBtn.style.cssText='padding:4px 7px;margin-left:4px';upBtn.disabled=gIdx===0;upBtn.setAttribute('aria-label','위로');
+        (function(ii){upBtn.onclick=function(){moveAssetItem(ii,-1);};})(i);
+        item.appendChild(upBtn);
+        var dnBtn=document.createElement('button');dnBtn.className='btn bg2 bsm';dnBtn.textContent='▼';
+        dnBtn.style.cssText='padding:4px 7px;margin-left:4px';dnBtn.disabled=gIdx===items.length-1;dnBtn.setAttribute('aria-label','아래로');
+        (function(ii){dnBtn.onclick=function(){moveAssetItem(ii,1);};})(i);
+        item.appendChild(dnBtn);
       }
       // 수정/삭제 버튼
       var editBtn=document.createElement('button');editBtn.className='btn bg2 bsm';editBtn.textContent='⚙️';
