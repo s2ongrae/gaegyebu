@@ -15,6 +15,13 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .logo{font-weight:900;font-size:14px;background:linear-gradient(135deg,var(--bl),var(--pu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-right:10px;white-space:nowrap;flex-shrink:0}
 .nb{background:none;border:none;color:var(--mu2);cursor:pointer;padding:6px 10px;border-radius:var(--rs);font-size:12px;font-weight:700;white-space:nowrap;transition:all .15s;font-family:inherit;flex-shrink:0}
 .nb:hover{background:var(--sf2);color:var(--tx)}.nb.on{background:var(--sf2);color:var(--bl)}
+.sub-badge{display:inline-block;margin-left:5px;padding:1px 6px;border-radius:9px;background:var(--rd);color:#fff;font-size:10px;font-weight:800;vertical-align:middle}
+.fold-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 14px}
+.fold-card>summary{cursor:pointer;font-size:13px;font-weight:800;color:var(--tx);list-style:none}
+.fold-card>summary::-webkit-details-marker{display:none}
+.fold-card>summary::before{content:'▸ ';color:var(--mu)}
+.fold-card[open]>summary::before{content:'▾ '}
+.fold-card>summary .sub{font-size:11px;font-weight:400;color:var(--mu)}
 .nav-r{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
 .nav-r select{background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:4px 7px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit}
 .sbar{position:fixed;top:50px;left:0;right:0;height:36px;background:var(--sf2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:8px;z-index:99;font-size:12px;overflow-x:auto}
@@ -678,24 +685,15 @@ input[type=number],input[type=date],select{min-height:36px}
 <div class="pg" id="pg-ast">
   <div class="sbar2" style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--bd);padding-bottom:0">
     <button class="nb ast-subtab on" onclick="switchAstSub('overview')" id="ast-sub-overview">🏦 개요</button>
-    <button class="nb ast-subtab" onclick="switchAstSub('risk')" id="ast-sub-risk">⚠️ 리스크</button>
-    <button class="nb ast-subtab" onclick="switchAstSub('tax')" id="ast-sub-tax">📊 절세</button>
-    <button class="nb ast-subtab" onclick="switchAstSub('sim')" id="ast-sub-sim">💡 시뮬레이터</button>
+    <button class="nb ast-subtab" onclick="switchAstSub('risk')" id="ast-sub-risk">⚠️ 부채 &amp; 리스크<span class="sub-badge" id="ast-risk-badge" style="display:none"></span></button>
   </div>
+  <!-- 부채·리스크: 얼마나 위험한가 → 매달 얼마 나가나 → 먼저 갚으면 얼마 아끼나 → 비상금은 되나 순서 -->
   <div class="ast-subpanel" id="ast-panel-risk" style="display:none">
-    <div class="sec-divider">⚠️ 리스크 체크</div>
+    <div class="sec-divider">⚠️ 부채 &amp; 리스크</div>
     <div id="d-leverage" class="mb12"></div>
     <div id="d-dsr" class="mb12"></div>
-  </div>
-  <div class="ast-subpanel" id="ast-panel-tax" style="display:none">
-    <div class="sec-divider">📊 재무 건강 지표</div>
-    <div id="d-liquidity" class="mb12"></div>
-    <div id="d-taxlimit" class="mb12"></div>
-  </div>
-  <div class="ast-subpanel" id="ast-panel-sim" style="display:none">
-    <div class="sec-divider">💡 손익 &amp; 전략</div>
-    <div id="d-realpl" class="mb12"></div>
     <div id="d-refi" class="mb12"></div>
+    <div id="d-liquidity" class="mb12"></div>
   </div>
   <div class="ast-subpanel" id="ast-panel-overview">
     <div class="sec-divider">🏦 자산 현황</div>
@@ -704,11 +702,18 @@ input[type=number],input[type=date],select{min-height:36px}
       <div class="card-title">🏦 자산 현황 <span class="sub">· 포커스 이동 시 자동 저장</span><button onclick="toggleAstReorder()" id="ast-reorder-btn" class="btn bg2 bsm" style="padding:3px 9px;font-size:11px;margin-left:auto" title="항목 순서 바꾸기">↕ 순서</button><button onclick="openAddAsset()" class="btn bpu2 bsm" style="padding:3px 9px;font-size:11px;margin-left:4px">＋ 항목추가</button></div>
       <div id="d-ast"></div>
     </div>
+    <div id="ast-tax-wrap" class="mt12" style="display:none">
+      <details class="fold-card">
+        <summary>🏦 절세계좌 한도 활용률 <span class="sub">· 연말정산 때 열어보세요</span></summary>
+        <div id="d-taxlimit" class="mt12"></div>
+      </details>
+    </div>
   </div>
 </div>
 
 <div class="pg" id="pg-stk">
   <div id="d-stk"></div>
+  <div id="d-realpl" class="mt12"></div>
 </div>
 </div>
 
@@ -6361,10 +6366,20 @@ function onBud(el,ym,m,s){
 }
 // ── 자산 탭 서브탭(개요/리스크/절세/시뮬레이터) 전환 ──────────────────────────────
 function switchAstSub(name){
-  ['overview','risk','tax','sim'].forEach(function(k){
+  ['overview','risk'].forEach(function(k){
     var panel=document.getElementById('ast-panel-'+k);if(panel)panel.style.display=(k===name?'':'none');
     var tab=document.getElementById('ast-sub-'+k);if(tab)tab.classList.toggle('on',k===name);
   });
+}
+// 부채·리스크 탭을 열지 않아도 위험 신호가 보이도록 하위 탭에 배지를 붙인다.
+// 기준은 레버리지 카드와 똑같다(부채 ÷ 순자산: 20% 미만 안전 / 40% 미만 주의 / 그 이상 위험).
+function updateAstRiskBadge(r){
+  var b=document.getElementById('ast-risk-badge');if(!b)return;
+  if(!r||r.td<=0){b.style.display='none';b.textContent='';return;}
+  var ratio=r.nw>0?Math.round(r.td/r.nw*100):999;
+  if(ratio<40){b.style.display='none';b.textContent='';return;}
+  b.style.display='';b.textContent=ratio>=999?'위험':ratio+'%';
+  b.title='부채 ÷ 순자산 = '+(ratio>=999?'순자산 0 이하':ratio+'%')+' · 40% 이상이면 위험 구간이에요';
 }
 // 자산 탭 맨 위 안내: 이 달 순자산에 "과거 이름으로 남은 부채"가 어떻게 반영됐는지(없으면 표시 안 함)
 function renderAstLegacyNote(ym,am){
@@ -6516,8 +6531,11 @@ function renderAst(){
   renderDsrCard(ym);
   renderTaxLimitCard(ym);
   renderLeverageCard(ym,am,r);
-  renderRealPLCard();
   renderRefiCard();
+  updateAstRiskBadge(r);
+  // 절세 한도 카드는 내용이 있을 때만 접힌 채로 보여준다(올해 ISA/연금저축/IRP 납입이 없으면 빈 카드라 숨김)
+  var taxWrap=document.getElementById('ast-tax-wrap'),taxCard=document.getElementById('d-taxlimit');
+  if(taxWrap)taxWrap.style.display=(taxCard&&taxCard.innerHTML.trim())?'':'none';
   // KPI
   var kpiEl=document.getElementById('d-ast-kpi');kpiEl.innerHTML='';
   function mkKpi(label,val,color,sub){var d=document.createElement('div');d.className='kpi';d.innerHTML='<div class="kl">'+label+'</div><div class="kv" style="color:'+color+'">'+f(val)+'</div>'+(sub?'<div class="ks">'+sub+'</div>':'')+'<div class="kb" style="background:'+color+'"></div>';kpiEl.appendChild(d);}
@@ -8430,6 +8448,7 @@ function renderStock(){
   html+='</tbody></table></div></div>';
 
   el.innerHTML=html;
+  renderRealPLCard(); // 자산 탭에 있던 '실질 자산 손익'은 주식 성과 분석이라 주식 탭으로 옮겼다
 
   // 차트 그리기
   setTimeout(function(){
