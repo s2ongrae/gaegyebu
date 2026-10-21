@@ -471,6 +471,88 @@ input[type=number],input[type=date],select{min-height:36px}
 .logo-t{display:none}
 .nb{padding:6px 7px;font-size:11px}
 }
+
+/* ══ 폰(≤700px) 보기 개선 ══════════════════════════════════════════
+   · 도구줄이 화면 밖으로 밀려나 월 선택·동기화 버튼을 못 누르던 것 → 두 줄로 접고 ⋯ 로 나머지 정리
+   · 내역 행의 금액·메모가 행 안에서 옆으로 스크롤돼 안 보이던 것 → 3줄 카드로
+   · 이상 신호의 글자가 한 글자씩 세로로 쪼개지던 것 → 줄바꿈 배치
+   · 탭·버튼 높이 확대, 입력칸 16px(iOS가 입력 때 화면을 확대하지 않도록) */
+.sm-more{display:none}
+.his-br{display:none}
+@media(max-width:700px){
+  html{-webkit-text-size-adjust:100%}
+  .sbar{position:static;margin-top:50px;height:auto;flex-wrap:wrap;gap:4px 6px;padding:5px 10px 6px;overflow:visible}
+  .sm-t{display:none}
+  .si{font-size:11px}
+  .main{margin-top:0;padding:10px 12px}
+  /* 1줄: 상태 + ⚙️ 🔄 ⋯   2줄: ‹ 연 월 ›   (⋯ 를 누르면 나머지 버튼이 상태 아래 한 줄로 펼쳐짐) */
+  .sbar::after{content:'';order:3;flex:0 0 100%;height:0}
+  .si{order:1;flex:1 1 0;min-width:0}
+  .si span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .sm{order:2;margin-left:auto;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+  .sbar.more .sm{flex:1 1 100%}
+  .sbar>.btn,.sbar>select{order:4;margin-left:0!important}
+  .sbar>select{flex:1 1 0;min-width:0;padding:3px 4px}
+  .sm .sm-sec{display:none}
+  .sbar.more .sm .sm-sec{display:inline-flex;align-items:center}
+  .sm-more{display:inline-flex;align-items:center;order:99}
+  .sbar .btn.bsm{min-height:36px;min-width:38px}
+  .sbar select{min-height:36px}
+  /* 내역 행(3줄 카드): ① 뱃지들 … 금액 ✏️  ② 카테고리 · 소분류 … 결제수단  ③ 메모 */
+  .his-row-grid{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:8px 6px;overflow:visible;font-size:12px}
+  .his-br{display:block;flex:0 0 100%;height:0;margin:0}
+  .his-row-grid .bk{padding:2px 6px}
+  .his-row-grid>:nth-child(1),.his-row-grid>:nth-child(2),.his-row-grid>:nth-child(3){order:1}
+  .his-row-grid>:nth-child(9){order:2;justify-self:auto!important}
+  .his-row-grid>:nth-child(8){order:3;margin-left:auto;font-size:15px!important;white-space:nowrap}
+  .his-row-grid>:nth-child(10){order:4;justify-self:auto!important}
+  .his-row-grid>:nth-child(11){order:5}
+  .his-row-grid>:nth-child(4){order:6;flex:0 1 auto;min-width:0;max-width:50%}
+  .his-row-grid>:nth-child(5){order:7;flex:1 1 0;min-width:0}
+  .his-row-grid>:nth-child(7){order:8;margin-left:auto;flex:0 1 auto;min-width:0;max-width:45%;text-align:right}
+  .his-row-grid>:nth-child(12){order:9}
+  .his-row-grid>:nth-child(6){order:10;flex:1 1 100%;min-width:0;font-size:12.5px!important;white-space:normal!important;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .his-row-grid>:empty{display:none}
+  .his-row-grid>.his-br:empty{display:block}
+  .his-row-grid>button{min-height:34px;min-width:36px}
+  /* 이상 신호 */
+  .anom-hd{flex-wrap:wrap;row-gap:4px}
+  .anom-hd .anom-nm{flex:1 1 calc(100% - 96px)!important;min-width:0;order:2;white-space:normal;word-break:keep-all}
+  .anom-hd .anom-ic{order:1}
+  .anom-hd .anom-x{order:3;min-width:34px;min-height:34px}
+  .anom-hd .anom-av{order:4;margin-left:26px}
+  .anom-hd .anom-cu{order:5}
+  .anom-hd .anom-pc{order:6}
+  .anom-lo{flex-wrap:wrap;row-gap:2px}
+  .anom-lo .anom-nm{flex:1 1 55%!important;min-width:0;word-break:keep-all}
+  /* 눌러야 하는 것들은 손가락 크기로 */
+  .nb{min-height:40px}
+  input[type=text],input[type=number],input[type=date],input[type=password],input[type=search],input:not([type]),textarea,select{font-size:16px!important}
+}
+
+/* 격자(grid)의 한 칸이 안의 숫자·글자 때문에 줄어들지 못해 화면 밖으로 밀려나던 문제(폰 360px 이하·태블릿 800px) */
+@media(max-width:900px){
+  .g2>*,.g3>*,.g4>*,.g5>*,.inp-layout>*,.stock-2col-grid>*,.asset-comp-grid>*,.asset-comp-row>*,.bud-grid>*{min-width:0}
+  .inp-layout{grid-template-columns:minmax(0,1fr)}
+  .asset-comp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+  .g2,.g3,.g4,.g5{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .stock-2col-grid{grid-template-columns:minmax(0,1fr)}
+  .asset-comp-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+@media(max-width:900px){.inc-grid{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:700px){
+  .donut-grid,.trend-grid,.hl-cards{grid-template-columns:minmax(0,1fr)}
+  .donut-grid>*,.trend-grid>*,.hl-cards>*,.inp-kpi-row>*,.stk-kpi-row>*,.bs-tiles>*{min-width:0}
+}
+/* 좁은 폰(360px대)에서도 상단 탭 6개가 한 화면에 들어오게 */
+@media(max-width:380px){
+  .nav{padding:0 4px}
+  .nb{padding:6px 5px;font-size:10.5px;letter-spacing:-.2px}
+  .logo{margin-right:0}
+}
 </style>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
 </head>
@@ -528,12 +610,13 @@ input[type=number],input[type=date],select{min-height:36px}
   </script>
   <div class="sm">
     <button class="btn bpu2 bsm" onclick="openSetup()" title="서버 연결 설정" aria-label="서버 연결 설정">⚙️</button>
-    <button class="btn bg2 bsm" id="lock-btn" onclick="openPinSetup()" title="비밀번호 설정" aria-label="비밀번호 설정">🔒</button>
-    <button class="btn bg2 bsm" onclick="manualSyncNow()">🔄 동기화</button>
-    <button class="btn bg2 bsm" onclick="openVersionLog()" title="가져오기·중복정리 등 큰 작업 전 자동 저장된 체크포인트로 되돌리기">🕐 이전 기록</button>
-    <button class="btn bg2 bsm" onclick="exportJSON()" title="백업 파일로 내보내기(JSON 저장)" aria-label="백업 파일로 내보내기">📤</button>
-    <button class="btn bg2 bsm" onclick="document.getElementById('importFile').click()" title="백업 파일 가져오기(JSON 불러오기)" aria-label="백업 파일 가져오기">📥</button>
-    <button class="btn bg2 bsm" onclick="document.getElementById('csvFile').click()" title="뱅크샐러드 엑셀/CSV 가져오기">🏦 뱅크샐러드</button>
+    <button class="btn bg2 bsm sm-sec" id="lock-btn" onclick="openPinSetup()" title="비밀번호 설정" aria-label="비밀번호 설정">🔒</button>
+    <button class="btn bg2 bsm" onclick="manualSyncNow()" aria-label="동기화" title="서버와 동기화">🔄<span class="sm-t"> 동기화</span></button>
+    <button class="btn bg2 bsm sm-more" id="sm-more" onclick="toggleSbarMore()" aria-label="더보기" aria-expanded="false" title="더보기">⋯</button>
+    <button class="btn bg2 bsm sm-sec" onclick="openVersionLog()" title="가져오기·중복정리 등 큰 작업 전 자동 저장된 체크포인트로 되돌리기">🕐 이전 기록</button>
+    <button class="btn bg2 bsm sm-sec" onclick="exportJSON()" title="백업 파일로 내보내기(JSON 저장)" aria-label="백업 파일로 내보내기">📤</button>
+    <button class="btn bg2 bsm sm-sec" onclick="document.getElementById('importFile').click()" title="백업 파일 가져오기(JSON 불러오기)" aria-label="백업 파일 가져오기">📥</button>
+    <button class="btn bg2 bsm sm-sec" onclick="document.getElementById('csvFile').click()" title="뱅크샐러드 엑셀/CSV 가져오기">🏦 뱅크샐러드</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)">
     <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importBankSalad(event)">
   </div>
@@ -2323,6 +2406,13 @@ function syncNow(opts){
   attempt();
 }
 // "🔄 동기화" 버튼을 직접 눌렀을 때만 호출되는 함수 - 그 시점을 "이전 기록"(체크포인트)에도 남긴다.
+// 폰에서는 도구줄이 좁아서 자주 쓰는 것(⚙️ 🔄)만 두고 나머지는 ⋯ 로 접어 둔다. 데스크톱에서는 ⋯ 버튼이 안 보이고 전부 펼쳐져 있다.
+function toggleSbarMore(force){
+  var bar=document.querySelector('.sbar'),btn=document.getElementById('sm-more');if(!bar)return;
+  var open=(typeof force==='boolean')?force:!bar.classList.contains('more');
+  bar.classList.toggle('more',open);if(btn)btn.setAttribute('aria-expanded',open?'true':'false');
+}
+document.addEventListener('click',function(e){var t=e.target;if(t&&t.closest&&t.closest('.sm-sec'))toggleSbarMore(false);});
 function manualSyncNow(){
   saveCheckpoint('수동 동기화 시점');
   if(_syncShrinkBlocked){
@@ -4207,6 +4297,8 @@ function renderHis(){
       btn.textContent='✏️';
       (function(id){btn.onclick=function(e){e.stopPropagation();openEdit(id);};})(t.id);
       row.appendChild(btn);
+      // 폰 화면에서 3줄 카드로 나누기 위한 줄바꿈 표시(데스크톱에서는 display:none이라 표에 영향 없음)
+      for(var bi=0;bi<2;bi++){var br=document.createElement('i');br.className='his-br';br.setAttribute('aria-hidden','true');row.appendChild(br);}
 
       w.appendChild(row);
     });
@@ -5086,13 +5178,13 @@ function renderAnomalyCard(curYM2){
     html+=res.high.map(function(a,idx){
       var rowId='anom-row-'+idx;
       return'<div class="anom-row" id="'+rowId+'" style="padding:8px 10px;background:rgba(239,68,68,.06);border-radius:8px;margin-bottom:6px;cursor:pointer" onclick="toggleAnomalyRow(\''+rowId+'\')">'
-        +'<div style="display:flex;align-items:center;gap:10px">'
-        +'<span style="font-size:16px">'+(CE[a.mid]||'⚠️')+'</span>'
-        +'<span style="flex:1;font-size:12px;font-weight:700">'+a.mid+' &gt; '+a.sub+'</span>'
-        +'<span style="font-size:11px;color:var(--mu)">평소 '+ff(Math.round(a.avg))+'</span>'
-        +'<span style="font-size:13px;font-weight:900;color:var(--rd)">'+ff(a.cur)+'</span>'
-        +'<span class="bk br" style="font-size:11px">+'+a.pct+'%</span>'
-        +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:11px" title="이번달은 무시하기" onclick="dismissAnomaly(event,\''+curYM2+'\',\''+a.mid+'\',\''+a.sub+'\')">✕</button>'
+        +'<div class="anom-hd" style="display:flex;align-items:center;gap:10px">'
+        +'<span class="anom-ic" style="font-size:16px">'+(CE[a.mid]||'⚠️')+'</span>'
+        +'<span class="anom-nm" style="flex:1;font-size:12px;font-weight:700">'+a.mid+' &gt; '+a.sub+'</span>'
+        +'<span class="anom-av" style="font-size:11px;color:var(--mu)">평소 '+ff(Math.round(a.avg))+'</span>'
+        +'<span class="anom-cu" style="font-size:13px;font-weight:900;color:var(--rd)">'+ff(a.cur)+'</span>'
+        +'<span class="bk br anom-pc" style="font-size:11px">+'+a.pct+'%</span>'
+        +'<button class="btn bg2 bsm anom-x" style="padding:2px 6px;font-size:11px" title="이번달은 무시하기" onclick="dismissAnomaly(event,\''+curYM2+'\',\''+a.mid+'\',\''+a.sub+'\')">✕</button>'
         +'</div>'
         +'<div class="anom-detail">'+renderAnomalyDetailRows(curYM2,a.mid,a.sub)+'</div>'
         +'</div>';
@@ -5101,9 +5193,9 @@ function renderAnomalyCard(curYM2){
   if(res.low.length){
     html+='<div style="font-size:11px;color:var(--mu);margin:8px 0 4px">💚 평소보다 적게 쓴 항목</div>'
       +res.low.map(function(a){
-        return'<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:rgba(16,185,129,.06);border-radius:8px;margin-bottom:4px">'
+        return'<div class="anom-lo" style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:rgba(16,185,129,.06);border-radius:8px;margin-bottom:4px">'
           +'<span style="font-size:14px">'+(CE[a.mid]||'💚')+'</span>'
-          +'<span style="flex:1;font-size:12px">'+a.mid+' &gt; '+a.sub+'</span>'
+          +'<span class="anom-nm" style="flex:1;font-size:12px">'+a.mid+' &gt; '+a.sub+'</span>'
           +'<span style="font-size:11px;color:var(--mu)">평소 '+ff(Math.round(a.avg))+'</span>'
           +'<span style="font-size:12px;font-weight:700;color:var(--gn)">'+ff(a.cur)+'</span>'
           +'</div>';
