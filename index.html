@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>💰 내 가계부</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f0f7ff">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="가계부">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="favicon.png">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
@@ -478,11 +486,13 @@ input[type=number],input[type=date],select{min-height:36px}
    · 이상 신호의 글자가 한 글자씩 세로로 쪼개지던 것 → 줄바꿈 배치
    · 탭·버튼 높이 확대, 입력칸 16px(iOS가 입력 때 화면을 확대하지 않도록) */
 .sm-more{display:none}
+.sm-tx{display:none}
 .his-br{display:none}
 @media(max-width:700px){
   html{-webkit-text-size-adjust:100%}
   .sbar{position:static;margin-top:50px;height:auto;flex-wrap:wrap;gap:4px 6px;padding:5px 10px 6px;overflow:visible}
   .sm-t{display:none}
+  .sm-tx{display:inline}
   .si{font-size:11px}
   .main{margin-top:0;padding:10px 12px}
   /* 1줄: 상태 + ⚙️ 🔄 ⋯   2줄: ‹ 연 월 ›   (⋯ 를 누르면 나머지 버튼이 상태 아래 한 줄로 펼쳐짐) */
@@ -610,6 +620,7 @@ input[type=number],input[type=date],select{min-height:36px}
   </script>
   <div class="sm">
     <button class="btn bpu2 bsm" onclick="openSetup()" title="서버 연결 설정" aria-label="서버 연결 설정">⚙️</button>
+    <button class="btn bg2 bsm sm-sec" id="install-btn" onclick="openInstall()" aria-label="앱으로 설치" title="홈 화면에 앱으로 설치">📲<span class="sm-tx"> 앱 설치</span></button>
     <button class="btn bg2 bsm sm-sec" id="lock-btn" onclick="openPinSetup()" title="비밀번호 설정" aria-label="비밀번호 설정">🔒</button>
     <button class="btn bg2 bsm" onclick="manualSyncNow()" aria-label="동기화" title="서버와 동기화">🔄<span class="sm-t"> 동기화</span></button>
     <button class="btn bg2 bsm sm-more" id="sm-more" onclick="toggleSbarMore()" aria-label="더보기" aria-expanded="false" title="더보기">⋯</button>
@@ -2413,6 +2424,56 @@ function toggleSbarMore(force){
   bar.classList.toggle('more',open);if(btn)btn.setAttribute('aria-expanded',open?'true':'false');
 }
 document.addEventListener('click',function(e){var t=e.target;if(t&&t.closest&&t.closest('.sm-sec'))toggleSbarMore(false);});
+// ── 앱으로 설치(PWA) ───────────────────────────────────────────
+// 홈 화면에 아이콘이 생기고, 주소창 없이 전체 화면으로 열리며, 인터넷이 없어도 화면이 열린다(sw.js).
+var _installEvt=null;
+function isStandalone(){try{return(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;}catch(e){return false;}}
+function updateInstallBtn(){var b=document.getElementById('install-btn');if(b)b.style.display=isStandalone()?'none':'';}
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();_installEvt=e;updateInstallBtn();});
+window.addEventListener('appinstalled',function(){_installEvt=null;updateInstallBtn();showToast('✅ 앱이 설치됐어요! 홈 화면에서 열어 보세요.');});
+function installPlatform(){
+  var ua=navigator.userAgent||'';
+  if(/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1))return'ios';
+  if(/Android/.test(ua))return'android';
+  return'desktop';
+}
+function openInstall(){
+  if(_installEvt){ // 크롬·엣지 등: 브라우저의 설치 창을 바로 띄운다
+    var ev=_installEvt;_installEvt=null;ev.prompt();
+    if(ev.userChoice&&ev.userChoice.then)ev.userChoice.then(function(c){if(c&&c.outcome!=='accepted')showToast('설치를 취소했어요. ⋯ → 📲 앱 설치에서 다시 할 수 있어요.');});
+    return;
+  }
+  showInstallHelp();
+}
+function showInstallHelp(){
+  var old=document.getElementById('install-md');if(old)old.remove();
+  var pf=installPlatform();
+  var steps={
+    ios:['Safari로 이 페이지를 열어요(다른 브라우저에는 메뉴가 없을 수 있어요).','화면 아래 공유 버튼(네모에 위쪽 화살표)을 눌러요.','"홈 화면에 추가"를 누르고 오른쪽 위 "추가"를 눌러요.'],
+    android:['Chrome 오른쪽 위 ⋮ 메뉴를 눌러요.','"앱 설치" 또는 "홈 화면에 추가"를 눌러요.','홈 화면에 생긴 아이콘으로 열어요.'],
+    desktop:['Chrome·Edge 주소창 오른쪽의 설치 아이콘(⊕ 또는 모니터 모양)을 눌러요.','"설치"를 누르면 독립된 창으로 열려요.']
+  }[pf];
+  var title={ios:'아이폰·아이패드',android:'안드로이드',desktop:'PC'}[pf];
+  var note=pf==='ios'?'<div class="al wrn" style="margin-top:10px">아이폰의 홈 화면 앱은 Safari와 저장 공간이 따로예요. 처음 열면 비어 있으니 <b>⚙️ 서버 설정에서 주소와 키를 한 번 입력</b>하면 데이터가 불러와져요.</div>':'';
+  var md=document.createElement('div');md.className='mdbg on';md.id='install-md';
+  md.innerHTML='<div class="md" style="width:380px;max-width:94vw"><div class="mdh"><h3>📲 앱으로 설치 · '+title+'</h3><button class="mdc" onclick="document.getElementById(\'install-md\').remove()">✕</button></div>'
+    +'<ol style="padding-left:20px;font-size:13px;line-height:1.9;color:var(--tx)">'+steps.map(function(t){return'<li>'+escCatHtml(t)+'</li>';}).join('')+'</ol>'
+    +'<div style="font-size:12px;color:var(--mu2);margin-top:8px">설치하면 주소창 없이 전체 화면으로 열리고, 인터넷이 없어도 화면이 열려요. 서버 동기화는 연결되면 자동으로 이어져요.</div>'+note
+    +'<div style="text-align:right;margin-top:12px"><button class="btn bp bsm" onclick="document.getElementById(\'install-md\').remove()">확인</button></div></div>';
+  md.addEventListener('click',function(e){if(e.target===md)md.remove();});
+  document.body.appendChild(md);
+}
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+  window.addEventListener('load',function(){
+    navigator.serviceWorker.register('./sw.js').then(function(reg){
+      reg.addEventListener('updatefound',function(){
+        var nw=reg.installing;if(!nw)return;
+        nw.addEventListener('statechange',function(){if(nw.state==='installed'&&navigator.serviceWorker.controller)showToast('🔄 앱 업데이트가 준비됐어요. 앱을 닫았다 다시 열면 새 버전이 적용돼요.');});
+      });
+    }).catch(function(e){console.warn('[가계부] 오프라인 기능 등록 실패',e);});
+  });
+}
+setTimeout(updateInstallBtn,0);
 function manualSyncNow(){
   saveCheckpoint('수동 동기화 시점');
   if(_syncShrinkBlocked){
