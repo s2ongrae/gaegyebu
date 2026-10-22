@@ -509,23 +509,35 @@ input[type=number],input[type=date],select{min-height:36px}
   .sm-more{display:inline-flex;align-items:center;order:99}
   .sbar .btn.bsm{min-height:36px;min-width:38px}
   .sbar select{min-height:36px}
-  /* 내역 행(3줄 카드): ① 뱃지들 … 금액 ✏️  ② 카테고리 · 소분류 … 결제수단  ③ 메모 */
-  .his-row-grid{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:8px 6px;overflow:visible;font-size:12px}
-  .his-br{display:block;flex:0 0 100%;height:0;margin:0}
-  .his-row-grid .bk{padding:2px 6px}
-  .his-row-grid>:nth-child(1),.his-row-grid>:nth-child(2),.his-row-grid>:nth-child(3){order:1}
-  .his-row-grid>:nth-child(9){order:2;justify-self:auto!important}
-  .his-row-grid>:nth-child(8){order:3;margin-left:auto;font-size:15px!important;white-space:nowrap}
-  .his-row-grid>:nth-child(10){order:4;justify-self:auto!important}
-  .his-row-grid>:nth-child(11){order:5}
-  .his-row-grid>:nth-child(4){order:6;flex:0 1 auto;min-width:0;max-width:50%}
-  .his-row-grid>:nth-child(5){order:7;flex:1 1 0;min-width:0}
-  .his-row-grid>:nth-child(7){order:8;margin-left:auto;flex:0 1 auto;min-width:0;max-width:45%;text-align:right}
-  .his-row-grid>:nth-child(12){order:9}
-  .his-row-grid>:nth-child(6){order:10;flex:1 1 100%;min-width:0;font-size:12.5px!important;white-space:normal!important;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  /* 내역 행(2줄): ① 메모 … 금액  ② 분류 · 소분류 · (의미 있는 뱃지만) … 결제수단 — 행을 누르면 수정 */
+  .his-row-grid{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;padding:7px 4px;overflow:visible;font-size:12px}
+  .his-br{display:none}
+  .his-row-grid .bk{padding:1px 5px;font-size:12px!important}
+  .his-row-grid .hb-type,.his-row-grid .hb-common{display:none!important}
+  .his-row-grid>:nth-child(10){display:none!important}
+  .his-row-grid>:nth-child(6){order:1;flex:1 1 0;min-width:0;font-size:13.5px!important;font-weight:700;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;display:block!important}
+  .his-row-grid>:nth-child(8){order:2;margin-left:auto;font-size:14.5px!important;white-space:nowrap}
+  .his-row-grid>:nth-child(11){order:3}
+  .his-row-grid>:nth-child(4){order:4;flex:0 1 auto;min-width:0;max-width:34%;color:var(--mu2);font-size:12px!important}
+  .his-row-grid>:nth-child(5){order:5;flex:0 1 auto;min-width:0;max-width:34%;color:var(--mu2);font-size:12px!important}
+  .his-row-grid>:nth-child(2),.his-row-grid>:nth-child(3),.his-row-grid>:nth-child(9){order:6}
+  .his-row-grid>:nth-child(7){order:7;margin-left:auto;flex:0 1 auto;min-width:0;max-width:30%;text-align:right;color:var(--mu);font-size:12px!important}
   .his-row-grid>:empty{display:none}
-  .his-row-grid>.his-br:empty{display:block}
-  .his-row-grid>button{min-height:34px;min-width:36px}
+  .his-row-grid>.his-br:nth-child(11){display:block;flex:0 0 100%;height:0;margin:0}
+  .his-day-hd{padding:7px 6px 5px!important;margin-top:6px!important}
+  /* 목표: 2칸 카드 → 한 줄 목록(제목 … %, 막대, 요약 한 줄). 누르면 예상 시점·⚙️·🗑️ */
+  .goal-list{grid-template-columns:minmax(0,1fr)!important;gap:6px!important}
+  .goal-c{display:flex!important;flex-wrap:wrap;align-items:center;column-gap:10px;row-gap:5px;padding:10px 12px!important;cursor:pointer}
+  .goal-c>.goal-h{order:1;flex:1 1 0;min-width:0;margin:0!important}
+  .goal-c .goal-t{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:14px!important;min-width:0}
+  .goal-c .goal-b{display:none!important}
+  .goal-c.m-open .goal-b{display:flex!important;flex:0 0 auto}
+  .goal-c>.goal-p{order:2;font-size:17px!important;margin:0!important;line-height:1.2}
+  .goal-c>.goal-bar{order:3;flex:1 1 100%;margin:0!important;height:5px!important}
+  .goal-c>.goal-l{order:4;flex:1 1 100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px!important}
+  .goal-c>.goal-e,.goal-c>.dtl-hint{display:none!important}
+  .goal-c.m-open>.goal-e{display:block!important;order:5;flex:1 1 100%}
+  .goal-c>.dtl-body{order:6;flex:1 1 100%}
   /* 이상 신호 */
   .anom-hd{flex-wrap:wrap;row-gap:4px}
   .anom-hd .anom-nm{flex:1 1 calc(100% - 96px)!important;min-width:0;order:2;white-space:normal;word-break:keep-all}
@@ -1519,13 +1531,13 @@ function renderGoalsCard(){
     if(st.done)return; // 완납된 할부는 표시 안 함
     var pct=Math.round((item.principal-st.remaining)/item.principal*100);
     var rowId='dtl-carloan-'+ci;
-    carLoanCards+='<div class="dtl-card" id="'+rowId+'" onclick="toggleDtl(\''+rowId+'\')" style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
-      +'<div style="font-size:13px;font-weight:700;margin-bottom:6px">🚗 '+(item.name||'자동차 할부')+' 잔금</div>'
-      +'<div style="font-size:20px;font-weight:900;color:var(--pu);margin-bottom:4px">'+pct+'%</div>'
-      +'<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
+    carLoanCards+='<div class="dtl-card goal-c" id="'+rowId+'" onclick="goalTap(this,1)" style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
+      +'<div class="goal-h goal-t" style="font-size:13px;font-weight:700;margin-bottom:6px">🚗 '+(item.name||'자동차 할부')+' 잔금</div>'
+      +'<div class="goal-p" style="font-size:20px;font-weight:900;color:var(--pu);margin-bottom:4px">'+pct+'%</div>'
+      +'<div class="goal-bar" style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
       +'<div style="width:'+pct+'%;height:100%;background:var(--pu);border-radius:3px"></div></div>'
-      +'<div style="font-size:11px;color:var(--mu)">남은 잔금 '+ff(st.remaining)+' · 원금 '+ff(item.principal)+'</div>'
-      +'<div style="font-size:11px;color:var(--bl);margin-top:4px">📅 '+st.num+'/'+item.totalMonths+'회차 · 매달 '+ff(st.perMonth)+'</div>'
+      +'<div class="goal-l" style="font-size:11px;color:var(--mu)">남은 잔금 '+ff(st.remaining)+' · 원금 '+ff(item.principal)+'</div>'
+      +'<div class="goal-e" style="font-size:11px;color:var(--bl);margin-top:4px">📅 '+st.num+'/'+item.totalMonths+'회차 · 매달 '+ff(st.perMonth)+'</div>'
       +'<div class="dtl-hint">눌러서 상세 보기 ▾</div>'
       +'<div class="dtl-body">'
       +'<div style="font-size:11px;color:var(--mu2);display:flex;justify-content:space-between;padding:2px 0"><span>지금까지 납입</span><b style="color:var(--tx)">'+ff(item.principal-st.remaining)+'</b></div>'
@@ -1540,7 +1552,7 @@ function renderGoalsCard(){
   }
   var topCat=getTopExpenseCategoryThisMonth();
   var reduceAmt=topCat?Math.round(topCat.amt*0.2/1000)*1000:0;
-  html+='<div class="g4" style="align-items:stretch">';
+  html+='<div class="g4 goal-list" style="align-items:stretch">';
   // 순자산 목표(networth)를 맨 앞에 오도록, GOALS를 표시 순서용으로 재정렬(원본 배열/저장 순서는 건드리지 않음)
   var sortedGoals=GOALS.slice().sort(function(a,b){
     if(a.type==='networth'&&b.type!=='networth')return-1;
@@ -1590,18 +1602,18 @@ function renderGoalsCard(){
         if(monthsSaved>0)simText='💡 이번달 "'+topCat.mid+'" 지출을 20%('+ff(reduceAmt)+') 줄이면, 목표가 약 '+monthsSaved+'개월 당겨져요';
       }
     }
-    html+='<div class="'+(simText?'dtl-card':'')+'" id="dtl-goal-'+i+'" '+(simText?'onclick="toggleDtl(\'dtl-goal-'+i+'\')"':'')+' style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
-      +'<span style="font-size:13px;font-weight:700">'+(p.done?'✅ ':'')+g.label+'</span>'
-      +'<span style="display:flex;gap:2px">'
+    html+='<div class="goal-c '+(simText?'dtl-card':'')+'" id="dtl-goal-'+i+'" onclick="goalTap(this,'+(simText?1:0)+')" style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
+      +'<div class="goal-h" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+      +'<span class="goal-t" style="font-size:13px;font-weight:700">'+(p.done?'✅ ':'')+g.label+'</span>'
+      +'<span class="goal-b" style="display:flex;gap:2px">'
       +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:11px" onclick="event.stopPropagation();openEditGoal('+i+')">⚙️</button>'
       +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:11px" onclick="event.stopPropagation();deleteGoal('+i+')">🗑️</button>'
       +'</span></div>'
-      +'<div style="font-size:20px;font-weight:900;color:'+color+';margin-bottom:4px">'+p.pct+'%</div>'
-      +'<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
+      +'<div class="goal-p" style="font-size:20px;font-weight:900;color:'+color+';margin-bottom:4px">'+p.pct+'%</div>'
+      +'<div class="goal-bar" style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
       +'<div style="width:'+p.pct+'%;height:100%;background:'+color+';border-radius:3px"></div></div>'
-      +'<div style="font-size:11px;color:var(--mu)">'+curLabel+' · '+targetLabel+'</div>'
-      +(etaLabel?'<div style="font-size:11px;color:var(--bl);margin-top:4px">'+etaLabel+'</div>':'')
+      +'<div class="goal-l" style="font-size:11px;color:var(--mu)">'+curLabel+' · '+targetLabel+'</div>'
+      +(etaLabel?'<div class="goal-e" style="font-size:11px;color:var(--bl);margin-top:4px">'+etaLabel+'</div>':'')
       +(simText?('<div class="dtl-hint">눌러서 절감 시뮬레이션 보기 ▾</div><div class="dtl-body"><div style="font-size:11px;color:var(--pu);font-weight:700">'+simText+'</div></div>'):'')
       +'</div>';
   });
@@ -2987,6 +2999,9 @@ function ff(n){return Math.round(Number(n)||0).toLocaleString()+'원';}
 function gYM(){return document.getElementById('gYM').value;}
 function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function isPhoneView(){try{return!!(window.matchMedia&&window.matchMedia('(max-width:700px)').matches);}catch(e){return false;}}
+// 목표 카드: 폰에서는 누르면 예상 시점·설정 버튼이 펼쳐진다. 절감 시뮬레이션이 있으면 기존처럼 함께 펼친다.
+function goalTap(el,hasSim){if(isPhoneView())el.classList.toggle('m-open');if(hasSim)toggleDtl(el.id);}
 function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 16px;border-radius:8px;font-size:13px;line-height:1.5;z-index:999;font-family:inherit;max-width:calc(100vw - 24px);width:max-content;text-align:center;white-space:normal;word-break:keep-all';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},Math.max(2500,Math.min(6000,msg.length*90)));}
 // 탭이 화면 폭보다 많아 가로 스크롤될 때(폰), 선택한 탭이 항상 보이도록 상단 탭바를 그 탭 위치로 옮긴다.
 function scrollNavToTab(p){
@@ -4407,7 +4422,7 @@ function renderHis(){
 
     // 날짜 헤더 행
     var headerWrap=document.createElement('div');
-    headerWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:12px 6px 6px;border-bottom:2px solid var(--bd2);margin-top:8px;background:var(--sf2);border-radius:var(--rs) var(--rs) 0 0';
+    headerWrap.className='his-day-hd';headerWrap.style.cssText='display:flex;align-items:center;gap:8px;padding:12px 6px 6px;border-bottom:2px solid var(--bd2);margin-top:8px;background:var(--sf2);border-radius:var(--rs) var(--rs) 0 0';
     var dateLabel=document.createElement('div');
     dateLabel.style.cssText='font-size:14px;font-weight:900;color:var(--tx)';
     dateLabel.textContent=mm+'월 '+dd+'일';
@@ -4434,7 +4449,7 @@ function renderHis(){
 
       // 타입 뱃지
       var badge=document.createElement('span');
-      badge.className='bk '+(TC[t.type]||'bgy');
+      badge.className='bk hb-type '+(TC[t.type]||'bgy');
       badge.style.cssText='font-size:11px;text-align:center;white-space:nowrap;justify-self:start';
       badge.textContent=t.type;
       row.appendChild(badge);
@@ -4442,7 +4457,7 @@ function renderHis(){
       // 고정/변동 뱃지 (수입은 FIXED_INCOME_SUBS 기준, 나머지는 FX 등록 기준)
       var isFix=t.type==='수입'?isFixedIncome(t):isFixed(t);
       var fb=document.createElement('span');
-      fb.className='bk '+(isFix?'bcy':'bgy');fb.style.cssText='font-size:11px;justify-self:start';
+      fb.className='bk '+(isFix?'bcy':'bgy hb-common');fb.style.cssText='font-size:11px;justify-self:start';
       fb.textContent=isFix?'고정':'변동';row.appendChild(fb);
 
       // 할부 뱃지
@@ -4488,11 +4503,11 @@ function renderHis(){
       // 평가 (수입 거래는 소비/낭비 같은 지출유형 대신 "수입" 태그를 보여준다)
       var ev=document.createElement('span');
       if(t.type==='수입'){
-        ev.className='bk bg';
+        ev.className='bk bg hb-common';
         ev.style.cssText='font-size:11px;text-align:center;justify-self:center;white-space:nowrap';
         ev.textContent='수입';
       }else if(t.eval){
-        ev.className='bk '+(EC[t.eval]||'bgy');
+        ev.className='bk '+(EC[t.eval]||'bgy')+(t.eval==='소비'?' hb-common':'');
         ev.style.cssText='font-size:11px;text-align:center;justify-self:center;white-space:nowrap';
         ev.textContent=t.eval;
       }
@@ -4505,6 +4520,8 @@ function renderHis(){
       btn.textContent='✏️';
       (function(id){btn.onclick=function(e){e.stopPropagation();openEdit(id);};})(t.id);
       row.appendChild(btn);
+      // 폰에서는 ✏️ 버튼을 숨기고 행 전체를 누르면 수정 창이 열린다(PC는 기존대로 ✏️ 버튼)
+      (function(id){row.addEventListener('click',function(){if(isPhoneView())openEdit(id);});})(t.id);
       // 폰 화면에서 3줄 카드로 나누기 위한 줄바꿈 표시(데스크톱에서는 display:none이라 표에 영향 없음)
       for(var bi=0;bi<2;bi++){var br=document.createElement('i');br.className='his-br';br.setAttribute('aria-hidden','true');row.appendChild(br);}
 
