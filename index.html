@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>💰 내 가계부</title>
+<script>/* 아이폰·아이패드는 입력칸 글자가 16px보다 작으면 누를 때 화면을 확대한다 → 그 기기에서만 16px */(function(){var u=navigator.userAgent||"";if(/iPhone|iPad|iPod/.test(u)||(/Macintosh/.test(u)&&navigator.maxTouchPoints>1))document.documentElement.classList.add("ios");})();</script>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#f0f7ff">
 <meta name="mobile-web-app-capable" content="yes">
@@ -537,7 +538,9 @@ input[type=number],input[type=date],select{min-height:36px}
   .anom-lo .anom-nm{flex:1 1 55%!important;min-width:0;word-break:keep-all}
   /* 눌러야 하는 것들은 손가락 크기로 */
   .nb{min-height:40px}
-  input[type=text],input[type=number],input[type=date],input[type=password],input[type=search],input:not([type]),textarea,select{font-size:16px!important}
+  /* 우선순위를 높여(:root) 위쪽의 '작은 글자 키우기' 규칙이 이 16px을 덮어쓰지 못하게 한다 */
+  :root input[type=text],:root input[type=number],:root input[type=date],:root input[type=password],:root input[type=search],:root input:not([type]),:root textarea,:root select{font-size:14px!important}
+  html.ios input[type=text],html.ios input[type=number],html.ios input[type=date],html.ios input[type=password],html.ios input[type=search],html.ios input:not([type]),html.ios textarea,html.ios select{font-size:16px!important}
 }
 
 /* 격자(grid)의 한 칸이 안의 숫자·글자 때문에 줄어들지 못해 화면 밖으로 밀려나던 문제(폰 360px 이하·태블릿 800px) */
@@ -562,6 +565,150 @@ input[type=number],input[type=date],select{min-height:36px}
   .nav{padding:0 4px}
   .nb{padding:6px 5px;font-size:10.5px;letter-spacing:-.2px}
   .logo{margin-right:0}
+}
+
+/* ══ 폰 가독성 ══════════════════════════════════════════════════
+   · 11px 안팎의 작은 글자를 12~13px로(폰에서 읽기 어렵던 것)
+   · 한국어 단어가 중간에서 끊기지 않게(keep-all), 아주 긴 글자열만 줄바꿈
+   · 표는 칸을 억지로 줄이지 않고 표 안에서 옆으로 스크롤
+   · 목표 달성률 행·고정지출 카드는 폰용 배치 */
+@media(max-width:700px){
+  body{word-break:keep-all;overflow-wrap:break-word;font-size:14px}
+  .btn,button{white-space:nowrap}
+  .card-title{flex-wrap:wrap;row-gap:6px}
+  .card-title .sub{white-space:normal}
+  .sub-badge{font-size:12px!important}
+  .fold-card>summary .sub{font-size:12.5px!important}
+  .card-title{font-size:13px!important}
+  .card-title .sub{font-size:12.5px!important}
+  .md-input-sm{font-size:13px!important}
+  .kl{font-size:12.5px!important}
+  .ks{font-size:12.5px!important}
+  .tbl th{font-size:12.5px!important}
+  .bk{font-size:12.5px!important}
+  .fg label{font-size:12.5px!important}
+  .bsm{font-size:13px!important}
+  .summary-row{font-size:12.5px!important}
+  .cal-dow{font-size:12.5px!important}
+  .cal-day-evt{font-size:12px!important}
+  .cal-day-evt-more{font-size:12px!important}
+  .cal-day-num{font-size:13px!important}
+  .cds{font-size:12px!important}
+  .sec-divider{font-size:12.5px!important}
+  .inc-split>div{font-size:12.5px!important}
+  .inc-split.empty{font-size:12.5px!important}
+  .inc-lab{font-size:13px!important}
+  .inc-meta{font-size:13px!important}
+  .inc-row{font-size:13px!important}
+  .inc-avg{font-size:12.5px!important}
+  .inc-empty{font-size:13px!important}
+  .bs-chip{font-size:12.5px!important}
+  .bs-grow-n{font-size:13px!important}
+  .bs-grow-e{font-size:12.5px!important}
+  .bs-note{font-size:13px!important}
+  .bs-legend{font-size:12.5px!important}
+  .bs-tbl th{font-size:12.5px!important}
+  .bs-caret{font-size:12.5px!important}
+  .bs-usage-pct{font-size:13px!important}
+  .bs-tag{font-size:12.5px!important}
+  .bs-det-row{font-size:13px!important}
+  .bs-det-p{font-size:12.5px!important}
+  .dash-range-note{font-size:13px!important}
+  .dash-range-note .prog{font-size:12.5px!important}
+  .bs-m-sub{font-size:12.5px!important}
+  .bs-usage-pct{font-size:12.5px!important}
+  .sec-divider .sec-sub{font-size:12.5px!important}
+  .dtl-hint{font-size:12.5px!important}
+  .sec-tab{font-size:13px!important}
+  .tx-section-title{font-size:12.5px!important}
+  .bud-card-total{font-size:13px!important}
+  .bud-tag{font-size:12.5px!important}
+  .bud-sub-avg{font-size:12.5px!important}
+  .bud-legend{font-size:12.5px!important}
+  .bud-ib{font-size:13px!important}
+  .bud-sub-actual{font-size:13px!important}
+  .bud-sub-input{font-size:13px!important}
+  .asset-group-title{font-size:12.5px!important}
+  .asset-cat{font-size:12.5px!important}
+  .search-sel{font-size:13px!important}
+  .ac-item .ac-sub{font-size:12.5px!important}
+  .ac-item .ac-badge{font-size:12.5px!important}
+  .fxk-cash{font-size:13px!important}
+  .ast-chg{font-size:12.5px!important}
+  .flow-title .sub{font-size:12.5px!important}
+  .flow-row{font-size:13px!important}
+  .flow-note{font-size:12.5px!important}
+  .flow-goal-top{font-size:13px!important}
+  .flow-eta{font-size:13px!important}
+  .flow-check-top span{font-size:13px!important}
+  .flow-chips{font-size:12.5px!important}
+  .flow-chk-hint{font-size:12.5px!important}
+  .stk-ins-row .m{font-size:12.5px!important}
+  .stk-note{font-size:12.5px!important}
+  .chart-note{font-size:13px!important}
+  .stk-ic-h{font-size:13px!important}
+  .stk-ic-s{font-size:12.5px!important}
+  .stk-ends{font-size:12.5px!important}
+  .stk-chip{font-size:12.5px!important}
+  .bs-budget-lbl{font-size:13px!important}
+  .bs-pill,.bs-warnline{font-size:12.5px!important}
+  .bs-seg-legend{font-size:12.5px!important}
+  .bs-tile .t-l{font-size:12.5px!important}
+  .bs-tile .t-s{font-size:12.5px!important}
+  .sec-sub-t .sub{font-size:12.5px!important}
+  .hl-card-h .s{font-size:12px!important}
+  .hl-badge{font-size:12.5px!important}
+  .hl-sub{font-size:12.5px!important}
+  .hl-empty{font-size:13px!important}
+  .hl-p{font-size:12.5px!important}
+  .fxk-flow .ft .l{font-size:12.5px!important}
+  .fxk-flow .ft .s{font-size:12px!important}
+  .cum-chip{font-size:13px!important}
+  .lg-chip{font-size:13px!important}
+  .lg-chip .s{font-size:12px!important}
+  .fxk-row .kl{font-size:12.5px!important}
+  .fxk-row .ks{font-size:12.5px!important}
+  [style*="font-size:9px"]{font-size:12px!important}
+  [style*="font-size: 9px"]{font-size:12px!important}
+  [style*="font-size:9.5px"]{font-size:12px!important}
+  [style*="font-size: 9.5px"]{font-size:12px!important}
+  [style*="font-size:10px"]{font-size:12px!important}
+  [style*="font-size: 10px"]{font-size:12px!important}
+  [style*="font-size:10.5px"]{font-size:12px!important}
+  [style*="font-size: 10.5px"]{font-size:12px!important}
+  [style*="font-size:11px"]{font-size:12.5px!important}
+  [style*="font-size: 11px"]{font-size:12.5px!important}
+  [style*="font-size:11.5px"]{font-size:12.5px!important}
+  [style*="font-size: 11.5px"]{font-size:12.5px!important}
+  [style*="font-size:12px"]{font-size:13px!important}
+  [style*="font-size: 12px"]{font-size:13px!important}
+  [style*="font-size:12.5px"]{font-size:13px!important}
+  [style*="font-size: 12.5px"]{font-size:13px!important}
+  table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  th{white-space:nowrap}
+  td{word-break:keep-all}
+  td:first-child{white-space:nowrap}
+  .gr{flex-wrap:wrap!important;row-gap:5px!important;column-gap:10px!important;padding:10px 0!important}
+  .gr-n{flex:1 1 50%!important;min-width:0!important;font-size:14px!important;font-weight:700}
+  .gr-v{order:2;min-width:0!important;font-size:15px!important}
+  .gr-p{order:3;flex:1 1 100%;width:100%!important;display:flex;align-items:center;gap:8px}
+  .gr-p>div{flex:1}
+  .gr-g,.gr-a{min-width:0!important;text-align:left!important;font-size:12.5px!important}
+  .gr-g{order:4}.gr-a{order:5}
+  .gr-g::before{content:'목표 '}
+  .gr-a::before{content:'월평균 '}
+  .fxi{padding:11px 12px}
+  .fxi-name{font-size:14px!important}
+  .fxi-sub{flex-wrap:nowrap}
+  .fxi-sub select{font-size:13px!important;min-height:32px;padding:2px 4px!important;flex:0 1 auto;min-width:0;max-width:62%}
+  .fxi-head input[type=number]{font-size:15px!important;width:104px!important;min-height:36px}
+  .fxi .fx{flex-wrap:wrap}
+  .fxi .fx>.btn{flex:0 0 auto;min-height:36px}
+  .fxi .fx>input[type=date]{flex:1 1 130px;min-width:0;min-height:36px;font-size:14px!important;padding:4px 6px!important}
+  .fxi .fx>.btn.bg2{padding:4px 9px!important}
+  .fxi .fx>select,.fxi .fx>input[type=text]{min-height:36px}
+  .fxi{padding:9px 11px}
+  html.ios .fxi .fx>input[type=date]{font-size:16px!important}
 }
 </style>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
@@ -2840,7 +2987,7 @@ function ff(n){return Math.round(Number(n)||0).toLocaleString()+'원';}
 function gYM(){return document.getElementById('gYM').value;}
 function closeMd(id){document.getElementById(id).classList.remove('on');}
 function mkId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
-function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;font-family:inherit;white-space:nowrap';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},2500);}
+function showToast(msg){var t=document.createElement('div');t.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;border:1px solid #ffffff22;color:#f1f5f9;padding:10px 16px;border-radius:8px;font-size:13px;line-height:1.5;z-index:999;font-family:inherit;max-width:calc(100vw - 24px);width:max-content;text-align:center;white-space:normal;word-break:keep-all';t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove();},Math.max(2500,Math.min(6000,msg.length*90)));}
 // 탭이 화면 폭보다 많아 가로 스크롤될 때(폰), 선택한 탭이 항상 보이도록 상단 탭바를 그 탭 위치로 옮긴다.
 function scrollNavToTab(p){
   var nav=document.querySelector('.nav'),nb=document.getElementById('nb-'+p);
@@ -9336,12 +9483,12 @@ function renderAnnual(months){
         return'<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 16px;color:var(--mu2);border-bottom:1px solid var(--bd)"><span>'+t.date+' '+escCatHtml(t.memo||'')+'</span><span style="font-weight:700;color:'+rowColor+'">'+(amt>=0?'':'')+ff(amt)+'</span></div>';
       }).join('');
     return '<div'+(rowId?' style="cursor:pointer"'+' onclick="toggleCatSub(\''+rowId+'\')"':'')+'>'
-      +'<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd);gap:8px">'
-      +'<span style="flex:1;font-size:12px;color:var(--tx)">'+name+'</span>'
-      +'<span style="font-size:11px;color:var(--mu2);min-width:60px;text-align:right">'+f(goal)+'</span>'
-      +'<span style="font-size:11px;color:var(--pu);min-width:55px;text-align:right" title="월평균">'+f(avg)+'/월</span>'
-      +'<span style="font-size:12px;font-weight:700;color:'+color+';min-width:65px;text-align:right">'+f(val)+'</span>'
-      +'<div style="width:80px">'
+      +'<div class="gr" style="display:flex;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd);gap:8px">'
+      +'<span class="gr-n" style="flex:1;font-size:12px;color:var(--tx)">'+name+'</span>'
+      +'<span class="gr-g" style="font-size:11px;color:var(--mu2);min-width:60px;text-align:right">'+f(goal)+'</span>'
+      +'<span class="gr-a" style="font-size:11px;color:var(--pu);min-width:55px;text-align:right" title="월평균">'+f(avg)+'/월</span>'
+      +'<span class="gr-v" style="font-size:12px;font-weight:700;color:'+color+';min-width:65px;text-align:right">'+f(val)+'</span>'
+      +'<div class="gr-p" style="width:80px">'
       +'<div style="height:4px;background:var(--sf3);border-radius:2px;overflow:hidden">'
       +'<div style="width:'+w+'%;height:100%;background:'+oc+';border-radius:2px"></div></div>'
       +'<span style="font-size:11px;color:'+oc+';font-weight:700">'+pct+'%</span>'
