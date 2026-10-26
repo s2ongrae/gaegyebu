@@ -1,0 +1,12 @@
+{
+  "name": "gaegyebu-toss-sync",
+  "private": true,
+  "description": "토스증권 Open API → 가계부 동기화(조회 전용, 외부 패키지 없음)",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "check": "node check.js",
+    "sync": "node sync.js",
+    "dry": "node sync.js --dry",
+    "test": "node test/run.js"
+  }
+}

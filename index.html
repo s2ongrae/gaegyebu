@@ -722,6 +722,54 @@ input[type=number],input[type=date],select{min-height:36px}
   .fxi{padding:9px 11px}
   html.ios .fxi .fx>input[type=date]{font-size:16px!important}
 }
+
+/* ══ 토스증권 보유 현황 ═══════════════════════════════════════ */
+.tk-card .card-title{display:flex;align-items:center;gap:8px}
+.tk-kpi{margin:8px 0 10px}
+.tk-kpi .kc{background:var(--sf2);border-radius:var(--rs);padding:10px 12px;min-width:0}
+.tk-kpi .kl{font-size:12px;color:var(--mu)}
+.tk-kpi .kv{font-size:18px;font-weight:900;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-kpi .ks{font-size:12px;color:var(--mu2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-up{color:var(--rd)!important}.tk-dn{color:var(--bl)!important}
+.tk-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:10px 0 6px;background:var(--sf3)}
+.tk-bar span{display:block;height:100%}
+.tk-legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--mu2);margin-bottom:10px}
+.tk-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.tk-apply{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 12px}
+.tk-diff{font-weight:400;opacity:.85;margin-left:4px}
+.tk-chk{font-size:12px;color:var(--mu2);display:flex;align-items:center;gap:4px;cursor:pointer}
+.tk-sorts{display:flex;gap:4px;align-items:center;font-size:12px;color:var(--mu);margin-bottom:6px}
+.tk-list{border-top:1px solid var(--bd)}
+.tk-row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 56px;gap:8px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--bd);font-size:13px}
+.tk-row>span{min-width:0;text-align:right;font-weight:700}
+.tk-row>span.tk-nm{text-align:left}
+.tk-row small{display:block;font-size:12px;color:var(--mu2);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tk-hd{font-size:12px;color:var(--mu);padding:6px 2px}
+.tk-hd>span{font-weight:700}
+.tk-hd>span:first-child{text-align:left}
+.tk-alert{padding:7px 11px;font-size:12.5px}
+.tk-sec{font-size:13px;font-weight:800;margin:14px 0 6px}
+.tk-sec .sub{font-weight:400;color:var(--mu);font-size:12px}
+.tk-chart{height:200px;position:relative}
+.tk-od{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--bd);font-size:13px}
+.tk-odn{flex:1;min-width:0}.tk-odn small{display:block;font-size:12px;color:var(--mu2)}
+.tk-oda{font-weight:700;white-space:nowrap}
+.tk-foot{font-size:12px;color:var(--mu);margin-top:10px}
+@media(max-width:700px){
+  .tk-kpi .kv{font-size:16px}
+  .tk-card .card-title{flex-wrap:wrap;row-gap:2px}
+  .tk-card .card-title #tk-refresh{order:2}
+  .tk-card .card-title .sub{order:3;flex:1 1 100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tk-alert{margin-bottom:5px!important}
+  .tk-hd{display:none}
+  .tk-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm v" "nm pl";column-gap:10px;row-gap:2px;padding:8px 0}
+  .tk-nm{grid-area:nm}.tk-v{grid-area:v}.tk-pl{grid-area:pl}
+  .tk-dl,.tk-w{display:none}
+  .tk-v small,.tk-pl small{display:inline;margin-left:4px}
+  .tk-chart{height:180px}
+  .tk-apply .btn{flex:1 1 100%;justify-content:space-between}
+}
 </style>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
 </head>
@@ -965,6 +1013,7 @@ input[type=number],input[type=date],select{min-height:36px}
 </div>
 
 <div class="pg" id="pg-stk">
+  <div id="d-toss" class="mb12"></div>
   <div id="d-stk"></div>
   <div id="d-realpl" class="mt12"></div>
 </div>
@@ -8844,8 +8893,142 @@ function focusStockPrincipal(){
   inp.scrollIntoView({block:'center',behavior:'smooth'});
   setTimeout(function(){inp.focus();},350);
 }
+// ══ 토스증권 보유 현황 (주식 탭 맨 위) ═══════════════════════════════
+// 데이터 흐름: 노트북 tools/toss-sync → 가계부 서버(가계부_주식스냅샷.json) → 여기서 loadStockSnapshot 으로 읽음.
+// 토스 키는 이 앱에 없다. 서버가 없거나 오프라인이면 마지막으로 받은 사본(localStorage)을 보여준다.
+var TOSS_CACHE_KEY='gaegyebu_toss_snap',TOSS_PREF_KEY='gaegyebu_toss_pref';
+var _tossLastFetch=0,_tossFetching=false,_tossChart=null;
+function tossPref(){var p=safeParse(localStorage.getItem(TOSS_PREF_KEY),null);return isPlainObj(p)?p:{};}
+function setTossPref(k,v){var p=tossPref();p[k]=v;try{localStorage.setItem(TOSS_PREF_KEY,JSON.stringify(p));}catch(e){}}
+function loadTossCache(){var d=safeParse(localStorage.getItem(TOSS_CACHE_KEY),null);return(isPlainObj(d)&&('latest' in d))?d:null;}
+function saveTossCache(d){try{localStorage.setItem(TOSS_CACHE_KEY,JSON.stringify(d));}catch(e){console.warn('[가계부] 토스 사본 저장 실패',e);}}
+// 서버에서 최신 스냅샷을 받아 사본으로 저장(5분에 한 번, force면 바로)
+function fetchTossSnapshot(force){
+  if(!serverReady()||_tossFetching)return Promise.resolve(null);
+  if(!force&&Date.now()-_tossLastFetch<300000)return Promise.resolve(null);
+  _tossFetching=true;_tossLastFetch=Date.now();
+  return serverCall({action:'loadStockSnapshot'},15000).then(function(r){
+    _tossFetching=false;
+    if(isAuthError(r)){onServerAuthFail(r);return null;}
+    if(!r||!r.ok)return null;
+    var d={latest:isPlainObj(r.latest)?r.latest:null,history:Array.isArray(r.history)?r.history:[],fetchedAt:Date.now()};
+    saveTossCache(d);return d;
+  }).catch(function(e){_tossFetching=false;console.warn('[가계부] 토스 스냅샷 불러오기 실패',e);return null;});
+}
+function tossNum(v){var n=Number(v);return isFinite(n)?n:0;}
+function tossPct(r,dig){if(r==null||!isFinite(r))return'-';return(r>=0?'+':'')+(r*100).toFixed(dig==null?2:dig)+'%';}
+function tossSigned(v){v=Math.round(tossNum(v));return(v>0?'+':v<0?'-':'')+Math.abs(v).toLocaleString()+'원';}
+function tossCls(v){v=tossNum(v);return v>0?'tk-up':v<0?'tk-dn':'';}
+function tossAge(at){var t=Date.parse(at);if(!isFinite(t))return{h:Infinity,label:'시각 정보 없음'};var h=(Date.now()-t)/36e5;
+  return{h:h,label:h<1?Math.max(1,Math.round(h*60))+'분 전':h<24?Math.round(h)+'시간 전':Math.round(h/24)+'일 전'};}
+function tossAssetName(){var a=AI.find(function(x){return x.n==='주식계좌';})||AI.find(function(x){return x.cat==='투자'&&!x.d;});return a?a.n:'주식계좌';}
+// 위험 신호: 한 종목·상위 3종목 집중, 해외 비중, 오늘 큰 변동
+function tossAlerts(s){
+  var out=[],it=s.items||[],w=it.map(function(x){return tossNum(x.weight);});
+  if(w[0]>=0.4)out.push({lv:'wrn',t:'한 종목('+escCatHtml(it[0].name)+') 비중이 '+Math.round(w[0]*100)+'%예요. 한 종목이 크게 움직이면 전체가 함께 흔들려요.'});
+  var top3=w.slice(0,3).reduce(function(a,b){return a+b;},0);
+  if(it.length>=4&&top3>=0.75)out.push({lv:'inf',t:'상위 3종목이 전체의 '+Math.round(top3*100)+'%를 차지해요.'});
+  var us=it.filter(function(x){return x.currency==='USD';}).reduce(function(a,x){return a+tossNum(x.weight);},0);
+  if(us>0)out.push({lv:'inf',t:'해외(달러) 종목 비중 '+Math.round(us*100)+'% · 원화 금액은 '+(s.fx?'매매기준율 '+tossNum(s.fx.usdkrw).toLocaleString()+'원':'환율 정보 없이')+' 기준이에요.'});
+  var dr=s.totals&&s.totals.dailyRate;
+  if(dr!=null&&Math.abs(dr)>=0.03)out.push({lv:dr<0?'wrn':'suc',t:'오늘 평가금액이 '+tossPct(dr,1)+' 움직였어요.'});
+  return out;
+}
+function tossSorted(items){
+  var k=tossPref().sort||'value';
+  var key={value:function(x){return tossNum(x.valueKRW);},rate:function(x){return tossNum(x.plRate);},daily:function(x){return tossNum(x.dailyKRW);}}[k]||function(x){return tossNum(x.valueKRW);};
+  return items.slice().sort(function(a,b){return key(b)-key(a);});
+}
+function setTossSort(k){setTossPref('sort',k);renderTossCard();}
+function setTossCash(on){setTossPref('cash',!!on);renderTossCard();}
+function tossCashIncluded(){var p=tossPref();return p.cash!==false;} // 기본: 예수금 포함(증권 계좌 잔고 = 주식 평가금액 + 현금)
+function tossAssetValue(s){return Math.round(tossNum(s.totals.value.krwTotal)+(tossCashIncluded()?tossNum(s.cash&&s.cash.krwTotal):0));}
+function tossApplyAsset(){
+  var d=loadTossCache();if(!d||!d.latest)return;var s=d.latest,ym=gYM(),name=tossAssetName(),v=tossAssetValue(s),cur=Number(getAssets(ym)[name])||0;
+  if(!confirm(ym+' "'+name+'" 값을\n'+ff(cur)+' → '+ff(v)+'\n(토스증권 '+s.date+' 기준'+(tossCashIncluded()?', 예수금 포함':', 예수금 제외')+')\n으로 바꿀까요?'))return;
+  saveAssetItem(ym,name,v);showToast('✅ '+ym+' '+name+'에 반영했어요.');renderStock();
+}
+function tossApplyPrincipal(){
+  var d=loadTossCache();if(!d||!d.latest)return;var s=d.latest,ym=gYM(),v=Math.round(tossNum(s.totals.purchase.krwTotal)),cur=getStockPrincipal(ym);
+  if(!confirm(ym+' 주식 원금을\n'+ff(cur)+' → '+ff(v)+'\n(토스증권 투자원금, '+s.date+' 기준)\n으로 바꿀까요?'))return;
+  setStockPrincipal(v,ym);showToast('✅ '+ym+' 원금에 반영했어요.');renderStock();
+}
+function tossRefresh(){var b=document.getElementById('tk-refresh');if(b)b.disabled=true;fetchTossSnapshot(true).then(function(d){if(b)b.disabled=false;if(d)showToast('🔄 토스증권 현황을 새로 받았어요.');else if(!serverReady())showToast('⚠️ 서버가 연결돼 있지 않아요.');renderTossCard();});}
+function renderTossCard(){
+  var el=document.getElementById('d-toss');if(!el)return;
+  var d=loadTossCache();
+  if(serverReady()&&Date.now()-_tossLastFetch>=300000)fetchTossSnapshot(false).then(function(nd){if(nd&&(!d||JSON.stringify(nd.latest)!==JSON.stringify(d.latest)||nd.history.length!==(d.history||[]).length))renderTossCard();});
+  if(!d||!d.latest){
+    el.innerHTML='<div class="card tk-card"><div class="card-title">📈 토스증권 보유 현황</div>'
+      +'<div class="al inf">아직 받은 보유 현황이 없어요. 노트북에서 <b>tools/toss-sync</b>의 <code>npm run sync</code>를 실행하면 여기 표시돼요.'+(serverReady()?'':' (⚙️ 서버 연결도 필요해요)')+'</div></div>';
+    return;
+  }
+  var s=d.latest,t=s.totals||{},age=tossAge(s.at),stale=age.h>72;
+  var items=tossSorted(s.items||[]),hist=(d.history||[]).filter(function(h){return h&&h.date;});
+  var h='<div class="card tk-card"><div class="card-title">📈 토스증권 보유 현황 <span class="sub">· '+escCatHtml(String(s.date))+' 기준 · '+age.label+'</span>'
+    +'<button id="tk-refresh" class="btn bg2 bsm" style="margin-left:auto" onclick="tossRefresh()" title="서버에서 다시 받기">🔄</button></div>';
+  if(stale)h+='<div class="al wrn mb8">⚠️ '+age.label+' 자료예요. 노트북에서 동기화(<code>npm run sync</code>)를 실행해 주세요. 집 와이파이가 아니면 허용 IP 때문에 실패할 수 있어요.</div>';
+  h+='<div class="g4 tk-kpi">'
+    +'<div class="kc"><div class="kl">총 평가금액</div><div class="kv">'+ff(t.value&&t.value.krwTotal)+'</div><div class="ks">세후 '+ff(t.valueAfterCost&&t.valueAfterCost.krwTotal)+'</div></div>'
+    +'<div class="kc"><div class="kl">평가손익</div><div class="kv '+tossCls(t.pl&&t.pl.krwTotal)+'">'+tossSigned(t.pl&&t.pl.krwTotal)+'</div><div class="ks '+tossCls(t.plRate)+'">'+tossPct(t.plRate)+' · 원금 '+f(t.purchase&&t.purchase.krwTotal)+'</div></div>'
+    +'<div class="kc"><div class="kl">오늘 손익</div><div class="kv '+tossCls(t.daily&&t.daily.krwTotal)+'">'+tossSigned(t.daily&&t.daily.krwTotal)+'</div><div class="ks '+tossCls(t.dailyRate)+'">'+tossPct(t.dailyRate)+'</div></div>'
+    +'<div class="kc"><div class="kl">예수금(현금)</div><div class="kv">'+ff(s.cash&&s.cash.krwTotal)+'</div><div class="ks">'+(s.fx?'1달러 '+tossNum(s.fx.usdkrw).toLocaleString()+'원':'종목 '+items.length+'개')+'</div></div>'
+    +'</div>';
+  tossAlerts(s).forEach(function(a){h+='<div class="al '+a.lv+' mb8 tk-alert">'+a.t+'</div>';});
+  // 비중 막대(상위 6개 + 기타)
+  var top=items.slice().sort(function(a,b){return tossNum(b.weight)-tossNum(a.weight);}),COL=['#2b6cb0','#553c9a','#2f855a','#c05621','#b83280','#2c7a7b'];
+  var seg=top.slice(0,6).map(function(x,i){return{n:x.name,w:tossNum(x.weight),c:COL[i]};}),rest=top.slice(6).reduce(function(a,x){return a+tossNum(x.weight);},0);
+  if(rest>0)seg.push({n:'기타 '+(top.length-6)+'개',w:rest,c:'#a0aec0'});
+  h+='<div class="tk-bar" aria-label="종목 비중">'+seg.map(function(x){return'<span style="width:'+(x.w*100).toFixed(2)+'%;background:'+x.c+'" title="'+escCatHtml(x.n)+' '+(x.w*100).toFixed(1)+'%"></span>';}).join('')+'</div>'
+    +'<div class="tk-legend">'+seg.map(function(x){return'<span><i style="background:'+x.c+'"></i>'+escCatHtml(x.n)+' '+Math.round(x.w*100)+'%</span>';}).join('')+'</div>';
+  // 반영 버튼
+  var ym=gYM(),an=tossAssetName(),av=tossAssetValue(s),acur=Number(getAssets(ym)[an])||0,pv=Math.round(tossNum(t.purchase&&t.purchase.krwTotal)),pcur=getStockPrincipal(ym);
+  h+='<div class="tk-apply">'
+    +'<button class="btn bp bsm" onclick="tossApplyAsset()">💼 '+escCatHtml(ym)+' '+escCatHtml(an)+'에 반영 <span class="tk-diff">'+f(acur)+' → '+f(av)+'</span></button>'
+    +'<button class="btn bg2 bsm" onclick="tossApplyPrincipal()">💰 원금에 반영 <span class="tk-diff">'+f(pcur)+' → '+f(pv)+'</span></button>'
+    +'<label class="tk-chk"><input type="checkbox" '+(tossCashIncluded()?'checked':'')+' onchange="setTossCash(this.checked)"> 예수금 포함</label></div>';
+  // 보유 종목
+  var sk=tossPref().sort||'value';
+  h+='<div class="tk-sorts">정렬 '+[['value','평가금액'],['rate','수익률'],['daily','오늘']].map(function(o){return'<button class="btn '+(sk===o[0]?'bp':'bg2')+' bsm" onclick="setTossSort(\''+o[0]+'\')">'+o[1]+'</button>';}).join('')+'</div>';
+  h+='<div class="tk-list"><div class="tk-row tk-hd"><span>종목</span><span>평가금액</span><span>손익</span><span>오늘</span><span>비중</span></div>';
+  items.forEach(function(x){
+    var cur=x.currency==='USD',unit=function(v){return cur?('$'+tossNum(v).toLocaleString(undefined,{maximumFractionDigits:2})):tossNum(v).toLocaleString()+'원';};
+    h+='<div class="tk-row">'
+      +'<span class="tk-nm"><b>'+escCatHtml(x.name)+'</b><small>'+escCatHtml(x.symbol)+(cur?' · 🇺🇸':'')+' · '+tossNum(x.qty).toLocaleString()+'주 · 평균 '+unit(x.avg)+' → '+unit(x.last)+'</small></span>'
+      +'<span class="tk-v">'+ff(x.valueKRW)+(cur?'<small>'+unit(x.value)+'</small>':'')+'</span>'
+      +'<span class="tk-pl '+tossCls(x.plKRW)+'">'+tossSigned(x.plKRW)+'<small>'+tossPct(x.plRate)+'</small></span>'
+      +'<span class="tk-dl '+tossCls(x.dailyKRW)+'">'+tossSigned(x.dailyKRW)+'<small>'+tossPct(x.dailyRate)+'</small></span>'
+      +'<span class="tk-w">'+(tossNum(x.weight)*100).toFixed(1)+'%</span></div>';
+  });
+  h+='</div>';
+  // 추이
+  h+='<div class="tk-sec">📉 평가금액 추이 <span class="sub">· 날짜별 기록 '+hist.length+'일</span></div>';
+  h+=hist.length>=2?'<div class="tk-chart"><canvas id="tk-chart"></canvas></div>':'<div class="em" style="padding:10px">동기화 기록이 이틀 이상 쌓이면 추이가 보여요.</div>';
+  // 최근 체결
+  var od=(s.orders||[]).slice(0,10);
+  if(od.length){
+    h+='<div class="tk-sec">🧾 최근 체결 <span class="sub">· 최근 31일 '+(s.orders||[]).length+'건</span></div><div class="tk-orders">';
+    od.forEach(function(o){var cur=o.currency==='USD';
+      h+='<div class="tk-od"><span class="bk '+(o.side==='BUY'?'br':'bb')+'">'+(o.side==='BUY'?'매수':'매도')+'</span><span class="tk-odn">'+escCatHtml(o.name||o.symbol)+'<small>'+escCatHtml(String(o.filledAt||'').slice(0,10))+' · '+tossNum(o.qty).toLocaleString()+'주 @ '+(cur?'$':'')+tossNum(o.price).toLocaleString()+(cur?'':'원')+'</small></span><span class="tk-oda">'+(cur?'$'+tossNum(o.amount).toLocaleString():ff(o.amount))+'</span></div>';});
+    h+='</div>';
+  }
+  h+='<div class="tk-foot">토스증권 Open API(조회 전용) · 계좌 '+(s.accounts||[]).map(function(a){return escCatHtml(String(a.no||''));}).join(', ')+'</div></div>';
+  el.innerHTML=h;
+  if(hist.length>=2&&typeof Chart!=='undefined'){
+    try{
+      if(_tossChart&&_tossChart.destroy)_tossChart.destroy();
+      var last=hist.slice(-180),cv=document.getElementById('tk-chart');
+      _tossChart=new Chart(cv,{type:'line',data:{labels:last.map(function(x){return x.date.slice(5).replace('-','/');}),
+        datasets:[{label:'평가금액',data:last.map(function(x){return x.value;}),borderColor:'#2b6cb0',backgroundColor:'rgba(43,108,176,.08)',fill:true,tension:.25,pointRadius:last.length>40?0:2},
+                  {label:'원금',data:last.map(function(x){return x.purchase;}),borderColor:'#a0aec0',borderDash:[4,4],fill:false,tension:0,pointRadius:0}]},
+        options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{boxWidth:10,font:{size:11}}},tooltip:{callbacks:{label:function(c){return c.dataset.label+' '+ff(c.parsed.y);}}}},
+          scales:{y:{ticks:{callback:function(v){return f(v);},font:{size:11}}},x:{ticks:{maxTicksLimit:6,font:{size:11}}}}}});
+    }catch(e){console.warn('[가계부] 토스 추이 차트 오류',e);}
+  }
+}
 function renderStock(){
   scheduleChartPrune();
+  try{renderTossCard();}catch(e){console.error('[가계부] 토스증권 카드 오류',e);}
   var el=document.getElementById('d-stk');
   if(!el)return;
   var db=loadDB();
