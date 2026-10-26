@@ -775,7 +775,50 @@ input[type=number],input[type=date],select{min-height:36px}
 .nw-list small{display:block;font-size:12px;color:var(--mu)}
 .nw-earn{display:inline-block;margin-right:4px;padding:0 6px;border-radius:8px;background:var(--bl);color:#fff;font-size:12px;font-weight:700;vertical-align:1px}
 .nw-foot{font-size:12px;color:var(--mu);margin-top:10px}
-.ipo-br{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.ipo-br{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.an-bar{display:flex;height:6px;border-radius:3px;background:var(--sf);overflow:hidden;margin:6px 0 2px}
+.an-bar i{display:block;height:100%}
+.an-row.up,.an-row.dn{padding:4px 6px}
+.an-row.up{background:linear-gradient(90deg,rgba(197,48,48,.10) var(--p),transparent var(--p))}
+.an-row.dn{background:linear-gradient(90deg,rgba(43,108,176,.13) var(--p),transparent var(--p))}
+.an-row b small{font-weight:600}
+.nw-chips,.an-seg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.an-seg{display:none}
+.nw-chip{border:1px solid var(--bd);background:var(--sf);color:var(--mu2);border-radius:16px;padding:4px 11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.nw-chip small{font-size:12px;opacity:.75;margin-left:2px}
+.nw-chip.on{background:var(--bl);border-color:var(--bl);color:#fff}
+.br-list{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.br-list li{min-width:0}
+.br-it{display:flex;gap:10px;height:100%;box-sizing:border-box;padding:10px 12px;background:var(--sf2);border:1px solid transparent;border-radius:var(--rs);color:var(--tx);text-decoration:none}
+.br-it:hover{border-color:var(--bd2)}
+.br-no{flex:none;width:24px;height:24px;border-radius:50%;background:var(--bl);color:#fff;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center}
+.br-list li:nth-child(n+4) .br-no{background:var(--mu)}
+.br-bd{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.br-top{display:flex;align-items:baseline;gap:6px;min-width:0}
+.br-stk{font-size:13px;color:var(--mu2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.br-top small{font-size:12px;color:var(--mu);white-space:nowrap}
+.br-tt{font-size:14px;font-weight:700;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.br-meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:12px;color:var(--mu)}
+.br-tag{padding:0 6px;border-radius:8px;background:var(--sf);border:1px solid var(--bd);font-size:12px;font-weight:700;white-space:nowrap}
+.br-tag.earn{background:var(--bl);border-color:var(--bl);color:#fff}
+.br-how{margin-top:8px;font-size:12px;color:var(--mu);line-height:1.6}
+.br-how summary{cursor:pointer;font-weight:700}
+.nw-item summary{list-style:none}
+.nw-item summary::-webkit-details-marker{display:none}
+.nw-hd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.nw-nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nw-badges{display:flex;gap:4px;align-items:center;flex:none}
+.nw-badges .nw-earn{margin:0}
+.nw-dr{font-size:12px;font-weight:800}
+.nw-cnt{font-size:12px;color:var(--mu2);background:var(--sf2);border-radius:8px;padding:0 6px;white-space:nowrap}
+.nw-cnt::after{content:' ▾'}
+.nw-item[open] .nw-cnt::after{content:' ▴'}
+.nw-prev{display:flex;gap:6px;font-size:13px;color:var(--mu2);margin-top:3px;min-width:0}
+.nw-prev>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nw-prev small{flex:none;font-size:12px;color:var(--mu)}
+.nw-item[open] .nw-prev{display:none}
+.nw-item[hidden],#ipo-box li[hidden],#nw-none[hidden]{display:none}
+.ipo-tag{display:inline-block;margin-right:4px;padding:0 6px;border-radius:8px;background:var(--sf3);color:var(--mu2);font-weight:700}
 .tk-morebtn{width:100%;margin-top:6px}
 .tk-chart{height:200px;position:relative}
 .tk-od{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--bd);font-size:13px}
@@ -790,6 +833,11 @@ input[type=number],input[type=date],select{min-height:36px}
   .tk-alert{margin-bottom:5px!important}
   .tk-hd{display:none}
   .an-grid{grid-template-columns:minmax(0,1fr)}
+  .br-list{grid-template-columns:minmax(0,1fr)}
+  .an-seg{display:flex}
+  .an-grid>.an-box{display:none}
+  .an-grid.an-show-loss>.an-loss,.an-grid.an-show-gain>.an-gain,.an-grid.an-show-move>.an-move{display:block}
+  .an-grid>.an-box .an-hd{display:none}
   .tk-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm v" "nm pl";column-gap:10px;row-gap:2px;padding:8px 0}
   .tk-nm{grid-area:nm}.tk-v{grid-area:v}.tk-pl{grid-area:pl}
   .tk-dl,.tk-w{display:none}
@@ -9156,60 +9204,185 @@ function newsStatusHtml(d){
   return h;
 }
 function newsDay(iso){var t=Date.parse(iso);return isFinite(t)?new Date(t).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}):'';}
+// "3시간 전"처럼 지금으로부터 얼마나 지났는지(7일 넘으면 날짜)
+function newsAgo(iso,now){
+  var t=Date.parse(iso);if(!isFinite(t))return'';
+  var h=((now||Date.now())-t)/36e5;
+  if(h<1)return'방금';if(h<24)return Math.floor(h)+'시간 전';if(h<24*7)return Math.floor(h/24)+'일 전';
+  return newsDay(iso);
+}
 function newsList(r){return(r&&Array.isArray(r.news)?r.news:[]).filter(function(n){return n&&/^https:\/\//.test(String(n.link||''));});}
-// 기사 목록(제목 링크 · 언론사 · 날짜 · 실적 기사 표시). 제목은 글자로만 넣고 링크는 새 창으로
-function newsListHtml(r){
+// 기사 목록(제목 링크 · 언론사 · 얼마 전 · 실적 기사 표시). 제목은 글자로만 넣고 링크는 새 창으로
+function newsLinkHtml(n,now,tags){
+  return'<li><a href="'+escCatHtml(n.link)+'" target="_blank" rel="noopener noreferrer">'+(n.earn?'<span class="nw-earn">실적</span>':'')+escCatHtml(String(n.title||''))+'</a>'
+    +'<small>'+(tags||'')+escCatHtml(String(n.source||''))+(n.date?' · '+newsAgo(n.date,now):'')+'</small></li>';
+}
+function newsListHtml(r,now){
   if(!r)return'';
   var ns=newsList(r);
   if(!ns.length)return r.error?'<div class="al wrn">기사를 못 가져왔어요: '+escCatHtml(String(r.error))+'</div>':'<div class="em">최근 7일 기사가 없어요.</div>';
-  return'<ul class="nw-list">'+ns.map(function(n){
-    return'<li><a href="'+escCatHtml(n.link)+'" target="_blank" rel="noopener noreferrer">'+(n.earn?'<span class="nw-earn">실적</span>':'')+escCatHtml(String(n.title||''))+'</a>'
-      +'<small>'+escCatHtml(String(n.source||''))+(n.date?' · '+newsDay(n.date):'')+'</small></li>';
-  }).join('')+'</ul>';
+  return'<ul class="nw-list">'+ns.map(function(n){return newsLinkHtml(n,now);}).join('')+'</ul>';
 }
 var NEWS_FOOT='<div class="nw-foot">구글 뉴스 검색에서 모은 최근 7일 기사 링크예요(요약 아님). 내용은 원문에서 확인하세요. 투자 추천이 아니에요.</div>';
+
+// ── 📋 오늘의 브리핑: 모아 둔 기사 중 주요 이슈 10개 ─────────────────────
+// AI 없이 정해진 점수로 고름(이유를 칩으로 보여 줌): 최신일수록 · 비중이 클수록 · 오늘 많이 움직일수록 · 실적/공시 같은 낱말 · 48시간 안 기사 수.
+// 같은 종목은 2개까지(두 번째는 점수 깎음), 제목이 거의 같은 기사는 하나만(다른 종목끼리는 더 엄격하게: 같은 시황 기사가 여러 종목에 걸린 경우).
+var BRIEF_N=10;
+var BRIEF_KW=/공시|급등|급락|상한가|하한가|신고가|잠정|흑자|적자|인수|합병|계약|수주|승인|허가|FDA|임상|유상증자|무상증자|자사주|배당|분할|상장|earnings|guidance|upgrade|downgrade|acquisition|merger|approval|lawsuit|beats?\b|miss(es)?\b|surge|plunge|soar|tumble/i;
+function briefBigrams(s){s=String(s||'').toLowerCase().replace(/[^0-9a-z가-힣]/g,'');var o={};for(var i=0;i<s.length-1;i++)o[s.substr(i,2)]=1;return o;}
+function briefSimilar(a,b,lim){var ka=Object.keys(a),n=0;if(!ka.length)return false;ka.forEach(function(k){if(b[k])n++;});return n/Math.min(ka.length,Object.keys(b).length||1)>lim;}
+function buildBriefing(d,snap,now){
+  now=now||Date.now();
+  var bySym={};((snap&&snap.items)||[]).forEach(function(x){bySym[x.symbol]=x;});
+  var items=(d&&Array.isArray(d.items))?d.items:[];
+  var wOf=function(x){var s=bySym[x.symbol];return tossNum(x.weight!=null?x.weight:s&&s.weight);};
+  var maxW=items.reduce(function(m,x){return Math.max(m,wOf(x));},0),cands=[];
+  items.forEach(function(x){
+    var ns=newsList(x),sx=bySym[x.symbol],w=wOf(x),dr=sx?tossNum(sx.dailyRate):null;
+    var hot=ns.filter(function(n){var t=Date.parse(n.date);return isFinite(t)&&now-t<48*36e5;}).length;
+    ns.forEach(function(n){
+      var t=Date.parse(n.date),age=isFinite(t)?Math.max(0,(now-t)/36e5):168,kw=String(n.title||'').match(BRIEF_KW);
+      var sc=3*Math.max(0,1-age/168)+2*Math.sqrt(maxW>0?w/maxW:0)+Math.min(2,Math.abs(dr||0)*40)+(n.earn?1.5:0)+(kw?1:0)+Math.min(1,hot/4);
+      cands.push({n:n,x:x,w:w,dr:dr,hot:hot,age:age,kw:kw&&!n.earn?kw[0]:'',sc:sc,bg:briefBigrams(n.title)});
+    });
+  });
+  var picked=[],cnt={};
+  while(picked.length<BRIEF_N&&cands.length){
+    var bi=-1,bv=-1e9;
+    cands.forEach(function(c,i){var v=c.sc-1.5*(cnt[c.x.symbol]||0);if((cnt[c.x.symbol]||0)<2&&v>bv){bv=v;bi=i;}});
+    if(bi<0)break;
+    var c=cands.splice(bi,1)[0];
+    if(picked.some(function(p){return briefSimilar(c.bg,p.bg,p.x.symbol===c.x.symbol?0.6:0.85);}))continue;
+    cnt[c.x.symbol]=(cnt[c.x.symbol]||0)+1;picked.push(c);
+  }
+  return picked;
+}
+function briefingHtml(d,snap,now){
+  var ps=buildBriefing(d,snap,now);
+  if(!ps.length)return'';
+  return'<ol class="br-list">'+ps.map(function(c,i){
+    var tags='';
+    if(c.dr!=null&&Math.abs(c.dr)>=0.02)tags+='<span class="br-tag '+tossCls(c.dr)+'">오늘 '+tossPct(c.dr,1)+'</span>';
+    if(c.n.earn)tags+='<span class="br-tag earn">실적</span>';
+    if(c.kw)tags+='<span class="br-tag">#'+escCatHtml(c.kw)+'</span>';
+    return'<li><a class="br-it" href="'+escCatHtml(c.n.link)+'" target="_blank" rel="noopener noreferrer"><span class="br-no">'+(i+1)+'</span><span class="br-bd">'
+      +'<span class="br-top"><b class="br-stk">'+escCatHtml(String(c.x.name||c.x.symbol))+'</b>'+(c.w?'<small>비중 '+(c.w*100).toFixed(1)+'%</small>':'')+'</span>'
+      +'<span class="br-tt">'+escCatHtml(String(c.n.title||''))+'</span>'
+      +'<span class="br-meta">'+tags+'<span class="br-src">'+escCatHtml(String(c.n.source||''))+(c.n.date?' · '+newsAgo(c.n.date,now):'')+'</span></span>'
+      +'</span></a></li>';
+  }).join('')+'</ol>';
+}
+
+// ── 🔍 보유 종목 분석 ──────────────────────────────────────────────────────
+// 막대(가로 비율 막대): parts=[{v:비율0~1, c:색, t:설명}]
+function anBar(parts){return'<div class="an-bar">'+parts.map(function(p){return'<i style="width:'+Math.max(0,Math.min(100,p.v*100)).toFixed(1)+'%;background:'+p.c+'" title="'+escCatHtml(p.t||'')+'"></i>';}).join('')+'</div>';}
+var AN_LISTS=[['loss','📉 손실'],['gain','📈 수익'],['move','⚡ 오늘 등락']];
+function setAnList(k){
+  setTossPref('an_list',k);
+  var g=document.getElementById('an-grid');if(!g)return;
+  AN_LISTS.forEach(function(x){g.classList.toggle('an-show-'+x[0],x[0]===k);var b=document.getElementById('an-seg-'+x[0]);if(b)b.classList.toggle('on',x[0]===k);});
+}
+// ── 📰 종목별 뉴스 거르기 ──────────────────────────────────────────────────
+var NEWS_FILTERS=[['all','전체'],['kr','🏠 국내'],['us','🌎 해외'],['earn','실적'],['move','⚡ 오늘 ±2%']];
+function setNewsFilter(f){
+  setTossPref('nw_f',f);
+  var box=document.getElementById('nw-box');if(!box)return;
+  var shown=0;
+  box.querySelectorAll('.nw-item').forEach(function(e){var ok=f==='all'||e.getAttribute('data-'+f)==='1';e.hidden=!ok;if(ok)shown++;});
+  NEWS_FILTERS.forEach(function(x){var b=document.getElementById('nw-f-'+x[0]);if(b)b.classList.toggle('on',x[0]===f);});
+  var em=document.getElementById('nw-none');if(em)em.hidden=shown>0;
+}
 function renderStockAna(){
   var el=document.getElementById('d-stk-ana');if(!el)return;
-  var tc=loadTossCache(),s=tc&&tc.latest,h='';
+  var tc=loadTossCache(),s=tc&&tc.latest,h='',now=Date.now();
+  var d=withFreshNews(renderStockAna);
+  // 1) 브리핑
+  var brief=d?briefingHtml(d,s,now):'';
+  h+='<div class="card mb12"><div class="card-title">📋 오늘의 브리핑 <span class="sub">· 보유 종목 주요 이슈 '+BRIEF_N+'개'+(d&&d.updatedAt?' · '+newsWhen(d.updatedAt)+' 모음':'')+'</span></div>'+newsStatusHtml(d)
+    +(brief||(d?'<div class="em">고를 기사가 아직 없어요.</div>':''))
+    +(brief?'<details class="br-how"><summary>어떻게 골랐나요?</summary>최근 7일 기사 중 <b>최신일수록 · 보유 비중이 클수록 · 오늘 많이 움직인 종목일수록 · 실적·공시·계약 같은 낱말이 있을수록 · 48시간 안 기사가 많을수록</b> 점수를 높게 매겨 고른 순서예요. 한 종목은 2개까지, 제목이 거의 같은 기사는 하나만 넣어요. AI 요약이 아니라 기사 제목이에요.</details>':'')
+    +'</div>';
+  // 2) 보유 종목 분석
   if(s&&Array.isArray(s.items)&&s.items.length){
     var it=s.items,tv=tossNum(s.totals&&s.totals.value&&s.totals.value.krwTotal)||it.reduce(function(a,x){return a+tossNum(x.valueKRW);},0);
     var byV=it.slice().sort(function(a,b){return tossNum(b.valueKRW)-tossNum(a.valueKRW);});
     var share=function(n){return tv>0?byV.slice(0,n).reduce(function(a,x){return a+tossNum(x.valueKRW);},0)/tv:0;};
-    var fv=it.filter(tossIsForeign).reduce(function(a,x){return a+tossNum(x.valueKRW);},0),up=it.filter(function(x){return tossNum(x.plKRW)>0;}).length,dn=it.filter(function(x){return tossNum(x.plKRW)<0;}).length;
-    var line=function(x,v){return'<div class="an-row"><span>'+escCatHtml(x.name)+(tossIsForeign(x)?' <small>해외</small>':'')+'</span><b class="'+tossCls(v.k)+'">'+v.t+'</b></div>';};
-    var list=function(title,xs,fn){return'<div class="an-box"><div class="an-hd">'+title+'</div>'+(xs.length?xs.map(function(x){return line(x,fn(x));}).join(''):'<div class="em">해당 종목 없음</div>')+'</div>';};
+    var fv=it.filter(tossIsForeign).reduce(function(a,x){return a+tossNum(x.valueKRW);},0),fr=tv>0?fv/tv:0,up=it.filter(function(x){return tossNum(x.plKRW)>0;}).length,dn=it.filter(function(x){return tossNum(x.plKRW)<0;}).length;
+    var s1=share(1),s3=share(3),s10=share(10);
+    var list=function(k,title,xs,val,fmt){
+      var mx=xs.reduce(function(m,x){return Math.max(m,Math.abs(val(x)));},0);
+      return'<div class="an-box an-'+k+'"><div class="an-hd">'+title+'</div>'+(xs.length?xs.map(function(x){var v=val(x);
+        return'<div class="an-row '+(v>0?'up':'dn')+'" style="--p:'+(mx>0?Math.abs(v)/mx*100:0).toFixed(1)+'%"><span>'+escCatHtml(x.name)+(tossIsForeign(x)?' <small>해외</small>':'')+'</span><b class="'+tossCls(v)+'">'+fmt(x)+'</b></div>';}).join(''):'<div class="em">해당 종목 없음</div>')+'</div>';
+    };
+    var al=tossPref().an_list;if(!AN_LISTS.some(function(x){return x[0]===al;}))al='loss';
     h+='<div class="card mb12"><div class="card-title">🔍 보유 종목 분석 <span class="sub">· 토스증권 '+escCatHtml(String(s.date))+' 기준 · '+it.length+'종목</span></div>'
       +'<div class="g4 tk-kpi">'
-      +'<div class="kc"><div class="kl">1위 종목 비중</div><div class="kv">'+Math.round(share(1)*100)+'%</div><div class="ks">'+escCatHtml(byV[0].name)+'</div></div>'
-      +'<div class="kc"><div class="kl">상위 3 · 10종목 비중</div><div class="kv">'+Math.round(share(3)*100)+'% · '+Math.round(share(10)*100)+'%</div><div class="ks">나머지 '+Math.max(0,it.length-10)+'종목 '+Math.round((1-share(10))*100)+'%</div></div>'
-      +'<div class="kc"><div class="kl">국내 · 해외</div><div class="kv">'+Math.round((1-(tv>0?fv/tv:0))*100)+'% · '+Math.round((tv>0?fv/tv:0)*100)+'%</div><div class="ks">평가금액 기준</div></div>'
-      +'<div class="kc"><div class="kl">수익 · 손실 종목</div><div class="kv"><span class="tk-up">'+up+'</span> · <span class="tk-dn">'+dn+'</span></div><div class="ks">손익 0원 '+(it.length-up-dn)+'종목</div></div>'
-      +'</div><div class="an-grid">'
-      +list('📉 손실 큰 5종목',it.filter(function(x){return tossNum(x.plKRW)<0;}).sort(function(a,b){return tossNum(a.plKRW)-tossNum(b.plKRW);}).slice(0,5),function(x){return{k:x.plKRW,t:tossSigned(x.plKRW)+' ('+tossPct(x.plRate,1)+')'};})
-      +list('📈 수익 큰 5종목',it.filter(function(x){return tossNum(x.plKRW)>0;}).sort(function(a,b){return tossNum(b.plKRW)-tossNum(a.plKRW);}).slice(0,5),function(x){return{k:x.plKRW,t:tossSigned(x.plKRW)+' ('+tossPct(x.plRate,1)+')'};})
-      +list('⚡ 오늘 많이 움직인 5종목',it.filter(function(x){return tossNum(x.dailyRate)!==0;}).sort(function(a,b){return Math.abs(tossNum(b.dailyRate))-Math.abs(tossNum(a.dailyRate));}).slice(0,5),function(x){return{k:x.dailyRate,t:tossPct(x.dailyRate,1)+' ('+tossSigned(x.dailyKRW)+')'};})
+      +'<div class="kc"><div class="kl">1위 종목 비중</div><div class="kv">'+Math.round(s1*100)+'%</div>'+anBar([{v:s1,c:'var(--bl)',t:'1위'}])+'<div class="ks">'+escCatHtml(byV[0].name)+'</div></div>'
+      +'<div class="kc"><div class="kl">상위 3 · 10종목 비중</div><div class="kv">'+Math.round(s3*100)+'% · '+Math.round(s10*100)+'%</div>'+anBar([{v:s3,c:'var(--bl)',t:'상위 3'},{v:s10-s3,c:'#90cdf4',t:'4~10위'}])+'<div class="ks">나머지 '+Math.max(0,it.length-10)+'종목 '+Math.round((1-s10)*100)+'%</div></div>'
+      +'<div class="kc"><div class="kl">국내 · 해외</div><div class="kv">'+Math.round((1-fr)*100)+'% · '+Math.round(fr*100)+'%</div>'+anBar([{v:1-fr,c:'var(--bl)',t:'국내'},{v:fr,c:'var(--cy)',t:'해외'}])+'<div class="ks">평가금액 기준</div></div>'
+      +'<div class="kc"><div class="kl">수익 · 손실 종목</div><div class="kv"><span class="tk-up">'+up+'</span> · <span class="tk-dn">'+dn+'</span></div>'+anBar([{v:up/it.length,c:'var(--rd)',t:'수익'},{v:dn/it.length,c:'var(--bl)',t:'손실'}])+'<div class="ks">손익 0원 '+(it.length-up-dn)+'종목</div></div>'
+      +'</div>'
+      +'<div class="an-seg">'+AN_LISTS.map(function(x){return'<button class="nw-chip'+(x[0]===al?' on':'')+'" id="an-seg-'+x[0]+'" onclick="setAnList(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>'
+      +'<div class="an-grid an-show-'+al+'" id="an-grid">'
+      +list('loss','📉 손실 큰 5종목',it.filter(function(x){return tossNum(x.plKRW)<0;}).sort(function(a,b){return tossNum(a.plKRW)-tossNum(b.plKRW);}).slice(0,5),function(x){return tossNum(x.plKRW);},function(x){return tossSigned(x.plKRW)+' <small>'+tossPct(x.plRate,1)+'</small>';})
+      +list('gain','📈 수익 큰 5종목',it.filter(function(x){return tossNum(x.plKRW)>0;}).sort(function(a,b){return tossNum(b.plKRW)-tossNum(a.plKRW);}).slice(0,5),function(x){return tossNum(x.plKRW);},function(x){return tossSigned(x.plKRW)+' <small>'+tossPct(x.plRate,1)+'</small>';})
+      +list('move','⚡ 오늘 많이 움직인 5종목',it.filter(function(x){return tossNum(x.dailyRate)!==0;}).sort(function(a,b){return Math.abs(tossNum(b.dailyRate))-Math.abs(tossNum(a.dailyRate));}).slice(0,5),function(x){return tossNum(x.dailyRate);},function(x){return tossPct(x.dailyRate,1)+' <small>'+tossSigned(x.dailyKRW)+'</small>';})
       +'</div></div>';
   }else{
     h+='<div class="card mb12"><div class="card-title">🔍 보유 종목 분석</div><div class="al inf">토스증권 보유 현황을 받으면 집중도·손익 분석이 보여요(📈 보유 현황 탭 참고).</div></div>';
   }
-  var d=withFreshNews(renderStockAna);
-  h+='<div class="card"><div class="card-title">📰 아침 뉴스 <span class="sub">· 보유 비중 상위 종목 최근 7일 기사'+(d&&d.updatedAt?' · '+newsWhen(d.updatedAt)+' 갱신':'')+'</span></div>'+newsStatusHtml(d);
-  var items=(d&&Array.isArray(d.items))?d.items:[];
-  items.forEach(function(x,i){
-    var ns=newsList(x),earn=ns.some(function(n){return n.earn;});
-    h+='<details class="nw-item"'+(i<3?' open':'')+'><summary><b>'+escCatHtml(String(x.name||x.symbol))+'</b> <small>'+escCatHtml(String(x.symbol||''))+(x.weight!=null?' · 비중 '+(tossNum(x.weight)*100).toFixed(1)+'%':'')+' · 기사 '+ns.length+'건'+(x.error&&!ns.length?' · ⚠️ 실패':'')+'</small>'+(earn?' <span class="nw-earn">실적</span>':'')+'</summary>'+newsListHtml(x)+'</details>';
-  });
-  if(d&&!items.length&&d.status!=='running'&&!d.error)h+='<div class="em">모은 종목이 없어요.</div>';
-  el.innerHTML=h+(items.length?NEWS_FOOT:'')+'</div>';
+  // 3) 종목별 뉴스
+  var items=(d&&Array.isArray(d.items))?d.items:[],bySym={};
+  ((s&&s.items)||[]).forEach(function(x){bySym[x.symbol]=x;});
+  h+='<div class="card"><div class="card-title">📰 종목별 뉴스 <span class="sub">· 보유 비중 상위 '+(items.length||20)+'종목 최근 7일 기사</span></div>';
+  if(items.length){
+    var nf=tossPref().nw_f;if(!NEWS_FILTERS.some(function(x){return x[0]===nf;}))nf='all';
+    var flag=function(x){var sx=bySym[x.symbol],ns=newsList(x),dr=sx?tossNum(sx.dailyRate):0;
+      return{kr:x.country?x.country==='KR':!(sx&&tossIsForeign(sx)),earn:ns.some(function(n){return n.earn;}),move:Math.abs(dr)>=0.02,dr:sx?dr:null,ns:ns};};
+    var fl=items.map(flag),cnt={all:items.length,kr:0,us:0,earn:0,move:0};
+    fl.forEach(function(f){if(f.kr)cnt.kr++;else cnt.us++;if(f.earn)cnt.earn++;if(f.move)cnt.move++;});
+    h+='<div class="nw-chips">'+NEWS_FILTERS.map(function(x){return'<button class="nw-chip'+(x[0]===nf?' on':'')+'" id="nw-f-'+x[0]+'" onclick="setNewsFilter(\''+x[0]+'\')">'+x[1]+' <small>'+cnt[x[0]]+'</small></button>';}).join('')+'</div><div id="nw-box">';
+    items.forEach(function(x,i){
+      var f=fl[i],ns=f.ns,top=ns[0],ok=nf==='all'||(nf==='kr'?f.kr:nf==='us'?!f.kr:f[nf]);
+      h+='<details class="nw-item" data-kr="'+(f.kr?1:0)+'" data-us="'+(f.kr?0:1)+'" data-earn="'+(f.earn?1:0)+'" data-move="'+(f.move?1:0)+'"'+(ok?'':' hidden')+'><summary>'
+        +'<span class="nw-hd"><span class="nw-nm"><b>'+escCatHtml(String(x.name||x.symbol))+'</b> <small>'+escCatHtml(String(x.symbol||''))+(x.weight!=null?' · 비중 '+(tossNum(x.weight)*100).toFixed(1)+'%':'')+'</small></span>'
+        +'<span class="nw-badges">'+(f.earn?'<span class="nw-earn">실적</span>':'')+(f.dr!=null?'<span class="nw-dr '+tossCls(f.dr)+'">'+tossPct(f.dr,1)+'</span>':'')+'<span class="nw-cnt">'+(x.error&&!ns.length?'⚠️':ns.length+'건')+'</span></span></span>'
+        +(top?'<span class="nw-prev"><span>'+escCatHtml(String(top.title||''))+'</span><small>'+newsAgo(top.date,now)+'</small></span>':'')
+        +'</summary>'+newsListHtml(x,now)+'</details>';
+    });
+    h+='<div class="em" id="nw-none"'+(items.some(function(x,i){var f=fl[i];return nf==='all'||(nf==='kr'?f.kr:nf==='us'?!f.kr:f[nf]);})?' hidden':'')+'>조건에 맞는 종목이 없어요.</div></div>'+NEWS_FOOT;
+  }else if(d&&d.status!=='running'&&!d.error){
+    h+='<div class="em">모은 종목이 없어요.</div>';
+  }else if(!d){
+    h+='<div class="em">아침 뉴스가 모이면 여기에 보여요.</div>';
+  }
+  el.innerHTML=h+'</div>';
+}
+// ── 🗓 공모주: 증권사 칩으로 거르기 · 기사마다 언급된 증권사 표시 ─────────
+var IPO_ALIAS={'미래에셋증권':/미래에셋/,'삼성증권':/삼성증권/,'NH투자증권':/NH투자|NH증권|농협/,'한국투자증권':/한국투자|한투/};
+function ipoBrokersOf(title,brokers){return brokers.filter(function(b){var re=IPO_ALIAS[b]||new RegExp(b.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));return re.test(String(title||''));});}
+function setIpoFilter(b){
+  var box=document.getElementById('ipo-box');if(!box)return;
+  box.querySelectorAll('li[data-br]').forEach(function(li){li.hidden=b!=='all'&&li.getAttribute('data-br').split('|').indexOf(b)<0;});
+  document.querySelectorAll('.ipo-br .nw-chip').forEach(function(c){c.classList.toggle('on',c.getAttribute('data-b')===b);});
 }
 function renderIpo(){
   var el=document.getElementById('d-ipo');if(!el)return;
-  var d=withFreshNews(renderIpo),brokers=(d&&Array.isArray(d.brokers)&&d.brokers.length)?d.brokers:['미래에셋증권','삼성증권','NH투자증권','한국투자증권'];
-  var h='<div class="card"><div class="card-title">🗓 공모주 소식 <span class="sub">· 아래 증권사 관련 최근 7일 청약 기사'+(d&&d.ipo&&d.ipo.at?' · '+newsWhen(d.ipo.at)+' 갱신':'')+'</span></div>'
-    +'<div class="ipo-br">'+brokers.map(function(b){return'<span class="bk">'+escCatHtml(String(b))+'</span>';}).join('')+'</div>'
+  var d=withFreshNews(renderIpo),now=Date.now(),brokers=(d&&Array.isArray(d.brokers)&&d.brokers.length)?d.brokers:['미래에셋증권','삼성증권','NH투자증권','한국투자증권'];
+  var ns=d&&d.ipo?newsList(d.ipo):[],tagged=ns.map(function(n){return{n:n,b:ipoBrokersOf(n.title,brokers)};});
+  var h='<div class="card"><div class="card-title">🗓 공모주 소식 <span class="sub">· 4개 증권사 관련 최근 7일 청약 기사'+(d&&d.ipo&&d.ipo.at?' · '+newsWhen(d.ipo.at)+' 갱신':'')+'</span></div>'
+    +'<div class="ipo-br"><button class="nw-chip on" data-b="all" onclick="setIpoFilter(\'all\')">전체 <small>'+ns.length+'</small></button>'
+    +brokers.map(function(b){var c=tagged.filter(function(t){return t.b.indexOf(b)>=0;}).length;
+      return'<button class="nw-chip" data-b="'+escCatHtml(String(b))+'" onclick="setIpoFilter(this.getAttribute(\'data-b\'))">'+escCatHtml(String(b))+' <small>'+c+'</small></button>';}).join('')+'</div>'
     +newsStatusHtml(d);
   if(d&&d.ipo){
-    h+='<div class="al wrn mb8">⚠️ 일정표가 아니라 관련 기사 모음이에요. 청약일·공모가·참여 증권사는 증권사 앱에서 꼭 확인하세요.</div>'+newsListHtml(d.ipo)+NEWS_FOOT;
+    h+='<div class="al wrn mb8">⚠️ 일정표가 아니라 관련 기사 모음이에요. 청약일·공모가는 증권사 앱에서 꼭 확인하세요.</div>';
+    if(!ns.length)h+=newsListHtml(d.ipo,now);
+    else h+='<ul class="nw-list" id="ipo-box">'+tagged.map(function(t){
+      return newsLinkHtml(t.n,now,t.b.map(function(b){return'<span class="ipo-tag">'+escCatHtml(b.replace(/증권$/,''))+'</span>';}).join('')).replace('<li>','<li data-br="'+escCatHtml(t.b.join('|'))+'">');
+    }).join('')+'</ul>';
+    h+=NEWS_FOOT;
   }
   el.innerHTML=h+'</div>';
 }
