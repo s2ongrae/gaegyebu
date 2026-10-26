@@ -3,7 +3,8 @@
 //  - 모든 요청에 비밀 키(SECRET_KEY)가 필요합니다. 키가 없거나 틀리면 아무 데이터도 주지 않아요.
 //  - 저장은 "개정번호(rev)"를 확인해서, 다른 기기가 먼저 저장했으면 덮어쓰지 않고 충돌로 돌려보내요.
 //  - 저장하기 전에 하루에 한 번 이전 파일을 백업 폴더에 남겨요(14일 보관).
-//  - 토스증권 연동은 쓰지 않아서 제거했습니다.
+//  - 토스증권 보유 현황은 노트북 tools/toss-sync 가 스냅샷으로 저장하고, 앱은 읽기만 해요(토스 키는 여기 없음).
+//  - 매일 아침 보유 종목 최신 뉴스와 공모주 관련 기사 링크를 구글 뉴스 RSS 로 모아 둬요(setupNewsTrigger 로 예약).
 // ══════════════════════════════════════════════════════════════
 
 const FOLDER_NAME = '가계부';
@@ -40,6 +41,7 @@ function doPost(e) {
       case 'save': return handleSave_(body);
       case 'saveStockSnapshot': return handleSaveStockSnapshot_(body);
       case 'loadStockSnapshot': return handleLoadStockSnapshot_();
+      case 'loadStockNews': return handleLoadStockNews_();
       case 'getCalendarEvents': return handleGetCalendarEvents(body);
       case 'aiSearchParse': return handleAiSearchParse(body);
       default: return jsonOut({ ok: false, error: 'unknown_action' });
@@ -233,6 +235,132 @@ function handleLoadStockSnapshot_() {
   if (!files.hasNext()) return jsonOut({ ok: true, latest: null, history: [] });
   const d = readStock_(files.next());
   return jsonOut({ ok: true, latest: d.latest, history: d.history });
+}
+
+// ── 아침 브리핑: 보유 종목 최신 뉴스 링크 + 공모주 관련 기사 (구글 뉴스 RSS · 무료 · 키 없음) ─────────────
+// 매일 아침(setupNewsTrigger 로 예약) 최신 토스 스냅샷의 평가금액 상위 종목마다 구글 뉴스 검색 RSS 를 읽어 제목·링크만 모아 둔다.
+// 구글 뉴스 RSS 는 "개인용 피드 리더에서 개인적·비상업적 사용"만 허용 → 이 가계부(개인용)에서 링크 목록으로만 보여 준다.
+// (Gemini 검색 요약은 무료 등급에서 막혀서(2026-10 실제 응답 429) 쓰지 않음)
+const NEWS_FILE_NAME = '가계부_주식뉴스.json';
+const NEWS_TOP_N = 20;
+const NEWS_PER_STOCK = 5;
+const NEWS_IPO_MAX = 10;
+const NEWS_TIME_BUDGET_MS = 270000;              // 한 번 실행은 6분 제한 → 4분 30초가 넘으면 저장하고 1분 뒤 이어서
+const NEWS_MAX_FAILS = 3;                        // 연달아 이만큼 실패하면(접속 차단 등) 그날은 멈춤
+const IPO_BROKERS = ['미래에셋증권', '삼성증권', 'NH투자증권', '한국투자증권'];
+const EARN_RE = /실적|어닝|잠정|영업이익|매출액|earnings|quarter|guidance|Q[1-4]\b/i;
+const OPTION_QUOTE_RE = /\([A-Z]{1,6}\d{6}[CP]\d{3,8}\)|Stock Options( Chain)?\b/i;
+
+function getNewsFile_() {
+  const folder = getFolder_(), files = folder.getFilesByName(NEWS_FILE_NAME);
+  return files.hasNext() ? files.next() : folder.createFile(NEWS_FILE_NAME, JSON.stringify({}), MimeType.PLAIN_TEXT);
+}
+function readNews_(file) {
+  try { const d = JSON.parse(file.getBlob().getDataAsString()); if (d && typeof d === 'object' && !Array.isArray(d)) return d; } catch (_) {}
+  return {};
+}
+// 최신 스냅샷에서 평가금액 큰 순으로 NEWS_TOP_N 종목
+function newsTargets_() {
+  const files = getFolder_().getFilesByName(STOCK_FILE_NAME);
+  if (!files.hasNext()) return null;
+  const s = readStock_(files.next()).latest;
+  if (!s || !Array.isArray(s.items)) return null;
+  const items = s.items.filter(x => x && (finiteOrNull_(x.valueKRW) || 0) > 0)
+    .sort((a, b) => b.valueKRW - a.valueKRW).slice(0, NEWS_TOP_N)
+    .map(x => ({ symbol: String(x.symbol), name: String(x.name || x.symbol), country: String(x.country || (x.currency === 'USD' ? 'US' : 'KR')), weight: finiteOrNull_(x.weight) }));
+  return { date: s.date, items };
+}
+// 국내 종목은 한국어 판에서 이름으로, 해외 종목은 영어 판에서 종목코드로(토스 이름이 한국어라 해외 기사에 안 걸림)
+function stockNewsQuery_(t) {
+  // 국내 이름이 흔한 낱말(예: 풍산·고영)이면 지명·인명 기사가 섞여서 주식 관련 낱말을 함께 건다
+  return t.country === 'KR' ? { q: '"' + t.name + '" (주가 OR 주식 OR 실적 OR 공시 OR 종목) when:7d', lang: 'ko' } : { q: '"' + t.symbol + '" stock when:7d', lang: 'en' };
+}
+function ipoNewsQuery_() {
+  return { q: '공모주 청약 (' + IPO_BROKERS.join(' OR ') + ') when:7d', lang: 'ko' };
+}
+function xmlText_(s) {
+  return String(s || '').replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&apos;/g, "'").replace(/&amp;/g, '&').trim();
+}
+// 구글 뉴스 검색 RSS → [{ title, link, source, date, earn }] (최신순, 최대 max개)
+function fetchNewsRss_(query, max) {
+  const ed = query.lang === 'ko' ? 'hl=ko&gl=KR&ceid=KR:ko' : 'hl=en-US&gl=US&ceid=US:en';
+  const res = UrlFetchApp.fetch('https://news.google.com/rss/search?q=' + encodeURIComponent(query.q) + '&' + ed, { muteHttpExceptions: true });
+  const code = res.getResponseCode();
+  if (code !== 200) throw new Error('구글 뉴스 응답 ' + code);
+  const xml = res.getContentText(), out = [];
+  const tag = (block, name) => { const m = block.match(new RegExp('<' + name + '(?:\\s[^>]*)?>([\\s\\S]*?)</' + name + '>')); return m ? xmlText_(m[1]) : ''; };
+  (xml.match(/<item>[\s\S]*?<\/item>/g) || []).forEach(b => {
+    const link = tag(b, 'link'), source = tag(b, 'source');
+    let title = tag(b, 'title');
+    if (source && title.endsWith(' - ' + source)) title = title.slice(0, -(source.length + 3)); // 제목 끝의 " - 언론사" 는 따로 보여 줌
+    const t = Date.parse(tag(b, 'pubDate'));
+    if (OPTION_QUOTE_RE.test(title)) return; // 옵션 시세 페이지(예: "AMD Oct 2026 425.000 call (AMD261026C00425000)")는 기사가 아니라 뺌
+    if (title && /^https:\/\//.test(link)) out.push({ title: title.slice(0, 300), link, source: source.slice(0, 60), date: isFinite(t) ? new Date(t).toISOString() : null, earn: EARN_RE.test(title) });
+  });
+  out.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  return out.slice(0, max);
+}
+function safeNews_(query, max) {
+  try { return { news: fetchNewsRss_(query, max), query: query.q }; }
+  catch (e) { return { news: [], query: query.q, error: String(e && e.message || e).slice(0, 300) }; }
+}
+// 예약 실행 본체. 오늘 처음이거나 이미 끝난 날 다시 부르면 새로 시작, 시간이 모자라 멈췄던 날이면 이어서.
+function refreshStockNews() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) return 'busy';
+  try {
+    clearNewsContinue_();
+    const t0 = Date.now(), today = Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd'), file = getNewsFile_();
+    let d = readNews_(file);
+    if (!d.run || d.run.day !== today || d.status !== 'running') {
+      const tg = newsTargets_();
+      d = { v: 2, source: 'google-news-rss', day: today, startedAt: new Date().toISOString(), updatedAt: null, snapshotDate: tg ? tg.date : null, brokers: IPO_BROKERS, status: 'running', error: null, items: [], ipo: null,
+        run: { day: today, fails: 0, targets: tg ? tg.items : [], queue: (tg ? tg.items.map(x => x.symbol) : []).concat(['__ipo__']) } };
+      if (!tg) d.error = '토스 보유 현황 스냅샷이 없어서 종목 뉴스는 건너뛰었어요(노트북에서 npm run sync 먼저).';
+    }
+    while (d.run.queue.length) {
+      if (Date.now() - t0 > NEWS_TIME_BUDGET_MS) { file.setContent(JSON.stringify(d)); ScriptApp.newTrigger('continueStockNews').timeBased().after(60 * 1000).create(); return 'continue'; }
+      const sym = d.run.queue[0];
+      let r;
+      if (sym === '__ipo__') { r = safeNews_(ipoNewsQuery_(), NEWS_IPO_MAX); d.ipo = Object.assign({ at: new Date().toISOString() }, r); }
+      else {
+        const t = d.run.targets.find(x => x.symbol === sym);
+        r = t ? safeNews_(stockNewsQuery_(t), NEWS_PER_STOCK) : { error: '대상 없음' };
+        if (t) d.items.push(Object.assign({}, t, { at: new Date().toISOString() }, r));
+      }
+      d.run.queue.shift();
+      d.run.fails = r.error ? d.run.fails + 1 : 0;
+      if (d.run.fails >= NEWS_MAX_FAILS) { d.status = 'error'; d.error = '연달아 ' + NEWS_MAX_FAILS + '번 실패해서 멈췄어요: ' + r.error; break; }
+      file.setContent(JSON.stringify(d)); // 하나 끝날 때마다 저장(중간에 멈춰도 거기까지는 남음)
+    }
+    if (d.status === 'running') d.status = 'done';
+    d.updatedAt = new Date().toISOString();
+    d.run = { day: today, queue: [] };
+    file.setContent(JSON.stringify(d));
+    return d.status;
+  } finally {
+    lock.releaseLock();
+  }
+}
+// 시간이 모자라 멈췄을 때 1분 뒤 한 번 불리는 이어하기(매일 예약과 구분하려고 함수 이름을 따로 둠)
+function continueStockNews() { return refreshStockNews(); }
+function clearNewsContinue_() {
+  ScriptApp.getProjectTriggers().forEach(tr => { if (tr.getHandlerFunction() === 'continueStockNews') ScriptApp.deleteTrigger(tr); });
+}
+// 한 번만 실행하세요: 매일 아침 7시 20분 무렵(±15분) 자동 실행을 예약합니다. 다시 실행하면 예약을 새로 바꿔요.
+// (Apps Script 예약은 정확한 분을 보장하지 않아서, 이어하기까지 끝나도 8시 전에 준비되도록 일찍 잡음)
+function setupNewsTrigger() {
+  ScriptApp.getProjectTriggers().forEach(tr => { const h = tr.getHandlerFunction(); if (h === 'refreshStockNews' || h === 'continueStockNews') ScriptApp.deleteTrigger(tr); });
+  ScriptApp.newTrigger('refreshStockNews').timeBased().everyDays(1).atHour(7).nearMinute(20).inTimezone('Asia/Seoul').create();
+  Logger.log('매일 아침 7시 20분 무렵 뉴스·공모주 기사 모으기를 예약했어요.');
+}
+function handleLoadStockNews_() {
+  const files = getFolder_().getFilesByName(NEWS_FILE_NAME);
+  if (!files.hasNext()) return jsonOut({ ok: true, data: null });
+  const d = readNews_(files.next());
+  if (d.run) d.run = { day: d.run.day, left: (d.run.queue || []).length };
+  return jsonOut({ ok: true, data: d });
 }
 
 // ── 구글 캘린더 (읽기 전용) ─────────────────────────────────────

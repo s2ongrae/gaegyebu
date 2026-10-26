@@ -751,6 +751,32 @@ input[type=number],input[type=date],select{min-height:36px}
 .tk-alert{padding:7px 11px;font-size:12.5px}
 .tk-sec{font-size:13px;font-weight:800;margin:14px 0 6px}
 .tk-sec .sub{font-weight:400;color:var(--mu);font-size:12px}
+.tk-grp{margin-top:12px}
+.tk-grp-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:var(--sf2);border-radius:var(--rs) var(--rs) 0 0;font-size:14px}
+.tk-grp-nm{min-width:0}
+.tk-grp-nm small{display:block;font-size:12px;color:var(--mu);white-space:nowrap}
+.tk-grp-sum{text-align:right;font-weight:800;min-width:0;white-space:nowrap}
+.tk-grp-sum small{display:block;font-size:12px;font-weight:600}
+.tk-row.tk-more{display:none}
+.an-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.an-box{background:var(--sf2);border-radius:var(--rs);padding:8px 10px;min-width:0}
+.an-hd{font-size:13px;font-weight:800;margin-bottom:4px}
+.an-row{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:3px 0;border-top:1px solid var(--bd)}
+.an-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.an-row small{font-size:12px;color:var(--mu)}
+.an-row>b{white-space:nowrap}
+.nw-item{border-top:1px solid var(--bd);padding:8px 0}
+.nw-item summary{cursor:pointer;font-size:14px}
+.nw-item summary small{font-size:12px;color:var(--mu);font-weight:400}
+.nw-list{list-style:none;margin:6px 0 0;padding:0}
+.nw-list li{padding:5px 0;border-top:1px dashed var(--bd);min-width:0}
+.nw-list a{display:block;color:var(--tx);font-size:13px;line-height:1.5;text-decoration:none;overflow-wrap:anywhere}
+.nw-list a:hover{color:var(--bl);text-decoration:underline}
+.nw-list small{display:block;font-size:12px;color:var(--mu)}
+.nw-earn{display:inline-block;margin-right:4px;padding:0 6px;border-radius:8px;background:var(--bl);color:#fff;font-size:12px;font-weight:700;vertical-align:1px}
+.nw-foot{font-size:12px;color:var(--mu);margin-top:10px}
+.ipo-br{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.tk-morebtn{width:100%;margin-top:6px}
 .tk-chart{height:200px;position:relative}
 .tk-od{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--bd);font-size:13px}
 .tk-odn{flex:1;min-width:0}.tk-odn small{display:block;font-size:12px;color:var(--mu2)}
@@ -763,6 +789,7 @@ input[type=number],input[type=date],select{min-height:36px}
   .tk-card .card-title .sub{order:3;flex:1 1 100%;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .tk-alert{margin-bottom:5px!important}
   .tk-hd{display:none}
+  .an-grid{grid-template-columns:minmax(0,1fr)}
   .tk-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm v" "nm pl";column-gap:10px;row-gap:2px;padding:8px 0}
   .tk-nm{grid-area:nm}.tk-v{grid-area:v}.tk-pl{grid-area:pl}
   .tk-dl,.tk-w{display:none}
@@ -1013,9 +1040,25 @@ input[type=number],input[type=date],select{min-height:36px}
 </div>
 
 <div class="pg" id="pg-stk">
-  <div id="d-toss" class="mb12"></div>
-  <div id="d-stk"></div>
-  <div id="d-realpl" class="mt12"></div>
+  <div class="sbar2" style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--bd);padding-bottom:0">
+    <button class="nb stk-subtab on" onclick="switchStkSub('overview')" id="stk-sub-overview">📊 개요</button>
+    <button class="nb stk-subtab" onclick="switchStkSub('hold')" id="stk-sub-hold">📈 보유 현황</button>
+    <button class="nb stk-subtab" onclick="switchStkSub('ana')" id="stk-sub-ana">🔍 분석</button>
+    <button class="nb stk-subtab" onclick="switchStkSub('ipo')" id="stk-sub-ipo">🗓 공모주</button>
+  </div>
+  <div class="stk-subpanel" id="stk-panel-overview">
+    <div id="d-stk"></div>
+    <div id="d-realpl" class="mt12"></div>
+  </div>
+  <div class="stk-subpanel" id="stk-panel-hold" style="display:none">
+    <div id="d-toss" class="mb12"></div>
+  </div>
+  <div class="stk-subpanel" id="stk-panel-ana" style="display:none">
+    <div id="d-stk-ana"></div>
+  </div>
+  <div class="stk-subpanel" id="stk-panel-ipo" style="display:none">
+    <div id="d-ipo"></div>
+  </div>
 </div>
 </div>
 
@@ -1363,7 +1406,22 @@ function loadAI(){
   AI=Array.isArray(v)?v.filter(function(a){return isPlainObj(a)&&typeof a.n==='string';}):JSON.parse(JSON.stringify(DEFAULT_AI));
 }
 function saveAI(){localStorage.setItem(AI_KEY,JSON.stringify(AI));scheduleSync();}
-function addAssetItem(item){AI.push(item);saveAI();}
+// ── 자산 항목 삭제 기록(영구) ──────────────────────────────────────
+// 서버 설정을 새로 넣은 기기(동기화 기준점 없음)는 "서버엔 없고 나한테만 있는 항목"을 새 항목으로 보고 다시 올려서,
+// 지운 항목이 되살아났다(2026-10 자동차 할부 잔액·신용카드 미결제). 그래서 지운 이름을 기록해 기기끼리 공유하고,
+// 시작할 때/서버 데이터를 받을 때/가져오기 후마다 enforceDeletedAssets()로 다시 지운다. 같은 이름을 다시 추가하면 기록에서 뺀다.
+//   키: 항목 이름  →  값: 지운 시각(ISO)
+var AI_DELETED_KEY='gaegyebu_deleted_assets';
+function readAssetDeleted(){return readObjKey(AI_DELETED_KEY);}
+function saveAssetDeleted(m){localStorage.setItem(AI_DELETED_KEY,JSON.stringify(m));scheduleSync();}
+function unmarkAssetDeleted(name){var reg=readAssetDeleted();if(Object.prototype.hasOwnProperty.call(reg,name)){delete reg[name];saveAssetDeleted(reg);}}
+function enforceDeletedAssets(){
+  var reg=readAssetDeleted(),n=AI.length;
+  AI=AI.filter(function(a){return!Object.prototype.hasOwnProperty.call(reg,a.n);});
+  if(AI.length!==n)saveAI();
+  return n-AI.length;
+}
+function addAssetItem(item){unmarkAssetDeleted(item.n);AI.push(item);saveAI();}
 // ── 자산 항목 순서 바꾸기 ──────────────────────────────────────
 // 순서는 AI 배열의 순서 그대로다(=화면 순서). 그룹(투자/연금/부채…)은 항목의 cat으로 정해지므로
 // 옮기기는 "같은 그룹 안에서만" 한다. 그래야 순서를 바꾸다 항목이 다른 그룹으로 튀지 않는다.
@@ -1393,6 +1451,7 @@ function resetAssetOrder(){
 }
 function updateAssetItem(i,item){
   var oldName=AI[i]?AI[i].n:null;
+  if(item.n!==oldName)unmarkAssetDeleted(item.n); // 지웠던 이름으로 바꾸면 그 이름은 다시 쓰는 것
   AI[i]=item;saveAI();
   // 이름이 바뀌면 이전 월별 자산값 키도 함께 이전 (데이터 유실 방지)
   if(oldName&&oldName!==item.n){
@@ -1408,7 +1467,11 @@ function updateAssetItem(i,item){
     }
   }
 }
-function removeAssetItem(i){AI.splice(i,1);saveAI();}
+function removeAssetItem(i){
+  if(!AI[i])return;
+  var reg=readAssetDeleted();reg[AI[i].n]=new Date().toISOString();saveAssetDeleted(reg);
+  AI.splice(i,1);saveAI();
+}
 var curPage='dash',curYM='',calYM='';
 var dC=null,rC=null,nwC=null,levC=null,editId=null,syncTimer=null;
 var SERVER_URL_KEY='gaegyebu_server_url';
@@ -2713,6 +2776,7 @@ function buildFullBackupPayload(){
   payload.fixedDateOverrides=readFixedDateOverrides();
   payload.autoMtSkip=readAutoMtSkip();
   payload.deletedCats=readCatDeleted();
+  payload.deletedAssets=readAssetDeleted();
   return payload;
 }
 // ══ 동기화 병합 엔진 (3-way 병합) ════════════════════════════════
@@ -2736,7 +2800,7 @@ var SYNC_COLS=[
   {k:'assets',t:'leaf',depth:2},
   {k:'budgets',t:'leaf',depth:3},
   {k:'extraSubs',t:'obj'},{k:'taxLimits',t:'obj'},{k:'prepay',t:'obj'},{k:'stockPrincipalHist',t:'obj'},
-  {k:'fixedDateOverrides',t:'obj'},{k:'autoMtSkip',t:'obj'},{k:'deletedCats',t:'obj'}
+  {k:'fixedDateOverrides',t:'obj'},{k:'autoMtSkip',t:'obj'},{k:'deletedCats',t:'obj'},{k:'deletedAssets',t:'obj'}
 ];
 function cyrb53(str){
   var h1=0xdeadbeef,h2=0x41c6ce57;
@@ -2920,12 +2984,13 @@ function applyMergedPayload(m){
     if(isPlainObj(m.fixedDateOverrides))saveFixedDateOverrides(m.fixedDateOverrides);
     if(isPlainObj(m.autoMtSkip))saveAutoMtSkip(m.autoMtSkip);
     if(isPlainObj(m.deletedCats))saveCatDeleted(m.deletedCats);
+    if(isPlainObj(m.deletedAssets))saveAssetDeleted(m.deletedAssets);
   }finally{_syncMute--;}
 }
 // 서버 데이터를 받은 직후에 항상 다시 적용하는 정리 규칙(서버의 오래된 값이 삭제한 카테고리나 잘못된 성격을 되살리지 못하게)
 function postSyncFixups(){
   _syncMute++;
-  try{normalizeEvalOfIncomeSaving();repairKnownTxs();enforceDeletedCats();syncAutoMarTongSavings();}
+  try{normalizeEvalOfIncomeSaving();repairKnownTxs();enforceDeletedCats();enforceDeletedAssets();syncAutoMarTongSavings();}
   finally{_syncMute--;}
 }
 // 서버 데이터(data, 개정번호 rev)를 이 기기 데이터와 합쳐 저장한다. 반환: {adopted, conflicts, inSync}
@@ -3036,6 +3101,7 @@ function importJSON(e){
       var db=sanitizeDB(parsed);
       applyMergedPayload(Object.assign({},parsed,{txs:db.txs,assets:db.assets,budgets:db.budgets}));
       enforceDeletedCats();
+      enforceDeletedAssets(); // 옛 백업에 지운 자산 항목이 들어 있어도 다시 지움
       showToast('✅ 가져오기 완료!');
       go(curPage);
       syncNow({force:true}); // 가져오기는 의도한 큰 변경이라 바로 서버에 반영(줄어듦 방지를 통과)
@@ -3370,6 +3436,7 @@ function initApp(){
   loadUserCats();
   loadExtraSubs();
   loadAI();
+  enforceDeletedAssets(); // 지운 자산 항목이 다른 기기 동기화로 되살아나 있으면 다시 지움
   loadBT();
   enforceDeletedCats(); // 삭제한 카테고리를 목록·예산 항목·내역에 다시 적용(복원 안전망보다 먼저 실행해야 되살아나지 않음)
   // 안전망: 예산 항목(BT)엔 있는데 카테고리 트리(CATS)엔 없는 소분류가 있으면 자동 복구한다.
@@ -6977,6 +7044,20 @@ function switchAstSub(name){
     var tab=document.getElementById('ast-sub-'+k);if(tab)tab.classList.toggle('on',k===name);
   });
 }
+// ── 주식 탭 서브탭(개요=월별 주식계좌·실현손익 / 보유 현황=토스 연동 종목 / 분석 / 공모주) 전환. 마지막 선택은 이 기기에 기억 ──
+var STK_SUB_KEY='gaegyebu_stk_sub',STK_SUBS=['overview','hold','ana','ipo'];
+function switchStkSub(name){
+  if(STK_SUBS.indexOf(name)<0)name='overview';
+  if(name==='ana')try{renderStockAna();}catch(e){console.error('[가계부] 주식 분석 오류',e);}
+  if(name==='ipo')try{renderIpo();}catch(e){console.error('[가계부] 공모주 오류',e);}
+  STK_SUBS.forEach(function(k){
+    var panel=document.getElementById('stk-panel-'+k);if(panel)panel.style.display=(k===name?'':'none');
+    var tab=document.getElementById('stk-sub-'+k);if(tab)tab.classList.toggle('on',k===name);
+  });
+  try{localStorage.setItem(STK_SUB_KEY,name);}catch(e){}
+  if(name==='hold'&&_tossChart&&_tossChart.resize){try{_tossChart.resize();}catch(e){}} // 숨겨진 채 그려진 차트 크기 바로잡기
+}
+function restoreStkSub(){var v=null;try{v=localStorage.getItem(STK_SUB_KEY);}catch(e){}switchStkSub(v||'overview');}
 // 부채·리스크 탭을 열지 않아도 위험 신호가 보이도록 하위 탭에 배지를 붙인다.
 // 기준은 레버리지 카드와 똑같다(부채 ÷ 순자산: 20% 미만 안전 / 40% 미만 주의 / 그 이상 위험).
 function updateAstRiskBadge(r){
@@ -8429,6 +8510,7 @@ function restoreCheckpoint(i){
     // 서버에도 이 상태가 반영되도록 "의도한 큰 변경"으로 표시한다(줄어듦 방지를 통과).
     applyMergedPayload(Object.assign({},data,{txs:rdb.txs,assets:rdb.assets,budgets:rdb.budgets}));
     saveCatDeleted(data.deletedCats||{}); // 카테고리 삭제 기록도 그 시점 상태로(스냅샷 이후 삭제한 카테고리는 다시 살아남)
+    saveAssetDeleted(data.deletedAssets||{}); // 자산 항목 삭제 기록도 그 시점 상태로
     rebuildCatsFromStores(); // 삭제로 지워졌던 기본/사용자 카테고리를 목록에 다시 만든다
     syncNow({force:true}); // 되돌리기도 의도한 큰 변경이라 바로 서버에 반영
     showToast('↩️ 이전 상태로 되돌렸어요.');
@@ -8941,6 +9023,9 @@ function tossSorted(items){
 }
 function setTossSort(k){setTossPref('sort',k);renderTossCard();}
 function setTossCash(on){setTossPref('cash',!!on);renderTossCard();}
+var TOSS_GROUP_SHOW=10;
+function tossIsForeign(x){return x.country?x.country!=='KR':x.currency==='USD';}
+function toggleTossGroup(k){setTossPref('open_'+k,!tossPref()['open_'+k]);renderTossCard();}
 function tossCashIncluded(){var p=tossPref();return p.cash!==false;} // 기본: 예수금 포함(증권 계좌 잔고 = 주식 평가금액 + 현금)
 function tossAssetValue(s){return Math.round(tossNum(s.totals.value.krwTotal)+(tossCashIncluded()?tossNum(s.cash&&s.cash.krwTotal):0));}
 function tossApplyAsset(){
@@ -8990,17 +9075,28 @@ function renderTossCard(){
   // 보유 종목
   var sk=tossPref().sort||'value';
   h+='<div class="tk-sorts">정렬 '+[['value','평가금액'],['rate','수익률'],['daily','오늘']].map(function(o){return'<button class="btn '+(sk===o[0]?'bp':'bg2')+' bsm" onclick="setTossSort(\''+o[0]+'\')">'+o[1]+'</button>';}).join('')+'</div>';
-  h+='<div class="tk-list"><div class="tk-row tk-hd"><span>종목</span><span>평가금액</span><span>손익</span><span>오늘</span><span>비중</span></div>';
-  items.forEach(function(x){
-    var cur=x.currency==='USD',unit=function(v){return cur?('$'+tossNum(v).toLocaleString(undefined,{maximumFractionDigits:2})):tossNum(v).toLocaleString()+'원';};
-    h+='<div class="tk-row">'
-      +'<span class="tk-nm"><b>'+escCatHtml(x.name)+'</b><small>'+escCatHtml(x.symbol)+(cur?' · 🇺🇸':'')+' · '+tossNum(x.qty).toLocaleString()+'주 · 평균 '+unit(x.avg)+' → '+unit(x.last)+'</small></span>'
-      +'<span class="tk-v">'+ff(x.valueKRW)+(cur?'<small>'+unit(x.value)+'</small>':'')+'</span>'
-      +'<span class="tk-pl '+tossCls(x.plKRW)+'">'+tossSigned(x.plKRW)+'<small>'+tossPct(x.plRate)+'</small></span>'
-      +'<span class="tk-dl '+tossCls(x.dailyKRW)+'">'+tossSigned(x.dailyKRW)+'<small>'+tossPct(x.dailyRate)+'</small></span>'
-      +'<span class="tk-w">'+(tossNum(x.weight)*100).toFixed(1)+'%</span></div>';
+  // 국내/해외로 나눠 각각 소계 + 종목 표. 종목이 많아 처음엔 그룹마다 TOSS_GROUP_SHOW개만 보이고 "더 보기"로 펼침
+  var groups=[{k:'kr',t:'🏠 국내',xs:items.filter(function(x){return !tossIsForeign(x);})},{k:'us',t:'🌎 해외',xs:items.filter(tossIsForeign)}];
+  groups.forEach(function(g){
+    if(!g.xs.length)return;
+    var gv=0,gp=0,gl=0,gd=0;g.xs.forEach(function(x){gv+=tossNum(x.valueKRW);gp+=tossNum(x.purchaseKRW);gl+=tossNum(x.plKRW);gd+=tossNum(x.dailyKRW);});
+    var tv=tossNum(t.value&&t.value.krwTotal),open=!!tossPref()['open_'+g.k],more=g.xs.length-TOSS_GROUP_SHOW;
+    h+='<div class="tk-grp" id="tk-grp-'+g.k+'"><div class="tk-grp-hd"><span class="tk-grp-nm"><b>'+g.t+'</b><small>'+g.xs.length+'종목 · 비중 '+(tv>0?Math.round(gv/tv*100):0)+'%</small></span>'
+      +'<span class="tk-grp-sum">'+ff(gv)+'<small class="'+tossCls(gl)+'">'+tossSigned(gl)+' ('+tossPct(gp>0?gl/gp:null)+')</small><small class="'+tossCls(gd)+'">오늘 '+tossSigned(gd)+'</small></span></div>';
+    h+='<div class="tk-list"><div class="tk-row tk-hd"><span>종목</span><span>평가금액</span><span>손익</span><span>오늘</span><span>비중</span></div>';
+    g.xs.forEach(function(x,i){
+      var cur=x.currency==='USD',unit=function(v){return cur?('$'+tossNum(v).toLocaleString(undefined,{maximumFractionDigits:2})):tossNum(v).toLocaleString()+'원';};
+      h+='<div class="tk-row'+(!open&&i>=TOSS_GROUP_SHOW?' tk-more':'')+'">'
+        +'<span class="tk-nm"><b>'+escCatHtml(x.name)+'</b><small>'+escCatHtml(x.symbol)+(cur?' · 🇺🇸':'')+' · '+tossNum(x.qty).toLocaleString()+'주 · 평균 '+unit(x.avg)+' → '+unit(x.last)+'</small></span>'
+        +'<span class="tk-v">'+ff(x.valueKRW)+(cur?'<small>'+unit(x.value)+'</small>':'')+'</span>'
+        +'<span class="tk-pl '+tossCls(x.plKRW)+'">'+tossSigned(x.plKRW)+'<small>'+tossPct(x.plRate)+'</small></span>'
+        +'<span class="tk-dl '+tossCls(x.dailyKRW)+'">'+tossSigned(x.dailyKRW)+'<small>'+tossPct(x.dailyRate)+'</small></span>'
+        +'<span class="tk-w">'+(tossNum(x.weight)*100).toFixed(1)+'%</span></div>';
+    });
+    h+='</div>';
+    if(more>0)h+='<button class="btn bg2 bsm tk-morebtn" onclick="toggleTossGroup(\''+g.k+'\')">'+(open?'▲ 접기':'▼ 나머지 '+more+'종목 더 보기')+'</button>';
+    h+='</div>';
   });
-  h+='</div>';
   // 추이
   h+='<div class="tk-sec">📉 평가금액 추이 <span class="sub">· 날짜별 기록 '+hist.length+'일</span></div>';
   h+=hist.length>=2?'<div class="tk-chart"><canvas id="tk-chart"></canvas></div>':'<div class="em" style="padding:10px">동기화 기록이 이틀 이상 쌓이면 추이가 보여요.</div>';
@@ -9026,8 +9122,100 @@ function renderTossCard(){
     }catch(e){console.warn('[가계부] 토스 추이 차트 오류',e);}
   }
 }
+// ── 주식 탭 🔍 분석 · 🗓 공모주 ───────────────────────────────────────────
+// 분석: 토스 스냅샷으로 집중도·국내/해외·손익 상하위를 계산. 아침 뉴스: 서버가 매일 아침 구글 뉴스 RSS 로 모아 둔 종목별 기사·공모주 기사 링크.
+var NEWS_CACHE_KEY='gaegyebu_stock_news';
+var _newsLastFetch=0,_newsFetching=false;
+function loadNewsCache(){var d=safeParse(localStorage.getItem(NEWS_CACHE_KEY),null);return isPlainObj(d)?d:null;}
+function fetchStockNews(force){
+  if(!serverReady()||_newsFetching)return Promise.resolve(null);
+  if(!force&&Date.now()-_newsLastFetch<600000)return Promise.resolve(null);
+  _newsFetching=true;_newsLastFetch=Date.now();
+  return serverCall({action:'loadStockNews'},20000).then(function(r){
+    _newsFetching=false;
+    if(isAuthError(r)){onServerAuthFail(r);return null;}
+    if(!r||!r.ok||!isPlainObj(r.data))return null;
+    try{localStorage.setItem(NEWS_CACHE_KEY,JSON.stringify(r.data));}catch(e){console.warn('[가계부] 아침 뉴스 사본 저장 실패',e);}
+    return r.data;
+  }).catch(function(e){_newsFetching=false;console.warn('[가계부] 아침 뉴스 불러오기 실패',e);return null;});
+}
+// 받아 둔 사본으로 먼저 그리고, 서버에 새 내용이 있으면 다시 그림
+function withFreshNews(rerender){
+  var d=loadNewsCache();
+  fetchStockNews(false).then(function(nd){if(nd&&JSON.stringify(nd)!==JSON.stringify(d))rerender();});
+  return d;
+}
+function newsWhen(iso){var t=Date.parse(iso);return isFinite(t)?new Date(t).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'-';}
+function newsTodayKST(){return new Date(Date.now()+9*36e5).toISOString().slice(0,10);}
+function newsStatusHtml(d){
+  if(!d)return'<div class="al inf">아직 받은 아침 뉴스가 없어요. 서버에서 <b>setupNewsTrigger</b>를 한 번 실행하면 매일 아침 8시 전에 채워져요.'+(serverReady()?'':' (⚙️ 서버 연결도 필요해요)')+'</div>';
+  var h='';
+  if(d.day!==newsTodayKST())h+='<div class="al wrn mb8">⚠️ 오늘 아침 뉴스가 아직 없어요. 마지막으로 모은 날: '+escCatHtml(String(d.day||'-'))+'</div>';
+  if(d.status==='running')h+='<div class="al inf mb8">⏳ 기사를 모으는 중이에요'+(d.run&&d.run.left?' (남은 '+d.run.left+'개)':'')+'. 잠시 뒤 다시 열어 보세요.</div>';
+  if(d.error)h+='<div class="al wrn mb8">'+escCatHtml(String(d.error))+'</div>';
+  return h;
+}
+function newsDay(iso){var t=Date.parse(iso);return isFinite(t)?new Date(t).toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'}):'';}
+function newsList(r){return(r&&Array.isArray(r.news)?r.news:[]).filter(function(n){return n&&/^https:\/\//.test(String(n.link||''));});}
+// 기사 목록(제목 링크 · 언론사 · 날짜 · 실적 기사 표시). 제목은 글자로만 넣고 링크는 새 창으로
+function newsListHtml(r){
+  if(!r)return'';
+  var ns=newsList(r);
+  if(!ns.length)return r.error?'<div class="al wrn">기사를 못 가져왔어요: '+escCatHtml(String(r.error))+'</div>':'<div class="em">최근 7일 기사가 없어요.</div>';
+  return'<ul class="nw-list">'+ns.map(function(n){
+    return'<li><a href="'+escCatHtml(n.link)+'" target="_blank" rel="noopener noreferrer">'+(n.earn?'<span class="nw-earn">실적</span>':'')+escCatHtml(String(n.title||''))+'</a>'
+      +'<small>'+escCatHtml(String(n.source||''))+(n.date?' · '+newsDay(n.date):'')+'</small></li>';
+  }).join('')+'</ul>';
+}
+var NEWS_FOOT='<div class="nw-foot">구글 뉴스 검색에서 모은 최근 7일 기사 링크예요(요약 아님). 내용은 원문에서 확인하세요. 투자 추천이 아니에요.</div>';
+function renderStockAna(){
+  var el=document.getElementById('d-stk-ana');if(!el)return;
+  var tc=loadTossCache(),s=tc&&tc.latest,h='';
+  if(s&&Array.isArray(s.items)&&s.items.length){
+    var it=s.items,tv=tossNum(s.totals&&s.totals.value&&s.totals.value.krwTotal)||it.reduce(function(a,x){return a+tossNum(x.valueKRW);},0);
+    var byV=it.slice().sort(function(a,b){return tossNum(b.valueKRW)-tossNum(a.valueKRW);});
+    var share=function(n){return tv>0?byV.slice(0,n).reduce(function(a,x){return a+tossNum(x.valueKRW);},0)/tv:0;};
+    var fv=it.filter(tossIsForeign).reduce(function(a,x){return a+tossNum(x.valueKRW);},0),up=it.filter(function(x){return tossNum(x.plKRW)>0;}).length,dn=it.filter(function(x){return tossNum(x.plKRW)<0;}).length;
+    var line=function(x,v){return'<div class="an-row"><span>'+escCatHtml(x.name)+(tossIsForeign(x)?' <small>해외</small>':'')+'</span><b class="'+tossCls(v.k)+'">'+v.t+'</b></div>';};
+    var list=function(title,xs,fn){return'<div class="an-box"><div class="an-hd">'+title+'</div>'+(xs.length?xs.map(function(x){return line(x,fn(x));}).join(''):'<div class="em">해당 종목 없음</div>')+'</div>';};
+    h+='<div class="card mb12"><div class="card-title">🔍 보유 종목 분석 <span class="sub">· 토스증권 '+escCatHtml(String(s.date))+' 기준 · '+it.length+'종목</span></div>'
+      +'<div class="g4 tk-kpi">'
+      +'<div class="kc"><div class="kl">1위 종목 비중</div><div class="kv">'+Math.round(share(1)*100)+'%</div><div class="ks">'+escCatHtml(byV[0].name)+'</div></div>'
+      +'<div class="kc"><div class="kl">상위 3 · 10종목 비중</div><div class="kv">'+Math.round(share(3)*100)+'% · '+Math.round(share(10)*100)+'%</div><div class="ks">나머지 '+Math.max(0,it.length-10)+'종목 '+Math.round((1-share(10))*100)+'%</div></div>'
+      +'<div class="kc"><div class="kl">국내 · 해외</div><div class="kv">'+Math.round((1-(tv>0?fv/tv:0))*100)+'% · '+Math.round((tv>0?fv/tv:0)*100)+'%</div><div class="ks">평가금액 기준</div></div>'
+      +'<div class="kc"><div class="kl">수익 · 손실 종목</div><div class="kv"><span class="tk-up">'+up+'</span> · <span class="tk-dn">'+dn+'</span></div><div class="ks">손익 0원 '+(it.length-up-dn)+'종목</div></div>'
+      +'</div><div class="an-grid">'
+      +list('📉 손실 큰 5종목',it.filter(function(x){return tossNum(x.plKRW)<0;}).sort(function(a,b){return tossNum(a.plKRW)-tossNum(b.plKRW);}).slice(0,5),function(x){return{k:x.plKRW,t:tossSigned(x.plKRW)+' ('+tossPct(x.plRate,1)+')'};})
+      +list('📈 수익 큰 5종목',it.filter(function(x){return tossNum(x.plKRW)>0;}).sort(function(a,b){return tossNum(b.plKRW)-tossNum(a.plKRW);}).slice(0,5),function(x){return{k:x.plKRW,t:tossSigned(x.plKRW)+' ('+tossPct(x.plRate,1)+')'};})
+      +list('⚡ 오늘 많이 움직인 5종목',it.filter(function(x){return tossNum(x.dailyRate)!==0;}).sort(function(a,b){return Math.abs(tossNum(b.dailyRate))-Math.abs(tossNum(a.dailyRate));}).slice(0,5),function(x){return{k:x.dailyRate,t:tossPct(x.dailyRate,1)+' ('+tossSigned(x.dailyKRW)+')'};})
+      +'</div></div>';
+  }else{
+    h+='<div class="card mb12"><div class="card-title">🔍 보유 종목 분석</div><div class="al inf">토스증권 보유 현황을 받으면 집중도·손익 분석이 보여요(📈 보유 현황 탭 참고).</div></div>';
+  }
+  var d=withFreshNews(renderStockAna);
+  h+='<div class="card"><div class="card-title">📰 아침 뉴스 <span class="sub">· 보유 비중 상위 종목 최근 7일 기사'+(d&&d.updatedAt?' · '+newsWhen(d.updatedAt)+' 갱신':'')+'</span></div>'+newsStatusHtml(d);
+  var items=(d&&Array.isArray(d.items))?d.items:[];
+  items.forEach(function(x,i){
+    var ns=newsList(x),earn=ns.some(function(n){return n.earn;});
+    h+='<details class="nw-item"'+(i<3?' open':'')+'><summary><b>'+escCatHtml(String(x.name||x.symbol))+'</b> <small>'+escCatHtml(String(x.symbol||''))+(x.weight!=null?' · 비중 '+(tossNum(x.weight)*100).toFixed(1)+'%':'')+' · 기사 '+ns.length+'건'+(x.error&&!ns.length?' · ⚠️ 실패':'')+'</small>'+(earn?' <span class="nw-earn">실적</span>':'')+'</summary>'+newsListHtml(x)+'</details>';
+  });
+  if(d&&!items.length&&d.status!=='running'&&!d.error)h+='<div class="em">모은 종목이 없어요.</div>';
+  el.innerHTML=h+(items.length?NEWS_FOOT:'')+'</div>';
+}
+function renderIpo(){
+  var el=document.getElementById('d-ipo');if(!el)return;
+  var d=withFreshNews(renderIpo),brokers=(d&&Array.isArray(d.brokers)&&d.brokers.length)?d.brokers:['미래에셋증권','삼성증권','NH투자증권','한국투자증권'];
+  var h='<div class="card"><div class="card-title">🗓 공모주 소식 <span class="sub">· 아래 증권사 관련 최근 7일 청약 기사'+(d&&d.ipo&&d.ipo.at?' · '+newsWhen(d.ipo.at)+' 갱신':'')+'</span></div>'
+    +'<div class="ipo-br">'+brokers.map(function(b){return'<span class="bk">'+escCatHtml(String(b))+'</span>';}).join('')+'</div>'
+    +newsStatusHtml(d);
+  if(d&&d.ipo){
+    h+='<div class="al wrn mb8">⚠️ 일정표가 아니라 관련 기사 모음이에요. 청약일·공모가·참여 증권사는 증권사 앱에서 꼭 확인하세요.</div>'+newsListHtml(d.ipo)+NEWS_FOOT;
+  }
+  el.innerHTML=h+'</div>';
+}
 function renderStock(){
   scheduleChartPrune();
+  restoreStkSub(); // 탭 이동 시 .nb 의 on 표시가 지워지므로 서브탭 표시를 다시 맞춤
   try{renderTossCard();}catch(e){console.error('[가계부] 토스증권 카드 오류',e);}
   var el=document.getElementById('d-stk');
   if(!el)return;
