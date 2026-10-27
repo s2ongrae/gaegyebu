@@ -136,6 +136,37 @@ function mockToss(opts = {}) {
   const e = T.loadEnv(envf);
   check('.env: 따옴표·= 포함 값·주석·윈도우 줄바꿈 처리', e.TOSS_CLIENT_ID === 'abc def' && e.TOSS_CLIENT_SECRET === 's3cr3t=xyz' && e.GAEGYEBU_SERVER_URL === 'https://script.google.com/x/exec', e);
   fs.unlinkSync(envf);
+  console.log('[대기 프로그램] 폰 🔄 요청 → 동기화');
+  const { createAgent } = require('../agent');
+  const mA = await mockToss(), cA = new T.TossClient({ clientId: ID, clientSecret: SECRET, baseUrl: mA.base, sleep: async () => {} });
+  // 가짜 가계부 서버: pollTossSync(요청 상태) · saveStockSnapshot(저장하면 요청 처리됨)
+  const gs = { req: null, saved: null, polls: [], saves: 0, err: undefined };
+  const gfetch = async (u, o) => { const b = o && o.body ? JSON.parse(o.body) : {}; let out;
+    if (u.includes('ipify')) out = { ip: '1.2.3.4' };
+    else if (b.action === 'pollTossSync') { gs.polls.push(b); if ('error' in b) gs.err = b.error; out = { ok: true, pending: !!gs.req && (!gs.saved || gs.req > gs.saved), requestedAt: gs.req }; }
+    else if (b.action === 'saveStockSnapshot') { gs.saves++; gs.saved = new Date(Date.now() + gs.saves).toISOString(); gs.last = b.snapshot; out = { ok: true, saved: true, historyCount: 1 }; }
+    return { status: 200, json: async () => out }; };
+  const envA = { GAEGYEBU_SERVER_URL: 'https://example.invalid/exec', GAEGYEBU_SERVER_KEY: SKEY };
+  let clock = 1e12; const alogs = [];
+  const ag = createAgent({ env: envA, client: cA, fetchImpl: gfetch, now: () => clock, log: m => alogs.push(m) });
+  check('요청 없으면 아무것도 안 함', await ag.tick() === 'idle' && gs.saves === 0 && mA.st.calls.length === 0);
+  gs.req = new Date(Date.now()).toISOString();
+  check('요청 있으면 토스 조회 → 가계부 서버 저장', await ag.tick() === 'synced' && gs.saves === 1 && gs.last.totals.value.krwTotal > 0);
+  check('토스 쪽은 조회(GET)·토큰만 호출', mA.st.calls.every(c => /^GET |^POST \/oauth2\/token$/.test(c)), mA.st.calls);
+  check('다음 확인 때 성공()을 서버에 알림 · 요청은 처리됨', await ag.tick() === 'idle' && gs.err === '');
+  check('확인 요청 본문에 토스 키 없음', !JSON.stringify(gs.polls).includes(SECRET) && !JSON.stringify(gs.polls).includes(ID));
+  gs.req = new Date(Date.now() + 100).toISOString();
+  check('1분 안의 새 요청은 기다림', await ag.tick() === 'wait' && gs.saves === 1);
+  clock += 61000;
+  check('1분 지나면 처리', await ag.tick() === 'synced' && gs.saves === 2);
+  mA.srv.close();
+  const mI = await mockToss({ mode: 'ip' }), cI = new T.TossClient({ clientId: ID, clientSecret: SECRET, baseUrl: mI.base, sleep: async () => {} });
+  const gi = createAgent({ env: envA, client: cI, fetchImpl: gfetch, now: () => clock, log: m => alogs.push(m) });
+  gs.req = new Date(Date.now() + 200).toISOString(); gs.saved = null;
+  check('허용 IP가 아니면 실패로 끝내고', await gi.tick() === 'error' && gs.saves === 2);
+  check('다음 확인 때 이유(지금 IP)를 서버에 알림 · 같은 요청은 다시 안 함', await gi.tick() === 'idle' && /허용 IP/.test(gs.err) && /1\.2\.3\.4/.test(gs.err), gs.err);
+  check('기록에 토스 키 없음', !alogs.join(' ').includes(SECRET));
+  mI.srv.close();
   console.log(`결과: PASS ${pass} / FAIL ${fail}`);
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error('테스트 중단:', e); process.exit(1); });

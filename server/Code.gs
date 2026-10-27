@@ -3,7 +3,7 @@
 //  - 모든 요청에 비밀 키(SECRET_KEY)가 필요합니다. 키가 없거나 틀리면 아무 데이터도 주지 않아요.
 //  - 저장은 "개정번호(rev)"를 확인해서, 다른 기기가 먼저 저장했으면 덮어쓰지 않고 충돌로 돌려보내요.
 //  - 저장하기 전에 하루에 한 번 이전 파일을 백업 폴더에 남겨요(14일 보관).
-//  - 토스증권 보유 현황은 노트북 tools/toss-sync 가 스냅샷으로 저장하고, 앱은 읽기만 해요(토스 키는 여기 없음).
+//  - 토스증권 보유 현황은 노트북 tools/toss-sync 가 스냅샷으로 저장하고, 앱은 읽기만 해요(토스 키는 여기 없음). 앱 🔄 → 노트북 대기 프로그램이 받아 올려요.
 //  - 매일 아침 보유 종목 최신 뉴스와 공모주 관련 기사 링크를 구글 뉴스 RSS 로 모아 둬요(setupNewsTrigger 로 예약). 앱 🔄 로 30분에 한 번 다시 모을 수 있어요.
 // ══════════════════════════════════════════════════════════════
 
@@ -40,6 +40,8 @@ function doPost(e) {
       case 'load': return handleLoad_();
       case 'save': return handleSave_(body);
       case 'saveStockSnapshot': return handleSaveStockSnapshot_(body);
+      case 'requestTossSync': return handleRequestTossSync_();
+      case 'pollTossSync': return handlePollTossSync_(body);
       case 'loadStockSnapshot': return handleLoadStockSnapshot_();
       case 'loadStockNews': return handleLoadStockNews_();
       case 'requestNewsRefresh': return handleRequestNewsRefresh_();
@@ -228,8 +230,34 @@ function handleSaveStockSnapshot_(body) {
     hist.push(sum); hist.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     while (hist.length > STOCK_HISTORY_MAX) hist.shift();
     file.setContent(JSON.stringify({ latest: snap, history: hist }));
+    const pr = PropertiesService.getScriptProperties();
+    pr.setProperty('STOCK_SYNC_SAVED', new Date().toISOString()); pr.setProperty('STOCK_AGENT_ERR', ''); // 폰 🔄 요청은 이걸로 처리됨
     return jsonOut({ ok: true, saved: true, date: sum.date, historyCount: hist.length });
   } finally { lock.releaseLock(); }
+}
+// ── 폰 🔄 → 노트북 대기 프로그램(tools/toss-sync/agent.js)이 토스 현황을 받아 올림 ─────────
+// 앱은 requestTossSync 로 '받아 와 줘' 표시만 남기고, 노트북이 pollTossSync 로 20초마다 확인하다가 표시가 있으면 동기화(saveStockSnapshot)한다.
+// 노트북이 확인할 때마다 시각을 남겨 앱이 '노트북이 켜져 있는지' 알려 줄 수 있게 한다. 토스 키는 여전히 노트북에만 있다.
+const STOCK_REQ_GAP_MS = 60 * 1000; // 처리 안 된 요청이 있으면 1분 동안은 새로 만들지 않음
+function tossSyncState_() {
+  const p = PropertiesService.getScriptProperties();
+  return { requestedAt: p.getProperty('STOCK_SYNC_REQ') || null, savedAt: p.getProperty('STOCK_SYNC_SAVED') || null, agentSeenAt: p.getProperty('STOCK_AGENT_SEEN') || null, agentError: p.getProperty('STOCK_AGENT_ERR') || null };
+}
+function tossSyncPending_(st) { return !!st.requestedAt && (!st.savedAt || st.requestedAt > st.savedAt); }
+function handleRequestTossSync_() {
+  const st = tossSyncState_();
+  if (tossSyncPending_(st) && Date.now() - Date.parse(st.requestedAt) < STOCK_REQ_GAP_MS) return jsonOut(Object.assign({ ok: true, requested: false, skipped: 'pending' }, st));
+  st.requestedAt = new Date().toISOString();
+  PropertiesService.getScriptProperties().setProperty('STOCK_SYNC_REQ', st.requestedAt);
+  return jsonOut(Object.assign({ ok: true, requested: true }, st));
+}
+// 노트북: 확인할 때마다 시각을 남기고, 지난번 동기화 결과(error: 문구 / '' 성공)가 있으면 남김
+function handlePollTossSync_(body) {
+  const p = PropertiesService.getScriptProperties();
+  p.setProperty('STOCK_AGENT_SEEN', new Date().toISOString());
+  if (typeof body.error === 'string') p.setProperty('STOCK_AGENT_ERR', body.error.slice(0, 300));
+  const st = tossSyncState_();
+  return jsonOut({ ok: true, pending: tossSyncPending_(st), requestedAt: st.requestedAt });
 }
 function handleLoadStockSnapshot_() {
   const folder = getFolder_(), files = folder.getFilesByName(STOCK_FILE_NAME);

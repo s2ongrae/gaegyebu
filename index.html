@@ -9144,14 +9144,34 @@ function waitFreshNews(prevAt,tries){
     else if(tries>1)waitFreshNews(prevAt,tries-1);
   });},NEWS_REFRESH_WAIT);
 }
+// 토스 현황: 서버에 '받아 와 줘' 표시 → 노트북 대기 프로그램(tools/toss-sync/agent.js, 20초마다 확인)이 받아 올림 → 새 현황이 올 때까지 10초마다 확인
+var TOSS_WAIT_MS=10000,TOSS_WAIT_TRIES=9,TOSS_AGENT_ALIVE_MS=120000;
+function waitFreshToss(prevAt,tries){
+  setTimeout(function(){fetchTossSnapshot(true).then(function(d){
+    if(d&&d.latest&&d.latest.at!==prevAt){showToast('📈 토스 현황을 새로 받았어요('+String(d.latest.at).slice(11,16)+' 기준).');if(curPage==='stk')renderStock();}
+    else if(tries>1)waitFreshToss(prevAt,tries-1);
+    else showToast('⚠️ 노트북에서 토스 현황이 오지 않았어요. 노트북이 켜져 있고 집 와이파이인지 확인해 주세요.');
+  });},TOSS_WAIT_MS);
+}
+function tossSyncMsg(q,s,prevAt){
+  if(s&&s.at!==prevAt)return'📈 토스 현황: '+s.date+' '+tossAge(s.at).label+' 자료';
+  if(!q||!q.ok)return'📈 토스 현황 요청 실패(서버 새 버전 필요할 수 있음)';
+  var seen=Date.parse(q.agentSeenAt||''),err=q.agentError?' · 지난번 실패: '+q.agentError:'';
+  if(!isFinite(seen))return'📈 노트북 대기 프로그램이 아직 연결된 적 없어요(tools/toss-sync 안내 참고)';
+  var mins=Math.round((Date.now()-seen)/60000);
+  if(Date.now()-seen>TOSS_AGENT_ALIVE_MS)return'📈 노트북이 '+(mins<60?mins+'분 전':newsAgo(q.agentSeenAt))+' 마지막으로 확인했어요(꺼짐·절전이면 못 받아요)'+err;
+  waitFreshToss(prevAt,TOSS_WAIT_TRIES);
+  return'📈 노트북에 토스 현황을 요청했어요(1분 안)'+err;
+}
 function stkRefreshAll(){
   if(!serverReady()){showToast('⚠️ 서버가 연결돼 있지 않아요(⚙️ 서버 설정).');return;}
   var b=document.getElementById('stk-refresh');if(b){if(b.disabled)return;b.disabled=true;b.classList.add('spin');}
   var nc=loadNewsCache(),prevAt=nc&&nc.updatedAt,req=serverCall({action:'requestNewsRefresh'},20000).catch(function(){return null;});
-  Promise.all([fetchTossSnapshot(true),fetchStockNews(true),req]).then(function(r){
+  var tc0=loadTossCache(),prevToss=tc0&&tc0.latest&&tc0.latest.at,treq=serverCall({action:'requestTossSync'},20000).catch(function(){return null;});
+  Promise.all([fetchTossSnapshot(true),fetchStockNews(true),req,treq]).then(function(r){
     if(b){b.disabled=false;b.classList.remove('spin');}
     var tc=loadTossCache(),s=tc&&tc.latest,q=r[2],msg=[];
-    msg.push(s?'📈 보유 현황: '+s.date+' '+tossAge(s.at).label+' 자료':'📈 보유 현황을 못 받았어요');
+    msg.push(tossSyncMsg(r[3],s,prevToss));
     if(q&&q.ok&&q.started){msg.push('📰 뉴스를 새로 모으는 중(1~2분)');waitFreshNews(prevAt,NEWS_REFRESH_TRIES);}
     else if(q&&q.ok&&q.skipped==='recent')msg.push('📰 뉴스는 '+newsAgo(q.updatedAt)+' 모은 게 최신(30분에 한 번)');
     else if(q&&q.ok&&q.skipped==='running')msg.push('📰 뉴스를 이미 모으는 중');
