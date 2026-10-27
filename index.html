@@ -743,6 +743,7 @@ input[type=number],input[type=date],select{min-height:36px}
 .tk-auto-hd small{font-weight:400;font-size:12px;color:#166534}
 .tk-auto-row{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0}
 .tk-auto .tk-apply{margin:4px 0 0}
+.tk-auto-fx{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:#166534;margin:2px 0 4px}
 .stk-refresh{margin-left:auto;font-size:16px;padding:4px 8px}
 .stk-refresh.spin{animation:stkspin 1s linear infinite}
 @keyframes stkspin{to{transform:rotate(360deg)}}
@@ -2834,6 +2835,7 @@ function buildFullBackupPayload(){
   payload.autoMtSkip=readAutoMtSkip();
   payload.deletedCats=readCatDeleted();
   payload.deletedAssets=readAssetDeleted();
+  payload.stockFx=loadStockFx();
   return payload;
 }
 // ══ 동기화 병합 엔진 (3-way 병합) ════════════════════════════════
@@ -2857,7 +2859,7 @@ var SYNC_COLS=[
   {k:'assets',t:'leaf',depth:2},
   {k:'budgets',t:'leaf',depth:3},
   {k:'extraSubs',t:'obj'},{k:'taxLimits',t:'obj'},{k:'prepay',t:'obj'},{k:'stockPrincipalHist',t:'obj'},
-  {k:'fixedDateOverrides',t:'obj'},{k:'autoMtSkip',t:'obj'},{k:'deletedCats',t:'obj'},{k:'deletedAssets',t:'obj'}
+  {k:'fixedDateOverrides',t:'obj'},{k:'autoMtSkip',t:'obj'},{k:'deletedCats',t:'obj'},{k:'deletedAssets',t:'obj'},{k:'stockFx',t:'obj'}
 ];
 function cyrb53(str){
   var h1=0xdeadbeef,h2=0x41c6ce57;
@@ -3042,6 +3044,7 @@ function applyMergedPayload(m){
     if(isPlainObj(m.autoMtSkip))saveAutoMtSkip(m.autoMtSkip);
     if(isPlainObj(m.deletedCats))saveCatDeleted(m.deletedCats);
     if(isPlainObj(m.deletedAssets))saveAssetDeleted(m.deletedAssets);
+    if(isPlainObj(m.stockFx))saveStockFx(m.stockFx);
   }finally{_syncMute--;}
 }
 // 서버 데이터를 받은 직후에 항상 다시 적용하는 정리 규칙(서버의 오래된 값이 삭제한 카테고리나 잘못된 성격을 되살리지 못하게)
@@ -8569,6 +8572,7 @@ function restoreCheckpoint(i){
     applyMergedPayload(Object.assign({},data,{txs:rdb.txs,assets:rdb.assets,budgets:rdb.budgets}));
     saveCatDeleted(data.deletedCats||{}); // 카테고리 삭제 기록도 그 시점 상태로(스냅샷 이후 삭제한 카테고리는 다시 살아남)
     saveAssetDeleted(data.deletedAssets||{}); // 자산 항목 삭제 기록도 그 시점 상태로
+    if(isPlainObj(data.stockFx))saveStockFx(data.stockFx); // 해외 평균 매수 환율(옛 체크포인트엔 없음 → 지금 값 유지)
     rebuildCatsFromStores(); // 삭제로 지워졌던 기본/사용자 카테고리를 목록에 다시 만든다
     syncNow({force:true}); // 되돌리기도 의도한 큰 변경이라 바로 서버에 반영
     showToast('↩️ 이전 상태로 되돌렸어요.');
@@ -9092,11 +9096,31 @@ function tossApplyAsset(){
   saveAssetItem(ym,name,v);showToast('✅ '+ym+' '+name+'에 반영했어요.');renderStock();
 }
 function tossApplyPrincipal(){
-  var d=loadTossCache();if(!d||!d.latest)return;var s=d.latest,ym=gYM(),v=Math.round(tossNum(s.totals.purchase.krwTotal)),cur=getStockPrincipal(ym);
+  var d=loadTossCache();if(!d||!d.latest)return;var s=d.latest,ym=gYM(),v=tossPrincipalOf(s).v,cur=getStockPrincipal(ym);
   if(!confirm(ym+' 주식 원금을\n'+ff(cur)+' → '+ff(v)+'\n(토스증권 투자원금, '+s.date+' 기준)\n으로 바꿀까요?'))return;
   setStockPrincipal(v,ym);showToast('✅ '+ym+' 원금에 반영했어요.');renderStock();
 }
-// 토스 현황 자동 반영: 새 현황을 받으면 그 날짜가 속한 달의 주식계좌(평가금액, 체크 시 예수금 포함)와 원금(토스 투자원금 = 지금 보유 종목 매입금액 합)을 맞춤.
+// 원금 = 국내 매입금액 + 해외 달러 매입금액 × 해외 평균 매수 환율. 토스 API 는 해외 원금을 '오늘 환율'로만 줘서, 토스 앱(살 때 환율) 원금과 달라짐.
+// 그래서 토스 앱 원금을 한 번 입력받아 환율을 거꾸로 맞춰 두고(기기끼리 공유: stockFx) 그 환율로 계산. 맞춘 적 없으면 API 값(오늘 환율).
+var STOCK_FX_KEY='gaegyebu_stock_fx';
+function loadStockFx(){return readObjKey(STOCK_FX_KEY);}
+function saveStockFx(m){localStorage.setItem(STOCK_FX_KEY,JSON.stringify(m));scheduleSync();}
+function tossPrincipalOf(s){
+  var pu=(s&&s.totals&&s.totals.purchase)||{},r=Number(loadStockFx().rate);
+  if(r>0&&pu.krw!=null)return{v:Math.round(tossNum(pu.krw)+tossNum(pu.usd)*r),rate:r};
+  return{v:Math.round(tossNum(pu.krwTotal)),rate:null};
+}
+function tossCalibrateFx(){
+  var d=loadTossCache(),s=d&&d.latest,pu=s&&s.totals&&s.totals.purchase;if(!pu)return;
+  if(!(tossNum(pu.usd)>0)){showToast('해외 주식 매입금액이 없어서 환율을 맞출 필요가 없어요.');return;}
+  var inp=prompt('토스증권 앱에 보이는 투자 원금(원)을 입력하세요.\n해외 주식 평균 매수 환율을 이 숫자에 맞춰요(토스 '+s.date+' 현황 기준).',String(tossPrincipalOf(s).v));
+  if(inp==null)return;
+  var app=Number(String(inp).replace(/[^0-9.]/g,'')),rate=(app-tossNum(pu.krw))/tossNum(pu.usd);
+  if(!(app>0)||!(rate>=500&&rate<=3000)){alert('입력한 원금으로 계산한 환율('+(isFinite(rate)?rate.toFixed(1):'-')+'원)이 이상해요. 숫자를 다시 확인해 주세요.');return;}
+  saveStockFx({rate:rate,appPrincipal:app,krw:tossNum(pu.krw),usd:tossNum(pu.usd),snapAt:s.at,at:new Date().toISOString()});
+  tossAutoApply();showToast('✅ 해외 평균 매수 환율을 '+rate.toFixed(1)+'원으로 맞췄어요.');renderStock();
+}
+// 토스 현황 자동 반영: 새 현황을 받으면 그 날짜가 속한 달의 주식계좌(평가금액, 체크 시 예수금 포함)와 원금(위 tossPrincipalOf)을 맞춤.
 // TOSS_AUTO_FROM 이전 달은 건드리지 않음(사용자 결정 2026-10-27: 이번 달부터). 값이 같으면 저장하지 않음(동기화 낭비 방지).
 var TOSS_AUTO_FROM='2026-10';
 function tossAutoOn(){return tossPref().auto!==false;}
@@ -9106,7 +9130,7 @@ function tossAutoApply(){
   var d=loadTossCache(),s=d&&d.latest;
   if(!s||!s.totals||!s.totals.value||!s.totals.purchase||!/^\d{4}-\d{2}/.test(String(s.date||'')))return[];
   var ym=String(s.date).slice(0,7);if(ym<TOSS_AUTO_FROM)return[];
-  var name=tossAssetName(),v=tossAssetValue(s),p=Math.round(tossNum(s.totals.purchase.krwTotal)),ch=[];
+  var name=tossAssetName(),v=tossAssetValue(s),p=tossPrincipalOf(s).v,ch=[];
   if(v>0&&(Number(getAssets(ym)[name])||0)!==v){saveAssetItem(ym,name,v);ch.push('asset');}
   if(p>0&&Number(loadStockPrincipalHist()[ym])!==p){setStockPrincipal(p,ym);ch.push('principal');}
   return ch;
@@ -9164,13 +9188,14 @@ function renderTossCard(){
   h+='<div class="tk-bar" aria-label="종목 비중">'+seg.map(function(x){return'<span style="width:'+(x.w*100).toFixed(2)+'%;background:'+x.c+'" title="'+escCatHtml(x.n)+' '+(x.w*100).toFixed(1)+'%"></span>';}).join('')+'</div>'
     +'<div class="tk-legend">'+seg.map(function(x){return'<span><i style="background:'+x.c+'"></i>'+escCatHtml(x.n)+' '+Math.round(x.w*100)+'%</span>';}).join('')+'</div>';
   // 반영 버튼
-  var ym=gYM(),an=tossAssetName(),av=tossAssetValue(s),acur=Number(getAssets(ym)[an])||0,pv=Math.round(tossNum(t.purchase&&t.purchase.krwTotal)),pcur=getStockPrincipal(ym);
+  var ym=gYM(),an=tossAssetName(),av=tossAssetValue(s),acur=Number(getAssets(ym)[an])||0,pv=tossPrincipalOf(s).v,pcur=getStockPrincipal(ym);
   var aym=String(s.date||'').slice(0,7),auto=tossAutoOn()&&aym>=TOSS_AUTO_FROM,chk='<label class="tk-chk"><input type="checkbox" '+(tossAutoOn()?'checked':'')+' onchange="setTossAuto(this.checked)"> 자동 반영</label><label class="tk-chk"><input type="checkbox" '+(tossCashIncluded()?'checked':'')+' onchange="setTossCash(this.checked)"> 예수금 포함</label>';
   if(auto){
-    var am=getAssets(aym),apr=Number(loadStockPrincipalHist()[aym])||0;
+    var am=getAssets(aym),apr=Number(loadStockPrincipalHist()[aym])||0,fxr=tossPrincipalOf(s).rate;
     h+='<div class="tk-auto"><div class="tk-auto-hd">🔗 자산 탭에 자동 반영 중 <small>'+escCatHtml(aym)+' · 토스 '+escCatHtml(String(s.date))+' 현황 기준</small></div>'
       +'<div class="tk-auto-row"><span>💼 '+escCatHtml(an)+'</span><b>'+ff(Number(am[an])||0)+'</b></div>'
       +'<div class="tk-auto-row"><span>💰 원금(투자원금)</span><b>'+ff(apr)+'</b></div>'
+      +'<div class="tk-auto-fx">'+(fxr?'해외분은 평균 매수 환율 1달러 '+fxr.toFixed(1)+'원으로 계산':'해외분은 오늘 환율로 계산 중(토스 앱 원금과 다를 수 있어요)')+' <button class="btn bg2 bsm" onclick="tossCalibrateFx()">'+(fxr?'🎯 다시 맞추기':'🎯 토스 앱 원금으로 맞추기')+'</button></div>'
       +'<div class="tk-apply">'+chk+'</div></div>';
   }else{
     h+='<div class="tk-apply">'
