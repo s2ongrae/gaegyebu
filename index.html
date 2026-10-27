@@ -738,6 +738,14 @@ input[type=number],input[type=date],select{min-height:36px}
 .tk-apply{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 12px}
 .tk-diff{font-weight:400;opacity:.85;margin-left:4px}
 .tk-chk{font-size:12px;color:var(--mu2);display:flex;align-items:center;gap:4px;cursor:pointer}
+.tk-auto{background:#dcfce7;border:1px solid #86efac;border-radius:var(--rs);padding:8px 12px;margin:6px 0 12px}
+.tk-auto-hd{font-size:13px;font-weight:800;color:#166534;margin-bottom:4px}
+.tk-auto-hd small{font-weight:400;font-size:12px;color:#166534}
+.tk-auto-row{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0}
+.tk-auto .tk-apply{margin:4px 0 0}
+.stk-refresh{margin-left:auto;font-size:16px;padding:4px 8px}
+.stk-refresh.spin{animation:stkspin 1s linear infinite}
+@keyframes stkspin{to{transform:rotate(360deg)}}
 .tk-sorts{display:flex;gap:4px;align-items:center;font-size:12px;color:var(--mu);margin-bottom:6px}
 .tk-list{border-top:1px solid var(--bd)}
 .tk-row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 56px;gap:8px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--bd);font-size:13px}
@@ -1093,6 +1101,7 @@ input[type=number],input[type=date],select{min-height:36px}
     <button class="nb stk-subtab" onclick="switchStkSub('hold')" id="stk-sub-hold">📈 보유 현황</button>
     <button class="nb stk-subtab" onclick="switchStkSub('ana')" id="stk-sub-ana">🔍 분석</button>
     <button class="nb stk-subtab" onclick="switchStkSub('ipo')" id="stk-sub-ipo">🗓 공모주</button>
+    <button class="nb stk-refresh" onclick="stkRefreshAll()" id="stk-refresh" title="보유 현황·뉴스 새로 받기" aria-label="새로고침">🔄</button>
   </div>
   <div class="stk-subpanel" id="stk-panel-overview">
     <div id="d-stk"></div>
@@ -3485,6 +3494,7 @@ function initApp(){
   loadExtraSubs();
   loadAI();
   enforceDeletedAssets(); // 지운 자산 항목이 다른 기기 동기화로 되살아나 있으면 다시 지움
+  try{tossAutoApply();}catch(e){console.warn('[가계부] 토스 자동 반영 실패',e);}
   loadBT();
   enforceDeletedCats(); // 삭제한 카테고리를 목록·예산 항목·내역에 다시 적용(복원 안전망보다 먼저 실행해야 되살아나지 않음)
   // 안전망: 예산 항목(BT)엔 있는데 카테고리 트리(CATS)엔 없는 소분류가 있으면 자동 복구한다.
@@ -9042,7 +9052,7 @@ function fetchTossSnapshot(force){
     if(isAuthError(r)){onServerAuthFail(r);return null;}
     if(!r||!r.ok)return null;
     var d={latest:isPlainObj(r.latest)?r.latest:null,history:Array.isArray(r.history)?r.history:[],fetchedAt:Date.now()};
-    saveTossCache(d);return d;
+    saveTossCache(d);tossAutoApply();return d;
   }).catch(function(e){_tossFetching=false;console.warn('[가계부] 토스 스냅샷 불러오기 실패',e);return null;});
 }
 function tossNum(v){var n=Number(v);return isFinite(n)?n:0;}
@@ -9070,7 +9080,7 @@ function tossSorted(items){
   return items.slice().sort(function(a,b){return key(b)-key(a);});
 }
 function setTossSort(k){setTossPref('sort',k);renderTossCard();}
-function setTossCash(on){setTossPref('cash',!!on);renderTossCard();}
+function setTossCash(on){setTossPref('cash',!!on);tossAutoApply();renderStock();}
 var TOSS_GROUP_SHOW=10;
 function tossIsForeign(x){return x.country?x.country!=='KR':x.currency==='USD';}
 function toggleTossGroup(k){setTossPref('open_'+k,!tossPref()['open_'+k]);renderTossCard();}
@@ -9086,6 +9096,45 @@ function tossApplyPrincipal(){
   if(!confirm(ym+' 주식 원금을\n'+ff(cur)+' → '+ff(v)+'\n(토스증권 투자원금, '+s.date+' 기준)\n으로 바꿀까요?'))return;
   setStockPrincipal(v,ym);showToast('✅ '+ym+' 원금에 반영했어요.');renderStock();
 }
+// 토스 현황 자동 반영: 새 현황을 받으면 그 날짜가 속한 달의 주식계좌(평가금액, 체크 시 예수금 포함)와 원금(토스 투자원금 = 지금 보유 종목 매입금액 합)을 맞춤.
+// TOSS_AUTO_FROM 이전 달은 건드리지 않음(사용자 결정 2026-10-27: 이번 달부터). 값이 같으면 저장하지 않음(동기화 낭비 방지).
+var TOSS_AUTO_FROM='2026-10';
+function tossAutoOn(){return tossPref().auto!==false;}
+function setTossAuto(on){setTossPref('auto',!!on);if(on)tossAutoApply();renderStock();}
+function tossAutoApply(){
+  if(!tossAutoOn())return[];
+  var d=loadTossCache(),s=d&&d.latest;
+  if(!s||!s.totals||!s.totals.value||!s.totals.purchase||!/^\d{4}-\d{2}/.test(String(s.date||'')))return[];
+  var ym=String(s.date).slice(0,7);if(ym<TOSS_AUTO_FROM)return[];
+  var name=tossAssetName(),v=tossAssetValue(s),p=Math.round(tossNum(s.totals.purchase.krwTotal)),ch=[];
+  if(v>0&&(Number(getAssets(ym)[name])||0)!==v){saveAssetItem(ym,name,v);ch.push('asset');}
+  if(p>0&&Number(loadStockPrincipalHist()[ym])!==p){setStockPrincipal(p,ym);ch.push('principal');}
+  return ch;
+}
+// 주식 탭 🔄: 서버에서 보유 현황·뉴스를 다시 받고, 서버에 뉴스 다시 모으기를 부탁(30분에 한 번). 토스 현황 자체는 노트북 동기화로만 새로 생김.
+var NEWS_REFRESH_WAIT=75000,NEWS_REFRESH_TRIES=4; // 75초마다 최대 4번(약 5분) 다 모였는지 확인
+// 서버가 새로 다 모았으면(모으는 중이 아니고 모은 시각이 바뀜) 다시 그림
+function waitFreshNews(prevAt,tries){
+  setTimeout(function(){fetchStockNews(true).then(function(nd){
+    if(nd&&nd.status!=='running'&&nd.updatedAt&&nd.updatedAt!==prevAt){if(curPage==='stk'){renderStockAna();renderIpo();}showToast('📰 뉴스를 새로 받았어요.');}
+    else if(tries>1)waitFreshNews(prevAt,tries-1);
+  });},NEWS_REFRESH_WAIT);
+}
+function stkRefreshAll(){
+  if(!serverReady()){showToast('⚠️ 서버가 연결돼 있지 않아요(⚙️ 서버 설정).');return;}
+  var b=document.getElementById('stk-refresh');if(b){if(b.disabled)return;b.disabled=true;b.classList.add('spin');}
+  var nc=loadNewsCache(),prevAt=nc&&nc.updatedAt,req=serverCall({action:'requestNewsRefresh'},20000).catch(function(){return null;});
+  Promise.all([fetchTossSnapshot(true),fetchStockNews(true),req]).then(function(r){
+    if(b){b.disabled=false;b.classList.remove('spin');}
+    var tc=loadTossCache(),s=tc&&tc.latest,q=r[2],msg=[];
+    msg.push(s?'📈 보유 현황: '+s.date+' '+tossAge(s.at).label+' 자료':'📈 보유 현황을 못 받았어요');
+    if(q&&q.ok&&q.started){msg.push('📰 뉴스를 새로 모으는 중(1~2분)');waitFreshNews(prevAt,NEWS_REFRESH_TRIES);}
+    else if(q&&q.ok&&q.skipped==='recent')msg.push('📰 뉴스는 '+newsAgo(q.updatedAt)+' 모은 게 최신(30분에 한 번)');
+    else if(q&&q.ok&&q.skipped==='running')msg.push('📰 뉴스를 이미 모으는 중');
+    else msg.push('📰 뉴스 다시 모으기 요청 실패');
+    showToast(msg.join(' · '));renderStock();
+  });
+}
 function tossRefresh(){var b=document.getElementById('tk-refresh');if(b)b.disabled=true;fetchTossSnapshot(true).then(function(d){if(b)b.disabled=false;if(d)showToast('🔄 토스증권 현황을 새로 받았어요.');else if(!serverReady())showToast('⚠️ 서버가 연결돼 있지 않아요.');renderTossCard();});}
 function renderTossCard(){
   var el=document.getElementById('d-toss');if(!el)return;
@@ -9099,7 +9148,7 @@ function renderTossCard(){
   var s=d.latest,t=s.totals||{},age=tossAge(s.at),stale=age.h>72;
   var items=tossSorted(s.items||[]),hist=(d.history||[]).filter(function(h){return h&&h.date;});
   var h='<div class="card tk-card"><div class="card-title">📈 토스증권 보유 현황 <span class="sub">· '+escCatHtml(String(s.date))+' 기준 · '+age.label+'</span>'
-    +'<button id="tk-refresh" class="btn bg2 bsm" style="margin-left:auto" onclick="tossRefresh()" title="서버에서 다시 받기">🔄</button></div>';
+    +'<button id="tk-refresh" class="btn bg2 bsm" style="margin-left:auto" onclick="stkRefreshAll()" title="보유 현황·뉴스 새로 받기">🔄</button></div>';
   if(stale)h+='<div class="al wrn mb8">⚠️ '+age.label+' 자료예요. 노트북에서 동기화(<code>npm run sync</code>)를 실행해 주세요. 집 와이파이가 아니면 허용 IP 때문에 실패할 수 있어요.</div>';
   h+='<div class="g4 tk-kpi">'
     +'<div class="kc"><div class="kl">총 평가금액</div><div class="kv">'+ff(t.value&&t.value.krwTotal)+'</div><div class="ks">세후 '+ff(t.valueAfterCost&&t.valueAfterCost.krwTotal)+'</div></div>'
@@ -9116,10 +9165,19 @@ function renderTossCard(){
     +'<div class="tk-legend">'+seg.map(function(x){return'<span><i style="background:'+x.c+'"></i>'+escCatHtml(x.n)+' '+Math.round(x.w*100)+'%</span>';}).join('')+'</div>';
   // 반영 버튼
   var ym=gYM(),an=tossAssetName(),av=tossAssetValue(s),acur=Number(getAssets(ym)[an])||0,pv=Math.round(tossNum(t.purchase&&t.purchase.krwTotal)),pcur=getStockPrincipal(ym);
-  h+='<div class="tk-apply">'
+  var aym=String(s.date||'').slice(0,7),auto=tossAutoOn()&&aym>=TOSS_AUTO_FROM,chk='<label class="tk-chk"><input type="checkbox" '+(tossAutoOn()?'checked':'')+' onchange="setTossAuto(this.checked)"> 자동 반영</label><label class="tk-chk"><input type="checkbox" '+(tossCashIncluded()?'checked':'')+' onchange="setTossCash(this.checked)"> 예수금 포함</label>';
+  if(auto){
+    var am=getAssets(aym),apr=Number(loadStockPrincipalHist()[aym])||0;
+    h+='<div class="tk-auto"><div class="tk-auto-hd">🔗 자산 탭에 자동 반영 중 <small>'+escCatHtml(aym)+' · 토스 '+escCatHtml(String(s.date))+' 현황 기준</small></div>'
+      +'<div class="tk-auto-row"><span>💼 '+escCatHtml(an)+'</span><b>'+ff(Number(am[an])||0)+'</b></div>'
+      +'<div class="tk-auto-row"><span>💰 원금(투자원금)</span><b>'+ff(apr)+'</b></div>'
+      +'<div class="tk-apply">'+chk+'</div></div>';
+  }else{
+    h+='<div class="tk-apply">'
     +'<button class="btn bp bsm" onclick="tossApplyAsset()">💼 '+escCatHtml(ym)+' '+escCatHtml(an)+'에 반영 <span class="tk-diff">'+f(acur)+' → '+f(av)+'</span></button>'
     +'<button class="btn bg2 bsm" onclick="tossApplyPrincipal()">💰 원금에 반영 <span class="tk-diff">'+f(pcur)+' → '+f(pv)+'</span></button>'
-    +'<label class="tk-chk"><input type="checkbox" '+(tossCashIncluded()?'checked':'')+' onchange="setTossCash(this.checked)"> 예수금 포함</label></div>';
+    +chk+'</div>';
+  }
   // 보유 종목
   var sk=tossPref().sort||'value';
   h+='<div class="tk-sorts">정렬 '+[['value','평가금액'],['rate','수익률'],['daily','오늘']].map(function(o){return'<button class="btn '+(sk===o[0]?'bp':'bg2')+' bsm" onclick="setTossSort(\''+o[0]+'\')">'+o[1]+'</button>';}).join('')+'</div>';

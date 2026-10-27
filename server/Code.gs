@@ -4,7 +4,7 @@
 //  - 저장은 "개정번호(rev)"를 확인해서, 다른 기기가 먼저 저장했으면 덮어쓰지 않고 충돌로 돌려보내요.
 //  - 저장하기 전에 하루에 한 번 이전 파일을 백업 폴더에 남겨요(14일 보관).
 //  - 토스증권 보유 현황은 노트북 tools/toss-sync 가 스냅샷으로 저장하고, 앱은 읽기만 해요(토스 키는 여기 없음).
-//  - 매일 아침 보유 종목 최신 뉴스와 공모주 관련 기사 링크를 구글 뉴스 RSS 로 모아 둬요(setupNewsTrigger 로 예약).
+//  - 매일 아침 보유 종목 최신 뉴스와 공모주 관련 기사 링크를 구글 뉴스 RSS 로 모아 둬요(setupNewsTrigger 로 예약). 앱 🔄 로 30분에 한 번 다시 모을 수 있어요.
 // ══════════════════════════════════════════════════════════════
 
 const FOLDER_NAME = '가계부';
@@ -42,6 +42,7 @@ function doPost(e) {
       case 'saveStockSnapshot': return handleSaveStockSnapshot_(body);
       case 'loadStockSnapshot': return handleLoadStockSnapshot_();
       case 'loadStockNews': return handleLoadStockNews_();
+      case 'requestNewsRefresh': return handleRequestNewsRefresh_();
       case 'getCalendarEvents': return handleGetCalendarEvents(body);
       case 'aiSearchParse': return handleAiSearchParse(body);
       default: return jsonOut({ ok: false, error: 'unknown_action' });
@@ -247,6 +248,8 @@ const NEWS_PER_STOCK = 5;
 const NEWS_IPO_MAX = 10;
 const NEWS_TIME_BUDGET_MS = 270000;              // 한 번 실행은 6분 제한 → 4분 30초가 넘으면 저장하고 1분 뒤 이어서
 const NEWS_MAX_FAILS = 3;                        // 연달아 이만큼 실패하면(접속 차단 등) 그날은 멈춤
+const NEWS_MANUAL_GAP_MS = 30 * 60 * 1000;       // 앱 🔄 로 다시 모으기는 마지막으로 모은 뒤 30분이 지나야(구글 뉴스에 헛호출하지 않게)
+const NEWS_STUCK_MS = 10 * 60 * 1000;            // '모으는 중'이 10분 넘게 그대로면 멈춘 것으로 봄
 const IPO_BROKERS = ['미래에셋증권', '삼성증권', 'NH투자증권', '한국투자증권'];
 const EARN_RE = /실적|어닝|잠정|영업이익|매출액|earnings|quarter|guidance|Q[1-4]\b/i;
 const OPTION_QUOTE_RE = /\([A-Z]{1,6}\d{6}[CP]\d{3,8}\)|Stock Options( Chain)?\b/i;
@@ -347,6 +350,22 @@ function refreshStockNews() {
 function continueStockNews() { return refreshStockNews(); }
 function clearNewsContinue_() {
   ScriptApp.getProjectTriggers().forEach(tr => { if (tr.getHandlerFunction() === 'continueStockNews') ScriptApp.deleteTrigger(tr); });
+}
+// 앱 🔄: 바로 모으지 않고 1초 뒤 한 번 실행을 예약하고 곧장 돌려줌(모으는 데 1분쯤 걸려서 앱 요청이 기다리지 않게)
+function handleRequestNewsRefresh_() {
+  const files = getFolder_().getFilesByName(NEWS_FILE_NAME), d = files.hasNext() ? readNews_(files.next()) : {};
+  const last = Date.parse(d.updatedAt || d.startedAt || ''), now = Date.now();
+  const queued = ScriptApp.getProjectTriggers().some(tr => { const h = tr.getHandlerFunction(); return h === 'runStockNewsNow' || h === 'continueStockNews'; });
+  if (queued || (d.status === 'running' && isFinite(last) && now - last < NEWS_STUCK_MS)) return jsonOut({ ok: true, started: false, skipped: 'running' });
+  if (d.status !== 'running' && isFinite(last) && now - last < NEWS_MANUAL_GAP_MS) return jsonOut({ ok: true, started: false, skipped: 'recent', updatedAt: d.updatedAt || d.startedAt, nextAt: new Date(last + NEWS_MANUAL_GAP_MS).toISOString() });
+  ScriptApp.newTrigger('runStockNewsNow').timeBased().after(1000).create();
+  return jsonOut({ ok: true, started: true });
+}
+function runStockNewsNow() {
+  ScriptApp.getProjectTriggers().forEach(tr => { if (tr.getHandlerFunction() === 'runStockNewsNow') ScriptApp.deleteTrigger(tr); });
+  const file = getNewsFile_(), d = readNews_(file);
+  if (d.status === 'running') { d.status = 'stale'; file.setContent(JSON.stringify(d)); } // 멈춘 실행은 이어가지 않고 새로 시작
+  return refreshStockNews();
 }
 // 한 번만 실행하세요: 매일 아침 7시 20분 무렵(±15분) 자동 실행을 예약합니다. 다시 실행하면 예약을 새로 바꿔요.
 // (Apps Script 예약은 정확한 분을 보장하지 않아서, 이어하기까지 끝나도 8시 전에 준비되도록 일찍 잡음)
