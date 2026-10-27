@@ -9145,7 +9145,7 @@ function waitFreshNews(prevAt,tries){
   });},NEWS_REFRESH_WAIT);
 }
 // 토스 현황: 서버에 '받아 와 줘' 표시 → 노트북 대기 프로그램(tools/toss-sync/agent.js, 20초마다 확인)이 받아 올림 → 새 현황이 올 때까지 10초마다 확인
-var TOSS_WAIT_MS=10000,TOSS_WAIT_TRIES=9,TOSS_AGENT_ALIVE_MS=120000;
+var TOSS_WAIT_MS=10000,TOSS_WAIT_TRIES=15,TOSS_AGENT_ALIVE_MS=120000; // 10초마다 최대 2분 30초(실측: 요청→새 현황 약 1분 15초)
 function waitFreshToss(prevAt,tries){
   setTimeout(function(){fetchTossSnapshot(true).then(function(d){
     if(d&&d.latest&&d.latest.at!==prevAt){showToast('📈 토스 현황을 새로 받았어요('+String(d.latest.at).slice(11,16)+' 기준).');if(curPage==='stk')renderStock();}
@@ -9161,7 +9161,7 @@ function tossSyncMsg(q,s,prevAt){
   var mins=Math.round((Date.now()-seen)/60000);
   if(Date.now()-seen>TOSS_AGENT_ALIVE_MS)return'📈 노트북이 '+(mins<60?mins+'분 전':newsAgo(q.agentSeenAt))+' 마지막으로 확인했어요(꺼짐·절전이면 못 받아요)'+err;
   waitFreshToss(prevAt,TOSS_WAIT_TRIES);
-  return'📈 노트북에 토스 현황을 요청했어요(1분 안)'+err;
+  return'📈 노트북에 토스 현황을 요청했어요(1~2분)'+err;
 }
 function stkRefreshAll(){
   if(!serverReady()){showToast('⚠️ 서버가 연결돼 있지 않아요(⚙️ 서버 설정).');return;}
