@@ -31,7 +31,7 @@
 - 앱 주식 탭 🔄 → 서버에 요청 표시(`requestTossSync`) → 노트북이 확인(`pollTossSync`) → 동기화(`saveStockSnapshot`) → 앱이 10초마다 새 현황을 확인해 다시 그림.
 - 노트북이 확인할 때마다 시각이 남아서, 앱이 "노트북이 몇 분 전 마지막으로 확인했는지" 알려 줘요. 실패(허용 IP 등)하면 그 이유도 앱 알림에 떠요.
 - 같은 요청은 한 번만 처리하고, 동기화는 1분에 한 번까지예요. 기록: `gaegyebu-data/toss-agent.log`. 두 번 켜도 하나만 돌아요.
-- 노트북 시작 시 자동으로 켜기: 시작프로그램 폴더(`shell:startup`)의 `가계부 토스 대기.vbs`가 창 없이 `node agent.js`를 실행해요. 끄려면 그 파일을 지우고, 작업 관리자에서 `node.exe`(agent.js)를 끝내면 돼요.
+- 노트북 시작 시 자동으로 켜기: 시작프로그램 폴더(`shell:startup`)의 `gaegyebu-toss-agent.vbs`가 창 없이 `node agent.js`를 실행해요. 끄려면 그 파일을 지우고, 작업 관리자에서 `node.exe`(agent.js)를 끝내면 돼요.
 - 시험: `node agent.js --once`(한 번만 확인).
 
 ## 3-1. 정해진 시각 자동 실행(선택, 윈도우)
