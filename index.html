@@ -2657,7 +2657,7 @@ function getEffectiveBudget(ym,wantType){
     else if(item.amount>=0){amt=item.amount;tag='template';}
     else{
       var prevActual=0;
-      prevTxs.forEach(function(t){if(t.mid===item.mid&&t.sub===item.sub&&t.type===wantType)prevActual+=Number(t.amount)||0;});
+      prevTxs.forEach(function(t){prevActual+=budgetLineAmt(t,wantType,item.mid,item.sub);});
       if(wantType==='지출'){
         amt=prevActual>0?Math.round(prevActual*0.95/1000)*1000:0;
         tag=prevActual>0?'prev95':null;
@@ -2749,6 +2749,20 @@ function isIncomeLoss(t){return t.type==='지출'&&isInvestLossTx(t);}
 function incomeAmt(t){if(t.type==='수입')return Number(t.amount)||0;if(isIncomeLoss(t))return -(Number(t.amount)||0);return 0;}
 function isIncomeLike(t){return t.type==='수입'||isIncomeLoss(t);}
 function incomeSubOf(t){return isIncomeLoss(t)?'투자수입':t.sub;}
+// 예산 줄(종류·대분류·소분류) 하나에 이 거래가 더하는 금액 — 예산 탭·예산 이월·월평균이 같은 규칙을 쓰도록.
+// 수입 줄: 순투자수입 규칙(투자손실은 '수입>투자수입'의 마이너스) / 지출 줄: 투자손실 제외 / 저축 줄: 그대로
+function budgetLineAmt(t,type,mid,sub){
+  if(type==='수입'){
+    if(!isIncomeLike(t))return 0;
+    var tm=isIncomeLoss(t)?'수입':t.mid;if(tm!==mid)return 0;
+    if(sub!=null&&incomeSubOf(t)!==sub)return 0;
+    return incomeAmt(t);
+  }
+  if(t.type!==type||t.mid!==mid)return 0;
+  if(type==='지출'&&isInvestLossTx(t))return 0;
+  if(sub!=null&&t.sub!==sub)return 0;
+  return Number(t.amount)||0;
+}
 function getMonthSummary(ym){
   var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0,investLoss=0,loanRepay=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
   txs.forEach(function(t){
@@ -6745,7 +6759,7 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
   });
   var totalBudget=sectionEb.byMid[m]||0;
   var actual=0;
-  monthTxs.forEach(function(t){if(t.mid===m&&t.type===sec.type&&!isInvestLossTx(t))actual+=Number(t.amount)||0;});
+  monthTxs.forEach(function(t){actual+=budgetLineAmt(t,sec.type,m,null);});
   var pct2=totalBudget>0?Math.min(Math.round(actual/totalBudget*100),999):0;
   var over=isExpense&&totalBudget>0&&pct2>100;
   var achieved=!isExpense&&totalBudget>0&&pct2>=100;
@@ -6775,7 +6789,7 @@ function buildBudgetCard(m,groups,sectionEb,sec,isExpense,monthTxs,getHistAvg,ym
   }
   rows.forEach(function(r){
     var act=0;
-    monthTxs.forEach(function(t){if(t.mid===m&&t.sub===r.sub&&t.type===sec.type)act+=Number(t.amount)||0;});
+    monthTxs.forEach(function(t){act+=budgetLineAmt(t,sec.type,m,r.sub);});
     var row=document.createElement('div');row.className='bud-sub-row';
     var info=document.createElement('div');info.className='bud-sub-info';
     var l1=document.createElement('div');l1.className='bud-sub-l1';
@@ -6856,7 +6870,7 @@ function renderBud(){
   var yearMonthsCount=getAllMonths().filter(function(m){return m.slice(0,4)===curYear;}).length||1;
   function getHistAvg(mid,sub,type){
     var sum=0;
-    yearTxs.forEach(function(t){if(t.mid===mid&&t.sub===sub&&t.type===type)sum+=Number(t.amount)||0;});
+    yearTxs.forEach(function(t){sum+=budgetLineAmt(t,type,mid,sub);});
     return Math.round(sum/yearMonthsCount);
   }
 
@@ -10545,7 +10559,7 @@ function renderAnnual(months){
                 var v=(byNameMonth[x.name]||{})[ym]||0;
                 if(!v)return'';
                 var cellId=opts.idPrefix+'-cell-'+idx+'-'+yi;
-                var monthTxs=allTxs.filter(function(t){return t.type===opts.txType&&t[opts.txField]===x.name&&t.date.slice(0,7)===ym&&(opts.txType!=='지출'||!isInvestLossTx(t));});
+                var monthTxs=allTxs.filter(function(t){var li=(opts.txType==='수입'&&isIncomeLoss(t));return(t.type===opts.txType||li)&&(li?'투자수입':t[opts.txField])===x.name&&t.date.slice(0,7)===ym&&(opts.txType!=='지출'||!isInvestLossTx(t));}); // 칸 숫자(순투자수입)와 상세 목록이 맞도록 손실 포함
                 return'<tr><td colspan="'+colCount+'" style="padding:0;border-bottom:1px solid var(--bd)"><div id="'+cellId+'" style="display:none;padding:6px 8px 6px 32px;background:var(--sf2)">'
                   +'<div style="font-size:11px;font-weight:700;color:var(--mu2);margin-bottom:3px">'+ym+' '+x.name+'</div>'
                   +renderSubBreakdownRows(opts.monthSubBreakdown(monthTxs,x.name),4)
@@ -10589,7 +10603,7 @@ function renderAnnual(months){
         icon2:function(name){return SUB_ICON[name]||'';},
         cellColor:{strong:'rgba(39,103,73,.30)',mid:'rgba(39,103,73,.16)',weak:'rgba(39,103,73,.07)'},
         subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(isIncomeLike(t)&&incomeSubOf(t)===name)m[t.mid]=(m[t.mid]||0)+incomeAmt(t);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
-        monthSubBreakdown:function(txs,name){var m={};txs.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});}
+        monthSubBreakdown:function(txs,name){var m={};txs.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(isIncomeLoss(t)?-1:1)*(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});}
       });
 
       var savTable=buildRankedMonthlyTable(savRankedTbl,savGoalBySub,{
@@ -10600,7 +10614,7 @@ function renderAnnual(months){
         icon2:function(name){return SUB_ICON[name]||'';},
         cellColor:{strong:'rgba(43,108,176,.30)',mid:'rgba(43,108,176,.16)',weak:'rgba(43,108,176,.07)'},
         subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(t.type==='저축'&&t.sub===name)m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
-        monthSubBreakdown:function(txs,name){var m={};txs.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});}
+        monthSubBreakdown:function(txs,name){var m={};txs.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(isIncomeLoss(t)?-1:1)*(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});}
       });
 
       return expTable+incTable+savTable;
