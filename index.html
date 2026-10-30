@@ -222,8 +222,8 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
   .stock-2col-grid{grid-template-columns:1fr}
   .goal-progress-grid{grid-template-columns:1fr!important}
 }
-.his-row-grid{display:grid;grid-template-columns:34px 34px 34px 68px 78px 1fr 66px 92px 44px 30px;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid var(--bd);overflow-x:auto}
-@media(max-width:900px){.his-row-grid{grid-template-columns:30px 30px 30px 55px 65px 1fr 55px 78px 40px 26px;font-size:11px}}
+.his-row-grid{display:grid;grid-template-columns:38px 38px 38px 72px 88px minmax(0,1fr) 74px 96px 44px 30px;align-items:center;gap:6px;padding:7px 6px;border-bottom:1px solid var(--bd);overflow-x:auto}
+@media(max-width:900px){.his-row-grid{grid-template-columns:36px 36px 36px 64px 76px minmax(0,1fr) 68px 86px 40px 28px}}
 .anom-detail{display:none;margin-top:6px}
 .anom-row.open .anom-detail{display:block}
 .dtl-card{cursor:pointer}
@@ -481,6 +481,24 @@ input[type=number],input[type=date],select{min-height:36px}
 .nb{padding:6px 7px;font-size:11px}
 }
 
+/* 내역 목록이 좁을 때(목록 폭 720px 이하: 노트북 1024px 등) — 10칸 표 대신 2줄 카드. 기준은 화면이 아니라 목록 자체의 폭.
+   PC에서는 ✏️ 버튼을 그대로 둔다(행을 눌러 수정하는 건 폰에서만). 폰은 아래 "폰 보기 개선" 규칙이 다시 덮는다. */
+.his-panel{container-type:inline-size}
+@container (max-width:720px){
+  .his-row-grid{display:flex;flex-wrap:wrap;align-items:center;gap:3px 8px;padding:7px 6px;overflow:visible}
+  .his-row-grid>.his-br:nth-child(11){display:block;flex:0 0 100%;height:0;margin:0}
+  .his-row-grid .hb-type,.his-row-grid .hb-common{display:none!important}
+  .his-row-grid>:nth-child(6){order:1;flex:1 1 0;min-width:0;font-weight:700;white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;display:block!important}
+  .his-row-grid>:nth-child(8){order:2;margin-left:auto;font-size:14px!important;white-space:nowrap}
+  .his-row-grid>:nth-child(10){order:3}
+  .his-row-grid>:nth-child(11){order:4}
+  .his-row-grid>:nth-child(4){order:5;flex:0 1 auto;min-width:0;max-width:34%;color:var(--mu2)}
+  .his-row-grid>:nth-child(5){order:6;flex:0 1 auto;min-width:0;max-width:34%;color:var(--mu2)}
+  .his-row-grid>:nth-child(2),.his-row-grid>:nth-child(3),.his-row-grid>:nth-child(9){order:7}
+  .his-row-grid>:nth-child(7){order:8;margin-left:auto;flex:0 1 auto;min-width:0;max-width:30%;text-align:right;color:var(--mu)}
+  .his-row-grid>:empty{display:none}
+  .his-row-grid>.his-br:nth-child(11):empty{display:block}
+}
 /* ══ 폰(≤700px) 보기 개선 ══════════════════════════════════════════
    · 도구줄이 화면 밖으로 밀려나 월 선택·동기화 버튼을 못 누르던 것 → 두 줄로 접고 ⋯ 로 나머지 정리
    · 내역 행의 금액·메모가 행 안에서 옆으로 스크롤돼 안 보이던 것 → 3줄 카드로
@@ -550,6 +568,8 @@ input[type=number],input[type=date],select{min-height:36px}
   .anom-lo .anom-nm{flex:1 1 55%!important;min-width:0;word-break:keep-all}
   /* 눌러야 하는 것들은 손가락 크기로 */
   .nb{min-height:40px}
+  /* 하위 탭 버튼(주식·자산)은 상단 메뉴용 작은 글자를 물려받지 않게 */
+  .stk-subtab,.ast-subtab{font-size:12.5px!important;padding-left:8px!important;padding-right:8px!important;white-space:nowrap}
   /* 우선순위를 높여(:root) 위쪽의 '작은 글자 키우기' 규칙이 이 16px을 덮어쓰지 못하게 한다 */
   :root input[type=text],:root input[type=number],:root input[type=date],:root input[type=password],:root input[type=search],:root input:not([type]),:root textarea,:root select{font-size:14px!important}
   html.ios input[type=text],html.ios input[type=number],html.ios input[type=date],html.ios input[type=password],html.ios input[type=search],html.ios input:not([type]),html.ios textarea,html.ios select{font-size:16px!important}
@@ -559,7 +579,7 @@ input[type=number],input[type=date],select{min-height:36px}
 @media(max-width:900px){
   .g2>*,.g3>*,.g4>*,.g5>*,.inp-layout>*,.stock-2col-grid>*,.asset-comp-grid>*,.asset-comp-row>*,.bud-grid>*{min-width:0}
   .inp-layout{grid-template-columns:minmax(0,1fr)}
-  .asset-comp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .asset-comp-grid{grid-template-columns:minmax(0,1fr)} /* 태블릿: 두 칸이면 범례가 121px로 좁아져 항목 이름이 0px로 사라졌음 */
 }
 @media(max-width:700px){
   .g2,.g3,.g4,.g5{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -568,6 +588,8 @@ input[type=number],input[type=date],select{min-height:36px}
 }
 
 @media(max-width:900px){.inc-grid{grid-template-columns:minmax(0,1fr)}}
+/* 자산 구성 도넛: 칸이 좁으면 범례를 도넛 아래로(12px 글자로 범례가 길어져 800px에서 2px 넘치던 것) */
+@media(max-width:900px){.asset-comp-row{flex-wrap:wrap;justify-content:center;row-gap:10px}.asset-comp-row>*{max-width:100%}.asset-comp-row>:not(.asset-comp-donut){flex:1 1 200px;min-width:min(200px,100%)}}
 @media(max-width:700px){
   .donut-grid,.trend-grid,.hl-cards{grid-template-columns:minmax(0,1fr)}
   .donut-grid>*,.trend-grid>*,.hl-cards>*,.inp-kpi-row>*,.stk-kpi-row>*,.bs-tiles>*{min-width:0}
@@ -578,6 +600,94 @@ input[type=number],input[type=date],select{min-height:36px}
   .nb{padding:6px 5px;font-size:10.5px;letter-spacing:-.2px}
   .logo{margin-right:0}
 }
+
+
+
+/* 상단 도구줄(PC·태블릿): 긴 상태 문장이 버튼 자리를 차지해 오른쪽 버튼이 화면 밖으로 밀리던 것 → 상태 문장이 먼저 줄어듦(…) */
+@media(min-width:701px){
+  .si{min-width:0;flex:1 1 auto;overflow:hidden}
+  .si span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+  .sbar>select,.sbar>.btn,.sm{flex-shrink:0}
+}
+/* ══ PC·태블릿 가독성(모든 폭 공통 · 폰은 아래 "폰 가독성" 규칙이 다시 덮음) ════════════
+   · 11px 안팎(9~11.5px) 글자를 12px로. 12px 이상은 그대로(PC 화면 밀도 유지)
+   · 한국어 단어가 중간에서 끊기지 않게(keep-all), 아주 긴 글자열만 줄바꿈 */
+body{word-break:keep-all;overflow-wrap:break-word}
+.sub-badge{font-size:12px!important}
+.fold-card>summary .sub{font-size:12px!important}
+.card-title .sub{font-size:12px!important}
+.kl{font-size:12px!important}
+.ks{font-size:12px!important}
+.tbl th{font-size:12px!important}
+.bk{font-size:12px!important}
+.fg label{font-size:12px!important}
+.summary-row{font-size:12px!important}
+.cal-dow{font-size:12px!important}
+.cal-day-evt{font-size:12px!important}
+.cal-day-evt-more{font-size:12px!important}
+.cds{font-size:12px!important}
+.sec-divider{font-size:12px!important}
+.inc-split>div{font-size:12px!important}
+.inc-split.empty{font-size:12px!important}
+.inc-avg{font-size:12px!important}
+.bs-chip{font-size:12px!important}
+.bs-grow-e{font-size:12px!important}
+.bs-legend{font-size:12px!important}
+.bs-tbl th{font-size:12px!important}
+.bs-caret{font-size:12px!important}
+.bs-tag{font-size:12px!important}
+.bs-det-p{font-size:12px!important}
+.dash-range-note .prog{font-size:12px!important}
+.bs-m-sub{font-size:12px!important}
+.bs-usage-pct{font-size:12px!important}
+.sec-divider .sec-sub{font-size:12px!important}
+.his-row-grid{font-size:12px!important}
+.dtl-hint{font-size:12px!important}
+.tx-section-title{font-size:12px!important}
+.bud-tag{font-size:12px!important}
+.bud-sub-avg{font-size:12px!important}
+.bud-legend{font-size:12px!important}
+.fxi-sub{font-size:12px!important}
+.asset-group-title{font-size:12px!important}
+.asset-cat{font-size:12px!important}
+.ac-item .ac-sub{font-size:12px!important}
+.ac-item .ac-badge{font-size:12px!important}
+.ast-chg{font-size:12px!important}
+.flow-title .sub{font-size:12px!important}
+.flow-note{font-size:12px!important}
+.flow-chips{font-size:12px!important}
+.flow-chk-hint{font-size:12px!important}
+.stk-ins-row .m{font-size:12px!important}
+.stk-note{font-size:12px!important}
+.stk-ic-s{font-size:12px!important}
+.stk-ends{font-size:12px!important}
+.stk-chip{font-size:12px!important}
+.bs-pill,.bs-warnline{font-size:12px!important}
+.bs-seg-legend{font-size:12px!important}
+.bs-tile .t-l{font-size:12px!important}
+.bs-tile .t-s{font-size:12px!important}
+.sec-sub-t .sub{font-size:12px!important}
+.hl-card-h .s{font-size:12px!important}
+.hl-badge{font-size:12px!important}
+.hl-sub{font-size:12px!important}
+.hl-p{font-size:12px!important}
+.fxk-flow .ft .l{font-size:12px!important}
+.fxk-flow .ft .s{font-size:12px!important}
+.lg-chip .s{font-size:12px!important}
+.fxk-row .kl{font-size:12px!important}
+.fxk-row .ks{font-size:12px!important}
+[style*="font-size:9px"]{font-size:12px!important}
+[style*="font-size: 9px"]{font-size:12px!important}
+[style*="font-size:9.5px"]{font-size:12px!important}
+[style*="font-size: 9.5px"]{font-size:12px!important}
+[style*="font-size:10px"]{font-size:12px!important}
+[style*="font-size: 10px"]{font-size:12px!important}
+[style*="font-size:10.5px"]{font-size:12px!important}
+[style*="font-size: 10.5px"]{font-size:12px!important}
+[style*="font-size:11px"]{font-size:12px!important}
+[style*="font-size: 11px"]{font-size:12px!important}
+[style*="font-size:11.5px"]{font-size:12px!important}
+[style*="font-size: 11.5px"]{font-size:12px!important}
 
 /* ══ 폰 가독성 ══════════════════════════════════════════════════
    · 11px 안팎의 작은 글자를 12~13px로(폰에서 읽기 어렵던 것)
@@ -1980,6 +2090,7 @@ function isValidYMD(s){
 // 저축률(수입−지출)은 type 기준이라 이 성격 값으로는 바뀌지 않는다.
 function isCarLoanCat(mid,sub){return mid==='자동차'&&sub==='자동차 할부';}
 // 2026-10-19 확인된 잘못 입력 거래 바로잡기(레이 확인). 잘못된 값과 정확히 같을 때만 고치므로 여러 번 실행해도 안전하다.
+var LOTTO_FIX_IDS=['msh8lr6v4dom','msh8lr6vdp5f','msh8mcq78frj','msh8mcq74nyh'];
 var KNOWN_TX_FIXES=[
   {id:'msh8mcvyngq6',field:'date',from:'2025-10-10470',to:'2025-09-30'}, // 가스비 21,880원: 메모 '9월 1일 / 9월 30일 두개'의 두 번째 결제
   {id:'mung8qdxg3r5',field:'date',from:'32026-09-30',to:'2026-09-30'},    // 커피 2,000원(레이 확인)
@@ -1991,6 +2102,8 @@ function repairKnownTxs(){
   (db.txs||[]).forEach(function(t){
     KNOWN_TX_FIXES.forEach(function(f){if(t.id===f.id&&t[f.field]===f.from){t[f.field]=f.to;changed=true;}});
     if(t.type==='지출'&&isCarLoanCat(t.mid,t.sub)&&t.eval!=='저축'){t.eval='저축';changed=true;}
+    // 2026-10-29 사용자 확인: 2025-04·05 로또 4건(투자손실)이 종류 '저축'으로 잘못 기록돼 순투자수입 계산에서 빠졌음 → 다른 로또와 같게(지출·투자·현금)
+    if(LOTTO_FIX_IDS.indexOf(t.id)>=0&&t.type==='저축'&&isInvestLossTx(t)){t.type='지출';if(!t.eval)t.eval='투자';if(!t.payment)t.payment='현금';changed=true;}
   });
   if(changed){localStorage.setItem(DB_KEY,JSON.stringify(db));scheduleSync();}
   var fxChanged=false;
@@ -2627,6 +2740,15 @@ function calcNW(am,ym){
   return{ta:ta,td:td,nw:ta-td,insDebt:insDebt,legacyCard:lg.card,legacyCar:lg.car};
 }
 function isInvestLossTx(t){return t.mid==='금융지출'&&t.sub==='투자손실';}
+// ── 순투자수입 규칙 ──────────────────────────────────────────────
+// 투자손실(금융지출>투자손실)은 생활비 지출이 아니라 "투자수입의 마이너스"로 본다.
+// 그래서 수입 합계·누적 수입·항목별 수입에서는 투자수입에서 투자손실을 뺀 값(순투자수입)을 쓰고,
+// 지출 실적(예산·카테고리 순위·이상치)에서는 지금처럼 뺀다. (예전엔 손실이 수입에도 지출에도 안 잡혀 수입·저축률이 부풀었다)
+// 손실로 치는 건 종류가 '지출'인 투자손실만(월 요약 getMonthSummary와 같은 기준)
+function isIncomeLoss(t){return t.type==='지출'&&isInvestLossTx(t);}
+function incomeAmt(t){if(t.type==='수입')return Number(t.amount)||0;if(isIncomeLoss(t))return -(Number(t.amount)||0);return 0;}
+function isIncomeLike(t){return t.type==='수입'||isIncomeLoss(t);}
+function incomeSubOf(t){return isIncomeLoss(t)?'투자수입':t.sub;}
 function getMonthSummary(ym){
   var txs=getTxs(ym);var income=0,expense=0,incomeFixed=0,incomeVar=0,investLoss=0,loanRepay=0;var byMid={},evalMap={'소비':0,'낭비':0,'투자':0,'저축':0};
   txs.forEach(function(t){
@@ -2641,12 +2763,12 @@ function getMonthSummary(ym){
       // 예산 실적/카테고리 순위/이상치 감지 등 "지출 실적" 집계에서는 제외한다.
       // (지출성격 breakdown의 "투자" 항목엔 그대로 남겨서 자금 흐름 파악은 가능하게 함)
       var isInvestLoss=isInvestLossTx(t);
-      if(isInvestLoss)investLoss+=a;
+      if(isInvestLoss){investLoss+=a;income-=a;incomeVar-=a;}
       else{expense+=a;byMid[t.mid]=(byMid[t.mid]||0)+a;}
       if(t.eval&&evalMap[t.eval]!==undefined)evalMap[t.eval]+=a;
     }
   });
-  return{income:income,expense:expense,incomeFixed:incomeFixed,incomeVar:incomeVar,investLoss:investLoss,loanRepay:loanRepay,savingsRate:income>0?((income-expense)/income*100).toFixed(1):'0',byMid:byMid,evalMap:evalMap};
+  return{income:income,grossIncome:income+investLoss,expense:expense,incomeFixed:incomeFixed,incomeVar:incomeVar,investLoss:investLoss,loanRepay:loanRepay,savingsRate:income>0?((income-expense)/income*100).toFixed(1):'0',byMid:byMid,evalMap:evalMap};
 }
 function getServerURL(){return localStorage.getItem(SERVER_URL_KEY)||'';}
 function getServerKey(){return localStorage.getItem(SERVER_KEY_KEY)||'';}
@@ -5000,7 +5122,7 @@ function renderCal(){
     getTxs(mm).forEach(function(t){
       var dd=Number((t.date||'').slice(8,10));if(dd>day)return;
       var a=Number(t.amount)||0;
-      if(t.type==='수입')inc+=a;else if(t.type==='지출'&&!isInvestLossTx(t))exp+=a;
+      if(isIncomeLike(t))inc+=incomeAmt(t);else if(t.type==='지출')exp+=a;
     });
     return{income:inc,expense:exp};
   }
@@ -5150,7 +5272,7 @@ function calSelect(ds){
   txs.sort(function(a,b){return a.type>b.type?1:-1;});
   var TC={'수입':'bg','지출':'br','저축':'bb'};
   var EC={'소비':'bgy','낭비':'br','투자':'bpu','저축':'bb'};
-  var inc=txs.filter(function(t){return t.type==='수입';}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  var inc=txs.reduce(function(s,t){return s+incomeAmt(t);},0); // 순투자수입 규칙(투자손실은 수입의 마이너스)
   var exp=txs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   // 헤더
   det.style.display='block';
@@ -5813,12 +5935,12 @@ function renderDashIncomeStructHtml(c){
   var m=dashPeriodMeta(c.months),w=m.word,n=c.months.length;
   // ① 선택 기간의 수입을 소분류별로 합산 (분류 기준은 getMonthSummary와 같다: FIXED_INCOME_SUBS만 고정, 나머지는 변동)
   var amt={};
-  c.months.forEach(function(ym){getTxs(ym).forEach(function(t){if(t.type==='수입')amt[t.sub]=(amt[t.sub]||0)+(Number(t.amount)||0);});});
+  c.months.forEach(function(ym){getTxs(ym).forEach(function(t){if(isIncomeLike(t)){var k=incomeSubOf(t);amt[k]=(amt[k]||0)+incomeAmt(t);}});});
   // ② 비교 기준(평균): 년/전체 = 그 기간 월평균, 이번달 = 지난 3개월 평균(이번달 급여가 아직 안 들어왔는지 비교할 수 있게)
   var avg={},avgLabel,base;
   if(m.isMonth){
     var prev=getAllMonths().filter(function(x){return x<curYM;}).slice(-3);
-    prev.forEach(function(ym){getTxs(ym).forEach(function(t){if(t.type==='수입')avg[t.sub]=(avg[t.sub]||0)+(Number(t.amount)||0);});});
+    prev.forEach(function(ym){getTxs(ym).forEach(function(t){if(isIncomeLike(t)){var k=incomeSubOf(t);avg[k]=(avg[k]||0)+incomeAmt(t);}});});
     base=prev.length;avgLabel=base?'지난 '+base+'개월 평균':'';
     Object.keys(avg).forEach(function(k){avg[k]=Math.round(avg[k]/base);});
   }else{
@@ -6013,8 +6135,8 @@ function renderMonCumulative(ym){
     var arr=[];for(var i=0;i<days;i++)arr.push(0);
     getTxs(m).forEach(function(t){
       if(kind==='지출'){if(t.type!=='지출'||isInvestLossTx(t))return;}
-      else if(t.type!=='수입')return;
-      var d=Number((t.date||'').slice(8,10));if(d>=1&&d<=days)arr[d-1]+=Number(t.amount)||0;
+      else if(!isIncomeLike(t))return; // 누적 수입도 순투자수입 규칙(투자손실은 수입의 마이너스)
+      var d=Number((t.date||'').slice(8,10));if(d>=1&&d<=days)arr[d-1]+=(kind==='지출'?(Number(t.amount)||0):incomeAmt(t));
     });
     for(var k=1;k<days;k++)arr[k]+=arr[k-1];
     return arr;
@@ -6310,10 +6432,10 @@ function renderMonDetail(ym){
   var txs=getTxs(ym);
   txs.sort(function(a,b){return b.date>a.date?1:-1;});
   if(!txs.length)return '<div class="em" style="padding:16px">거래 데이터가 없어요</div>';
-  var incTxs=txs.filter(function(t){return t.type==='수입';});
+  var incTxs=txs.filter(isIncomeLike);
   var expTxs=txs.filter(function(t){return t.type==='지출'&&!isInvestLossTx(t);});
   var savTxs=txs.filter(function(t){return t.type==='저축';});
-  var incTotal=incTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+  var incTotal=incTxs.reduce(function(s,t){return s+incomeAmt(t);},0); // 투자손실은 수입의 마이너스
   var expTotal=expTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   var savTotal=savTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
   var EC={'소비':'bgy','낭비':'br','투자':'bpu','저축':'bb'};
@@ -7715,7 +7837,7 @@ function renderDsrCard(ym){
   var totalInc=0,totalFixedInc=0;
   var allTxs=loadDB().txs||[];
   allTxs.forEach(function(t){
-    if(t.type==='수입'){totalInc+=Number(t.amount)||0;if(FIXED_INCOME_SUBS.indexOf(t.sub)>=0)totalFixedInc+=Number(t.amount)||0;}
+    if(isIncomeLike(t)){totalInc+=incomeAmt(t);if(t.type==='수입'&&FIXED_INCOME_SUBS.indexOf(t.sub)>=0)totalFixedInc+=Number(t.amount)||0;}
   });
   var avgInc=months.length?totalInc/months.length:0;
   var avgFixedInc=months.length?totalFixedInc/months.length:0;
@@ -8786,8 +8908,8 @@ function renderMonExtra(){
 
   // 수입 항목별
   var incBySub={};
-  txs.filter(function(t){return t.type==='수입';}).forEach(function(t){
-    incBySub[t.sub]=(incBySub[t.sub]||0)+(Number(t.amount)||0);
+  txs.filter(isIncomeLike).forEach(function(t){
+    var k=incomeSubOf(t);incBySub[k]=(incBySub[k]||0)+incomeAmt(t);
   });
   var incTotal=Object.values(incBySub).reduce(function(s,v){return s+v;},0);
   var incRanked=Object.keys(incBySub).map(function(k){return{name:k,amt:incBySub[k]};}).sort(function(a,b){return b.amt-a.amt;});
@@ -10099,8 +10221,8 @@ function renderAnnual(months){
 
   // 수입별 현황
   var incMap={};
-  allTxs.filter(function(t){return t.type==='수입';}).forEach(function(t){
-    incMap[t.sub]=(incMap[t.sub]||0)+(Number(t.amount)||0);
+  allTxs.filter(isIncomeLike).forEach(function(t){
+    var k=incomeSubOf(t);incMap[k]=(incMap[k]||0)+incomeAmt(t);
   });
   var totalInc=Object.values(incMap).reduce(function(s,v){return s+v;},0);
   var totalIncGoal=Object.values(incGoalBySub).reduce(function(s,v){return s+v;},0);
@@ -10137,8 +10259,8 @@ function renderAnnual(months){
 
   function mkGoalRow(name,val,goal,color,numMonths,rowId,txList){
     var pct=goal>0?Math.min(Math.round(val/goal*100),999):0;
-    var oc=pct>100?'var(--rd)':color;
-    var w=Math.min(pct,100);
+    var oc=(pct>100||val<0)?'var(--rd)':color; // 초과 또는 마이너스(예: 순투자수입이 손실)는 빨간색
+    var w=Math.max(0,Math.min(pct,100)); // 음수 폭은 화면이 무시해서 막대가 꽉 차 보였음 → 0으로
     var avg=numMonths?Math.round(val/numMonths):0;
     var detailRows=(txList||[]).slice().sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;})
       .map(function(t){
@@ -10244,8 +10366,8 @@ function renderAnnual(months){
       // "투자수입"만큼은 배당/순수익(수입)뿐 아니라 실제 투자 손실(금융지출>투자손실)도 순액으로 반영한다.
       // 이렇게 안 하면 "손해 난 달"이 여기 전혀 안 잡혀서, 실제로는 마이너스인데 화면엔 수익만 쌓인 것처럼 보이는 문제가 있었음.
       if(sub==='투자수입'){
-        var lossTxs=allTxs.filter(function(t){return isInvestLossTx(t);});
-        v=v-lossTxs.reduce(function(s,t){return s+(Number(t.amount)||0);},0);
+        // 금액(v)은 incMap이 이미 순액(투자수입 − 투자손실)이라 여기서 또 빼지 않는다(예전엔 여기서만 뺐음 → 공통 규칙으로 옮김)
+        var lossTxs=allTxs.filter(isIncomeLoss);
         // 상세 내역에도 손실 건을 마이너스로 같이 보여준다 (날짜순 정렬은 mkGoalRow 내부에서 처리)
         txList=txList.concat(lossTxs.map(function(t){return Object.assign({},t,{amount:-(Number(t.amount)||0)});}));
       }
@@ -10280,13 +10402,14 @@ function renderAnnual(months){
         var matrixMonths=months.slice(-12);
         var byNameMonth={}; // name -> ym -> amount
         allTxs.forEach(function(t){
-          if(t.type!==opts.txType)return;
+          var lossInc=(opts.txType==='수입'&&isIncomeLoss(t)); // 수입 표에서는 투자손실을 "투자수입"의 마이너스로
+          if(t.type!==opts.txType&&!lossInc)return;
           if(opts.txType==='지출'&&isInvestLossTx(t))return;
           var ym=t.date.slice(0,7);
           if(matrixMonths.indexOf(ym)<0)return;
-          var name=t[opts.txField];
+          var name=lossInc?'투자수입':t[opts.txField];
           if(!byNameMonth[name])byNameMonth[name]={};
-          byNameMonth[name][ym]=(byNameMonth[name][ym]||0)+(Number(t.amount)||0);
+          byNameMonth[name][ym]=(byNameMonth[name][ym]||0)+(lossInc?-1:1)*(Number(t.amount)||0);
         });
         var showMonthCols=matrixMonths.length>=2;
         var maxCell=0;
@@ -10343,14 +10466,15 @@ function renderAnnual(months){
               var subTotals=opts.subBreakdown(x.name).map(function(s){return{name:s.sub,total:s.amt};});
               var subByMonth={}; // sub -> ym -> amount (차트/점 색 배정이 아니라, 월별 칸 계산에는 그대로 필요)
               allTxs.forEach(function(t){
-                if(t.type!==opts.txType)return;
+                var lossInc=(opts.txType==='수입'&&isIncomeLoss(t));
+                if(t.type!==opts.txType&&!lossInc)return;
                 if(opts.txType==='지출'&&isInvestLossTx(t))return;
-                if(t[opts.txField]!==x.name)return;
+                if((lossInc?'투자수입':t[opts.txField])!==x.name)return;
                 var ym=t.date.slice(0,7);
                 if(matrixMonths.indexOf(ym)<0)return;
                 var subName=t[opts.subGroupField];
                 if(!subByMonth[subName])subByMonth[subName]={};
-                subByMonth[subName][ym]=(subByMonth[subName][ym]||0)+(Number(t.amount)||0);
+                subByMonth[subName][ym]=(subByMonth[subName][ym]||0)+(lossInc?-1:1)*(Number(t.amount)||0);
               });
               var TOP_N=5;
               var topSubs=subTotals.slice(0,TOP_N);
@@ -10464,7 +10588,7 @@ function renderAnnual(months){
         goodWhenOver:true,actualColor:'var(--gn)',chartColor:'#276749',
         icon2:function(name){return SUB_ICON[name]||'';},
         cellColor:{strong:'rgba(39,103,73,.30)',mid:'rgba(39,103,73,.16)',weak:'rgba(39,103,73,.07)'},
-        subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(t.type==='수입'&&t.sub===name)m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
+        subBreakdown:function(name){var m={};allTxs.forEach(function(t){if(isIncomeLike(t)&&incomeSubOf(t)===name)m[t.mid]=(m[t.mid]||0)+incomeAmt(t);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});},
         monthSubBreakdown:function(txs,name){var m={};txs.forEach(function(t){m[t.mid]=(m[t.mid]||0)+(Number(t.amount)||0);});return Object.keys(m).map(function(k){return{sub:k,amt:m[k]};}).sort(function(a,b){return b.amt-a.amt;});}
       });
 
