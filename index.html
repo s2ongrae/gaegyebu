@@ -19,6 +19,10 @@
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#eef5fc;--sf:#ffffff;--sf2:#ddeeff;--sf3:#cce4f7;--bd:#a8d5f5;--bd2:#7bc0ef;--tx:#1a365d;--mu:#486ca1;--mu2:#2c5282;--bl:#2b6cb0;--gn:#276749;--rd:#c53030;--yw:#926018;--pu:#553c9a;--cy:#0987a0;--r:12px;--rs:8px}
 body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;font-size:14px;min-height:100vh}
+.nl{color:var(--mu2);text-decoration:none;font-size:12px;font-weight:700;padding:6px 9px;border-radius:var(--rs);white-space:nowrap;flex-shrink:0;border:1px solid var(--bd)}
+.nl:hover{background:var(--sf2)}
+.nl+.nl{margin-left:4px}
+.nl-first{margin-left:auto}
 .nav{position:fixed;top:0;left:0;right:0;height:50px;background:rgba(240,247,255,.97);backdrop-filter:blur(14px);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:2px;z-index:100;overflow-x:auto}
 .nav::-webkit-scrollbar{display:none}
 .logo{font-weight:900;font-size:14px;background:linear-gradient(135deg,var(--bl),var(--pu));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-right:10px;white-space:nowrap;flex-shrink:0}
@@ -505,6 +509,7 @@ input[type=number],input[type=date],select{min-height:36px}
    · 이상 신호의 글자가 한 글자씩 세로로 쪼개지던 것 → 줄바꿈 배치
    · 탭·버튼 높이 확대, 입력칸 16px(iOS가 입력 때 화면을 확대하지 않도록) */
 .sm-more{display:none}
+.sm-link{display:none}
 .sm-tx{display:none}
 .his-br{display:none}
 @media(max-width:700px){
@@ -525,6 +530,9 @@ input[type=number],input[type=date],select{min-height:36px}
   .sm .sm-sec{display:none}
   .sbar.more .sm .sm-sec{display:inline-flex;align-items:center}
   .sm-more{display:inline-flex;align-items:center;order:99}
+  /* 포털·보험관리 링크: 위 메뉴는 옆으로 넘쳐 안 보이므로 폰에서는 이 줄에 아이콘으로 */
+  .nav .nl{display:none}
+  .sm .sm-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
   .sbar .btn.bsm{min-height:36px;min-width:38px}
   .sbar select{min-height:36px}
   /* 내역 행(2줄): ① 메모 … 금액  ② 분류 · 소분류 · (의미 있는 뱃지만) … 결제수단 — 행을 누르면 수정 */
@@ -995,6 +1003,9 @@ body{word-break:keep-all;overflow-wrap:break-word}
   <button class="nb" onclick="go('bud')" id="nb-bud">🎯 예산</button>
   <button class="nb" onclick="go('ast')" id="nb-ast">🏦 자산</button>
   <button class="nb" onclick="go('stk')" id="nb-stk">📈 주식</button>
+  <!-- 다른 내 웹앱으로 가는 링크(새 창). 포털: 내 웹앱 모음 · 보험관리: insurance-manager -->
+  <a class="nl nl-first" id="nl-portal" href="https://s2ongrae.github.io/" target="_blank" rel="noopener" title="포털(내 웹앱 모음)">🏠<span class="nl-t"> 포털</span></a>
+  <a class="nl" id="nl-ins" href="https://s2ongrae.github.io/insurance-manager/" target="_blank" rel="noopener" title="보험관리 툴">🛡️<span class="nl-t"> 보험관리</span></a>
 </nav>
 <div class="sbar">
   <div class="si"><div class="sync-dot" id="sync-dot"></div><span id="sync-status">연결 중...</span></div>
@@ -1030,6 +1041,8 @@ body{word-break:keep-all;overflow-wrap:break-word}
   })();
   </script>
   <div class="sm">
+    <a class="btn bg2 bsm sm-link" href="https://s2ongrae.github.io/" target="_blank" rel="noopener" title="포털(내 웹앱 모음)" aria-label="포털">🏠</a>
+    <a class="btn bg2 bsm sm-link" href="https://s2ongrae.github.io/insurance-manager/" target="_blank" rel="noopener" title="보험관리 툴" aria-label="보험관리">🛡️</a>
     <button class="btn bpu2 bsm" onclick="openSetup()" title="서버 연결 설정" aria-label="서버 연결 설정">⚙️</button>
     <button class="btn bg2 bsm sm-sec" id="install-btn" onclick="openInstall()" aria-label="앱으로 설치" title="홈 화면에 앱으로 설치">📲<span class="sm-tx"> 앱 설치</span></button>
     <button class="btn bg2 bsm sm-sec" id="lock-btn" onclick="openPinSetup()" title="비밀번호 설정" aria-label="비밀번호 설정">🔒</button>
