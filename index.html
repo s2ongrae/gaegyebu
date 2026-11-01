@@ -555,6 +555,8 @@ input[type=number],input[type=date],select{min-height:36px}
   .goal-c>.goal-l{order:4;flex:1 1 100%;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12.5px!important}
   .goal-c>.goal-e,.goal-c>.dtl-hint{display:none!important}
   .goal-c.m-open>.goal-e{display:block!important;order:5;flex:1 1 100%}
+  .goal-c>.goal-names{display:none!important}
+  .goal-c.m-open>.goal-names{display:block!important;order:5;flex:1 1 100%}
   .goal-c>.dtl-body{order:6;flex:1 1 100%}
   /* 이상 신호 */
   .anom-hd{flex-wrap:wrap;row-gap:4px}
@@ -853,6 +855,14 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .tk-auto-hd small{font-weight:400;font-size:12px;color:#166534}
 .tk-auto-row{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:2px 0}
 .tk-auto .tk-apply{margin:4px 0 0}
+.goal-debts{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.goal-debts-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
+.goal-debt{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--bd);border-radius:var(--rs);font-size:13px;cursor:pointer;background:var(--sf)}
+.goal-debt span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.goal-debt small{font-size:12px;color:var(--mu);white-space:nowrap}
+.goal-debt input{width:18px;height:18px;margin:0;flex:none}
+.goal-debt-sum{font-size:13px;color:var(--mu2);margin-top:4px}
+.goal-names{font-size:12px;color:var(--mu2);margin-top:4px;overflow-wrap:anywhere}
 .tk-auto-fx{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:12px;color:#166534;margin:2px 0 4px}
 .stk-refresh{margin-left:auto;font-size:16px;padding:4px 8px}
 .stk-refresh.spin{animation:stkspin 1s linear infinite}
@@ -1719,13 +1729,21 @@ function getLatestAssetSnapshot(){
   var lastM=months[months.length-1];
   return{ym:lastM,am:assetsAll[lastM]};
 }
+// 연결 항목 이름들: 부채 목표는 여러 대출을 합칠 수 있음(linkedNames). 예전 목표(linkedName 하나)도 그대로 동작.
+// linkedName 에는 첫 항목을 같이 남겨 둔다(아직 새 앱을 안 받은 기기에서도 최소한 첫 항목으로 보이게).
+function goalLinkedNames(goal){
+  var ns=(goal.type==='debt'&&Array.isArray(goal.linkedNames)&&goal.linkedNames.length)?goal.linkedNames:(goal.linkedName?[goal.linkedName]:[]);
+  return ns.filter(function(n,i){return typeof n==='string'&&n&&ns.indexOf(n)===i;});
+}
+// "거래연동(autoSub)" 자산은 스냅샷(am)에 원시값이 저장되지 않고 항상 실시간 계산되므로,
+// 자산 탭과 동일하게 getAssetItemValue를 거쳐야 정확한 값이 나온다.
+function goalItemValue(name,am,ym){
+  var it=AI.filter(function(a){return a.n===name;})[0];
+  return it?getAssetItemValue(it,am,ym):(Number(am[name])||0);
+}
 function goalMetricValue(goal,am,ym){
   if(goal.type==='networth')return calcNW(am,ym).nw;
-  // "거래연동(autoSub)" 자산은 스냅샷(am)에 원시값이 저장되지 않고 항상 실시간 계산되므로,
-  // 자산 탭과 동일하게 getAssetItemValue를 거쳐야 정확한 값이 나온다.
-  var linkedItem=AI.filter(function(a){return a.n===goal.linkedName;})[0];
-  if(linkedItem)return getAssetItemValue(linkedItem,am,ym);
-  return Number(am[goal.linkedName])||0;
+  return goalLinkedNames(goal).reduce(function(s,n){return s+goalItemValue(n,am,ym);},0);
 }
 function computeGoalProgress(goal){
   if(goal.type==='duration'){
@@ -1840,7 +1858,8 @@ function renderGoalsCard(){
     return 0;
   });
   html+=carLoanCards;
-  sortedGoals.forEach(function(g,i){
+  sortedGoals.forEach(function(g){
+    var i=GOALS.indexOf(g); // 표시 순서를 바꿨으니 수정·삭제는 원래 자리로
     var p=computeGoalProgress(g);
     var eta=estimateMonthsToGoal(g);
     var color=g.type==='debt'?(p.done?'var(--gn)':'var(--rd)'):(p.done?'var(--gn)':'var(--pu)');
@@ -1893,6 +1912,7 @@ function renderGoalsCard(){
       +'<div class="goal-bar" style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
       +'<div style="width:'+p.pct+'%;height:100%;background:'+color+';border-radius:3px"></div></div>'
       +'<div class="goal-l" style="font-size:11px;color:var(--mu)">'+curLabel+' · '+targetLabel+'</div>'
+      +(g.type==='debt'&&goalLinkedNames(g).length>1?'<div class="goal-names">🔗 '+goalLinkedNames(g).length+'개 합산 · '+goalLinkedNames(g).map(escCatHtml).join(' · ')+'</div>':'')
       +(etaLabel?'<div class="goal-e" style="font-size:11px;color:var(--bl);margin-top:4px">'+etaLabel+'</div>':'')
       +(simText?('<div class="dtl-hint">눌러서 절감 시뮬레이션 보기 ▾</div><div class="dtl-body"><div style="font-size:11px;color:var(--pu);font-weight:700">'+simText+'</div></div>'):'')
       +'</div>';
@@ -1903,6 +1923,34 @@ function renderGoalsCard(){
 function goalLinkOptions(type,selected){
   var pool=type==='debt'?AI.filter(function(a){return a.d;}):AI.filter(function(a){return!a.d;});
   return pool.map(function(a){return'<option value="'+a.n+'"'+(a.n===selected?' selected':'')+'>'+a.n+'</option>';}).join('');
+}
+// 부채 목표: 합칠 대출을 체크박스로 고름(지금 잔액·선택 합계 표시). 카드 결제금액류는 '대출만' 빠른 선택에서 뺌
+function goalIsCardDebt(n){return /카드|결제금액|미결제/.test(n);}
+function goalDebtChecksHtml(prefix,selected){
+  var snap=getLatestAssetSnapshot(),am=snap?snap.am:{},ym=snap?snap.ym:null,sel=selected||[];
+  var pool=AI.filter(function(a){return a.d;});
+  if(!pool.length)return'<div class="em">자산 탭에 부채 항목이 없어요.</div>';
+  return'<div class="goal-debts" id="'+prefix+'-debts">'
+    +'<div class="goal-debts-bar"><button type="button" class="btn bg2 bsm" onclick="goalPickDebts(\''+prefix+'\',\'loan\')">대출만 모두</button><button type="button" class="btn bg2 bsm" onclick="goalPickDebts(\''+prefix+'\',\'all\')">전체</button><button type="button" class="btn bg2 bsm" onclick="goalPickDebts(\''+prefix+'\',\'none\')">해제</button></div>'
+    +pool.map(function(a){return'<label class="goal-debt"><input type="checkbox" value="'+escCatHtml(a.n)+'"'+(sel.indexOf(a.n)>=0?' checked':'')+' onchange="goalDebtSum(\''+prefix+'\')"><span>'+escCatHtml(a.n)+'</span><small>'+ff(goalItemValue(a.n,am,ym))+'</small></label>';}).join('')
+    +'<div class="goal-debt-sum" id="'+prefix+'-debtsum">'+goalDebtSumText(sel)+'</div></div>';
+}
+function goalCheckedDebts(prefix){return Array.prototype.slice.call(document.querySelectorAll('#'+prefix+'-debts input[type=checkbox]:checked')).map(function(c){return c.value;});}
+function goalDebtsNow(names){var snap=getLatestAssetSnapshot();return snap?names.reduce(function(s,n){return s+goalItemValue(n,snap.am,snap.ym);},0):0;}
+function goalDebtSumText(names){return names.length?'선택 '+names.length+'개 · 지금 잔액 합계 <b>'+ff(goalDebtsNow(names))+'</b>':'갚을 대출을 하나 이상 골라 주세요.';}
+function goalDebtSum(prefix){var el=document.getElementById(prefix+'-debtsum');if(el)el.innerHTML=goalDebtSumText(goalCheckedDebts(prefix));}
+function goalPickDebts(prefix,mode){
+  document.querySelectorAll('#'+prefix+'-debts input[type=checkbox]').forEach(function(c){c.checked=mode==='all'||(mode==='loan'&&!goalIsCardDebt(c.value));});
+  goalDebtSum(prefix);
+}
+// 부채 목표 저장값: 고른 대출들 + 원금(입력값, 비우면 keepStart 또는 지금 잔액 합계)
+function goalDebtFields(prefix,goal,keepStart){
+  var names=goalCheckedDebts(prefix);
+  if(!names.length){showToast('⚠️ 갚을 대출을 하나 이상 골라 주세요.');return false;}
+  goal.linkedNames=names;goal.linkedName=names[0];goal.target=0;
+  var raw=document.getElementById(prefix+'-target').value.trim();
+  goal.startBalance=raw!==''?(Number(raw)||0):(keepStart>0?keepStart:goalDebtsNow(names));
+  return true;
 }
 function onGoalTypeChange(prefix){
   var type=document.getElementById(prefix+'-type').value;
@@ -1922,12 +1970,14 @@ function onGoalTypeChange(prefix){
   if(targetWrap){
     var lbl=targetWrap.querySelector('label');
     var inp=targetWrap.querySelector('input');
-    if(type==='debt'){lbl.textContent='원금(대출 시작 시 금액, 원) - 비워두면 지금 잔액을 원금으로 사용';inp.placeholder='예: 34800000 (비우면 자동)';}
+    if(type==='debt'){lbl.textContent='원금(대출 시작 시 금액, 원) - 비워두면 고른 대출들의 지금 잔액 합계';inp.placeholder='예: 30000000 (비우면 자동)';}
     else if(type==='maturity'){lbl.textContent='만기 시 예상 수령액(원)';inp.placeholder='예: 100000000';}
     else{lbl.textContent='목표 금액(원)';inp.placeholder='예: 100000000';}
   }
   var linkSel=document.getElementById(prefix+'-link');
-  if(linkSel)linkSel.innerHTML=goalLinkOptions(type==='maturity'?'asset':type);
+  if(linkSel){linkSel.innerHTML=goalLinkOptions(type==='maturity'?'asset':type);linkSel.style.display=type==='debt'?'none':'';}
+  var dw=document.getElementById(prefix+'-debts-wrap');if(dw)dw.style.display=type==='debt'?'':'none';
+  var ll=document.getElementById(prefix+'-link-label');if(ll)ll.textContent=type==='debt'?'합칠 대출(여러 개 고를 수 있어요)':'연결할 항목';
 }
 function openAddGoal(){
   var existing=document.getElementById('add-goal-md');if(existing)existing.remove();
@@ -1942,7 +1992,7 @@ function openAddGoal(){
     +'<option value="maturity">만기 보험/적금 목표 (예: 라이나종신 만기 시 수령액)</option>'
     +'<option value="duration">기간형 목표 (예: 종신보험 10년납 완료)</option>'
     +'</select></div>'
-    +'<div class="mt8" id="agoal-link-wrap" style="display:none"><label>연결할 항목</label><select id="agoal-link" class="md-input">'+goalLinkOptions('debt')+'</select></div>'
+    +'<div class="mt8" id="agoal-link-wrap" style="display:none"><label id="agoal-link-label">연결할 항목</label><select id="agoal-link" class="md-input">'+goalLinkOptions('debt')+'</select><div id="agoal-debts-wrap" style="display:none">'+goalDebtChecksHtml('agoal',[])+'</div></div>'
     +'<div class="mt8" id="agoal-target-wrap"><label>목표 금액(원)</label><input type="number" id="agoal-target" placeholder="예: 100000000" class="md-input"></div>'
     +'<div class="mt8" id="agoal-maturity-wrap" style="display:none"><label>만기일(예상)</label><input type="date" id="agoal-maturity" class="md-input"></div>'
     +'<div class="mt8" id="agoal-startdate-wrap" style="display:none"><label>시작일(가입일)</label><input type="date" id="agoal-startdate" class="md-input"></div>'
@@ -1976,15 +2026,7 @@ function confirmAddGoal(){
   if(type==='maturity'){
     goal.maturityDate=document.getElementById('agoal-maturity').value||'';
   }
-  if(type==='debt'){
-    // 원금을 직접 입력했으면 그 값을 쓰고, 비워두면 예전처럼 지금 자산 스냅샷 값을 원금으로 자동 사용.
-    if(targetInputVal>0){
-      goal.startBalance=targetInputVal;
-    }else{
-      var snap=getLatestAssetSnapshot();
-      goal.startBalance=snap?(Number(snap.am[linkedName])||0):0;
-    }
-  }
+  if(type==='debt'&&!goalDebtFields('agoal',goal,0))return; // 원금을 비우면 고른 대출들의 지금 잔액 합계
   addGoal(goal);
   document.getElementById('add-goal-md').remove();
   renderDash();
@@ -2007,7 +2049,7 @@ function openEditGoal(i){
     +'<option value="maturity"'+(g.type==='maturity'?' selected':'')+'>만기 보험/적금 목표</option>'
     +'<option value="duration"'+(g.type==='duration'?' selected':'')+'>기간형 목표</option>'
     +'</select></div>'
-    +'<div class="mt8" id="egoal-link-wrap" style="display:'+((g.type==='networth'||g.type==='duration')?'none':'')+'"><label>연결할 항목</label><select id="egoal-link" class="md-input">'+goalLinkOptions(g.type==='maturity'?'asset':((g.type==='networth'||g.type==='duration')?'debt':g.type),g.linkedName)+'</select></div>'
+    +'<div class="mt8" id="egoal-link-wrap" style="display:'+((g.type==='networth'||g.type==='duration')?'none':'')+'"><label id="egoal-link-label">'+(g.type==='debt'?'합칠 대출(여러 개 고를 수 있어요)':'연결할 항목')+'</label><select id="egoal-link" class="md-input" style="display:'+(g.type==='debt'?'none':'')+'">'+goalLinkOptions(g.type==='maturity'?'asset':((g.type==='networth'||g.type==='duration')?'debt':g.type),g.linkedName)+'</select><div id="egoal-debts-wrap" style="display:'+(g.type==='debt'?'':'none')+'">'+goalDebtChecksHtml('egoal',g.type==='debt'?goalLinkedNames(g):[])+'</div></div>'
     +'<div class="mt8" id="egoal-target-wrap" style="display:'+(g.type==='duration'?'none':'')+'"><label>'+targetFieldLabel+'</label><input type="number" id="egoal-target" value="'+targetFieldValue+'" placeholder="'+(g.type==='debt'?'비우면 지금 잔액 사용':'')+'" class="md-input"></div>'
     +'<div class="mt8" id="egoal-maturity-wrap" style="display:'+(g.type==='maturity'?'':'none')+'"><label>만기일(예상)</label><input type="date" id="egoal-maturity" value="'+(g.maturityDate||'')+'" class="md-input"></div>'
     +'<div class="mt8" id="egoal-startdate-wrap" style="display:'+(g.type==='duration'?'':'none')+'"><label>시작일(가입일)</label><input type="date" id="egoal-startdate" value="'+(g.startDate||'')+'" class="md-input"></div>'
@@ -2041,16 +2083,8 @@ function confirmEditGoal(i){
   if(type==='maturity'){
     goal.maturityDate=document.getElementById('egoal-maturity').value||'';
   }
-  if(type==='debt'){
-    // 원금을 직접 입력했으면 그 값을 그대로 쓰고(0을 입력해도 "직접 지정"으로 인정),
-    // 입력칸을 완전히 비워둔 경우에만 예전처럼 기존값 유지 또는 자동값 사용.
-    var rawTargetStr=document.getElementById('egoal-target').value.trim();
-    if(rawTargetStr!==''){
-      goal.startBalance=targetInputVal;
-    }else{
-      goal.startBalance=(old&&old.type==='debt'&&old.linkedName===linkedName&&old.startBalance>0)?old.startBalance:(function(){var snap=getLatestAssetSnapshot();return snap?(Number(snap.am[linkedName])||0):0;})();
-    }
-  }
+  // 원금을 비우면: 고른 대출이 예전과 같으면 원래 원금 유지, 바뀌었으면 지금 잔액 합계(0 입력도 직접 지정으로 인정)
+  if(type==='debt'&&!goalDebtFields('egoal',goal,(old&&old.type==='debt'&&JSON.stringify(goalLinkedNames(old))===JSON.stringify(goalCheckedDebts('egoal')))?old.startBalance:0))return;
   updateGoal(i,goal);
   document.getElementById('edit-goal-md').remove();
   renderDash();
