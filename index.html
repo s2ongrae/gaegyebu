@@ -956,36 +956,24 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .nw-item[open] .nw-prev{display:none}
 .nw-item[hidden],#ipo-box li[hidden],#nw-none[hidden]{display:none}
 .ipo-tag{display:inline-block;margin-right:4px;padding:0 6px;border-radius:8px;background:var(--sf3);color:var(--mu2);font-weight:700}
-.ipo-vnav{display:flex;background:var(--sf2);padding:2px;border-radius:var(--rs);border:1px solid var(--bd);margin-bottom:10px;gap:2px}
-.ipo-vbtn{flex:1;border:none;background:none;color:var(--mu2);font-size:12px;font-weight:700;padding:5px;border-radius:6px;cursor:pointer;font-family:inherit;text-align:center}
-.ipo-vbtn.on{background:var(--sf);color:var(--bl);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.ipo-cal-box{border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:10px;margin-bottom:10px}
-.ipo-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;text-align:center}
-.ipo-cal-h{font-size:11px;font-weight:700;color:var(--mu);padding-bottom:4px}
-.ipo-cal-d{min-height:50px;background:var(--sf2);border-radius:6px;padding:3px 2px;cursor:pointer;border:1px solid transparent;display:flex;flex-direction:column;align-items:center;min-width:0}
-.ipo-cal-d.today{border-color:var(--gn);background:rgba(39,103,73,.12)}
-.ipo-cal-d.on{border-color:var(--bl);background:var(--sf3)}
-.ipo-cal-n{font-size:11px;font-weight:700;line-height:1;margin-bottom:2px}
-.ipo-cal-d.sun .ipo-cal-n{color:var(--rd)}
-.ipo-cal-d.sat .ipo-cal-n{color:var(--bl)}
-.ipo-cal-chips{width:100%;display:flex;flex-direction:column;gap:2px;overflow:hidden}
-.ipo-cal-chip{font-size:8.5px;line-height:1.1;padding:1px 2px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:700}
-.ipo-cal-chip.act{background:var(--gn)}
-.ipo-cal-chip.soon{background:var(--bl)}
-.ipo-dt-card{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--rs);padding:12px;margin-bottom:10px}
-.ipo-dt-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.ipo-dt-title{font-size:15px;font-weight:900;color:var(--tx);display:flex;align-items:center;gap:6px}
-.ipo-dt-st{font-size:11px;padding:2px 7px;border-radius:10px;font-weight:800}
-.ipo-dt-st.act{background:#d1fae5;color:#065f46}
-.ipo-dt-st.soon{background:#dbeafe;color:#1e40af}
-.ipo-dt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:12px}
-.ipo-dt-item{display:flex;flex-direction:column}
-.ipo-dt-lbl{font-size:11px;color:var(--mu)}
-.ipo-dt-val{font-size:12.5px;font-weight:700;color:var(--tx)}
-.ipo-card{border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;cursor:pointer}
-.ipo-card.on{border-color:var(--bl);background:var(--sf2)}
-.ipo-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:13px;font-weight:700}
-.ipo-card-sub{display:flex;justify-content:space-between;font-size:12px;color:var(--mu2);margin-top:2px}
+.ipo-list-wrap{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.ipo-card{border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);transition:border-color .15s}
+.ipo-card.ipo-card-act{border-left:4px solid var(--gn);background:var(--sf2)}
+.ipo-card.ipo-card-soon{border-left:4px solid var(--bl)}
+.ipo-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ipo-card-nm{font-size:15px;font-weight:800;color:var(--tx);display:flex;align-items:center;gap:6px}
+.ipo-mkt{font-size:10.5px;padding:2px 5px;border-radius:4px;background:var(--sf3);color:var(--mu2);font-weight:600}
+.ipo-tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px}
+.ipo-tag.act{background:#d1fae5;color:#065f46}
+.ipo-tag.soon{background:#dbeafe;color:#1e40af}
+.ipo-tag.end{background:var(--sf3);color:var(--mu)}
+.ipo-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;font-size:12.5px;padding-top:6px;border-top:1px solid var(--bd2)}
+.ipo-cg-item{display:flex;flex-direction:column}
+.ipo-cg-lbl{font-size:11px;color:var(--mu);margin-bottom:1px}
+.ipo-cg-val{font-size:13px;font-weight:700;color:var(--tx)}
+.ipo-cg-val.hl-bl{color:#2563eb}
+.ipo-cg-val.hl-dt{color:var(--tx)}
+.ipo-cg-val small{font-size:11px;font-weight:400;color:var(--mu2)}
 .tk-morebtn{width:100%;margin-top:6px}
 .tk-chart{height:200px;position:relative}
 .tk-od{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--bd);font-size:13px}
@@ -9753,19 +9741,9 @@ var DEFAULT_IPO_ITEMS=[
   {name:'에이엔에이치스트럭쳐',market:'코스닥',broker:'NH투자증권',start:'2026-11-27',end:'2026-11-30',price:'11,200~13,600원',refund:'2026-12-02',listing:'2026-12-08'}
 ];
 var IPO_VIEW_KEY='gaegyebu_ipo_view';
-var _selectedIpoName=null;
-
 function getIpoItems(d){
   if(d&&d.ipo&&Array.isArray(d.ipo.items)&&d.ipo.items.length)return d.ipo.items;
   return DEFAULT_IPO_ITEMS;
-}
-function switchIpoView(view){
-  try{localStorage.setItem(IPO_VIEW_KEY,view);}catch(e){}
-  renderIpo();
-}
-function selectIpoItem(name){
-  _selectedIpoName=name;
-  renderIpo();
 }
 function setIpoFilter(b){/* 호환성 유지용 빈 함수 */}
 
@@ -9774,94 +9752,34 @@ function renderIpo(){
   var d=withFreshNews(renderIpo);
   var items=getIpoItems(d);
   var today=localToday();
-  var curView=localStorage.getItem(IPO_VIEW_KEY)||'cal';
-  if(!_selectedIpoName){
-    var activeToday=items.filter(function(i){return today>=i.start&&today<=i.end;});
-    _selectedIpoName=activeToday.length?activeToday[0].name:items[0].name;
-  }
-  var selItem=items.filter(function(i){return i.name===_selectedIpoName;})[0]||items[0];
 
   var h='<div class="card">'
-    +'<div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
-    +'<span>🗓 공모주 청약 캘린더 <span class="sub">· 2026년 11월 일정</span></span>'
-    +'<div class="ipo-vnav" style="margin-bottom:0">'
-    +'<button class="ipo-vbtn '+(curView==='cal'?'on':'')+'" onclick="switchIpoView(\'cal\')">📅 달력 보기</button>'
-    +'<button class="ipo-vbtn '+(curView==='list'?'on':'')+'" onclick="switchIpoView(\'list\')">📋 목록 보기</button>'
-    +'</div></div>';
+    +'<div class="card-title">🗓 11월 공모주 청약 목록 <span class="sub">· 총 '+items.length+'개사 일정</span></div>'
+    +'<div class="ipo-list-wrap">';
 
-  if(curView==='cal'){
-    h+='<div class="ipo-cal-box">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-      +'<span style="font-size:13px;font-weight:700">2026년 11월</span>'
-      +'<span style="font-size:11px;font-weight:700;color:var(--gn)">● 오늘 청약 가능</span>'
+  items.forEach(function(it){
+    var isAct=(today>=it.start&&today<=it.end);
+    var isSoon=(today<it.start);
+    var stBadge=isAct?'<span class="ipo-tag act">● 오늘 청약</span>':(isSoon?'<span class="ipo-tag soon">청약 예정</span>':'<span class="ipo-tag end">종료</span>');
+    var cardBorderCls=isAct?' ipo-card-act':(isSoon?' ipo-card-soon':'');
+
+    h+='<div class="ipo-card'+cardBorderCls+'">'
+      +'<div class="ipo-card-top">'
+      +'<span class="ipo-card-nm">'+escCatHtml(it.name)+' <span class="ipo-mkt">'+escCatHtml(it.market)+'</span></span>'
+      +stBadge
       +'</div>'
-      +'<div class="ipo-cal-grid">'
-      +'<div class="ipo-cal-h" style="color:var(--rd)">일</div><div class="ipo-cal-h">월</div><div class="ipo-cal-h">화</div>'
-      +'<div class="ipo-cal-h">수</div><div class="ipo-cal-h">목</div><div class="ipo-cal-h">금</div><div class="ipo-cal-h" style="color:var(--bl)">토</div>';
+      +'<div class="ipo-card-grid">'
+      +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">주관 증권사</span><span class="ipo-cg-val hl-bl">'+escCatHtml(it.broker)+'</span></div>'
+      +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">확정 공모가</span><span class="ipo-cg-val">'+escCatHtml(it.price)+'</span></div>'
+      +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">청약 기간</span><span class="ipo-cg-val hl-dt">'+it.start.slice(5)+' ~ '+it.end.slice(5)+'</span></div>'
+      +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">상장일(발행일)</span><span class="ipo-cg-val">'+it.listing.slice(5)+' <small>(환불 '+it.refund.slice(5)+')</small></span></div>'
+      +'</div>'
+      +'</div>';
+  });
 
-    // 2026-11-01 은 일요일(0), 총 30일
-    for(var day=1;day<=30;day++){
-      var dayStr='2026-11-'+String(day).padStart(2,'0');
-      var dow=(day-1)%7;
-      var isToday=(dayStr===today);
-      var dayItems=items.filter(function(i){return dayStr>=i.start&&dayStr<=i.end;});
-      var hasSel=dayItems.some(function(i){return i.name===selItem.name;});
-
-      var cls='ipo-cal-d';
-      if(dow===0)cls+=' sun';
-      if(dow===6)cls+=' sat';
-      if(isToday)cls+=' today';
-      if(hasSel)cls+=' on';
-
-      var clickAct=dayItems.length?"selectIpoItem('"+escCatHtml(dayItems[0].name)+"')":"";
-      h+='<div class="'+cls+'" '+(clickAct?'onclick="'+clickAct+'"':'')+'>'
-        +'<span class="ipo-cal-n">'+day+'</span>'
-        +'<div class="ipo-cal-chips">';
-      dayItems.forEach(function(it){
-        var chipCls=isToday?'act':'soon';
-        h+='<span class="ipo-cal-chip '+chipCls+'" title="'+escCatHtml(it.name)+' ('+escCatHtml(it.broker)+')">'+escCatHtml(it.name)+'</span>';
-      });
-      h+='</div></div>';
-    }
-    h+='</div></div>';
-  }else{
-    h+='<div style="margin-bottom:10px">';
-    items.forEach(function(it){
-      var isAct=(today>=it.start&&today<=it.end);
-      var isSoon=(today<it.start);
-      var stLabel=isAct?'청약 진행중':(isSoon?'청약 예정':'청약 종료');
-      var stCol=isAct?'var(--gn)':(isSoon?'var(--bl)':'var(--mu)');
-      var isSel=(it.name===selItem.name);
-      h+='<div class="ipo-card '+(isSel?'on':'')+'" onclick="selectIpoItem(\''+escCatHtml(it.name)+'\')">'
-        +'<div class="ipo-card-top">'
-        +'<span>'+escCatHtml(it.name)+' <small style="font-size:11px;color:var(--mu2);font-weight:600">('+escCatHtml(it.market)+')</small></span>'
-        +'<span style="font-size:11px;font-weight:700;color:'+stCol+'">'+stLabel+'</span>'
-        +'</div>'
-        +'<div class="ipo-card-sub"><span>주관: <b>'+escCatHtml(it.broker)+'</b></span><span>공모가: <b>'+escCatHtml(it.price)+'</b></span></div>'
-        +'<div class="ipo-card-sub"><span>기간: <b>'+it.start.slice(5)+' ~ '+it.end.slice(5)+'</b></span><span>상장: <b>'+it.listing.slice(5)+'</b></span></div>'
-        +'</div>';
-    });
-    h+='</div>';
-  }
-
-  // 선택된 종목 상세 정보 패널
-  var selAct=(today>=selItem.start&&today<=selItem.end);
-  var selSoon=(today<selItem.start);
-  var selStText=selAct?'오늘 청약 진행중':(selSoon?'청약 예정':'청약 종료');
-  var selStCls=selAct?'act':'soon';
-
-  h+='<div class="ipo-dt-card">'
-    +'<div class="ipo-dt-head">'
-    +'<div class="ipo-dt-title"><span>'+escCatHtml(selItem.name)+'</span><span style="font-size:11px;padding:2px 6px;border-radius:6px;background:var(--sf);color:var(--mu2);font-weight:700">'+escCatHtml(selItem.market)+'</span></div>'
-    +'<span class="ipo-dt-st '+selStCls+'">'+selStText+'</span>'
-    +'</div>'
-    +'<div class="ipo-dt-grid">'
-    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">주관 증권사</span><span class="ipo-dt-val" style="color:var(--bl)">'+escCatHtml(selItem.broker)+'</span></div>'
-    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">확정 공모가</span><span class="ipo-dt-val">'+escCatHtml(selItem.price)+'</span></div>'
-    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">청약 기간</span><span class="ipo-dt-val">'+selItem.start+' ~ '+selItem.end+'</span></div>'
-    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">환불 / 상장(발행일)</span><span class="ipo-dt-val">'+selItem.refund+' / '+selItem.listing+'</span></div>'
-    +'</div>'
-    +'</div>';
+  h+='</div></div>';
+  el.innerHTML=h;
+}
 
   h+='</div>';
   el.innerHTML=h;
