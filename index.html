@@ -9691,6 +9691,16 @@ var DEFAULT_IPO_ITEMS=[
   {name:'에이엔에이치스트럭쳐',market:'코스닥',broker:'NH투자증권',start:'2026-11-27',end:'2026-11-30',price:'11,200~13,600원',refund:'2026-12-02',listing:'2026-12-08'}
 ];
 var IPO_VIEW_KEY='gaegyebu_ipo_view';
+var IPO_FILTER_KEY='gaegyebu_ipo_my_only';
+var MY_BROKERS=['삼성','한국투자','NH','나무','미래에셋'];
+
+function isMyBroker(broker){
+  return MY_BROKERS.some(function(b){return (broker||'').indexOf(b)!==-1;});
+}
+function setIpoMyOnly(on){
+  try{localStorage.setItem(IPO_FILTER_KEY,on?'1':'0');}catch(e){}
+  renderIpo();
+}
 function getIpoItems(d){
   if(d&&d.ipo&&Array.isArray(d.ipo.items)&&d.ipo.items.length)return d.ipo.items;
   return DEFAULT_IPO_ITEMS;
@@ -9700,28 +9710,42 @@ function setIpoFilter(b){/* 호환성 유지용 빈 함수 */}
 function renderIpo(){
   var el=document.getElementById('d-ipo');if(!el)return;
   var d=withFreshNews(renderIpo);
-  var items=getIpoItems(d);
+  var allItems=getIpoItems(d);
   var today=localToday();
+  var myOnly=(localStorage.getItem(IPO_FILTER_KEY)==='1');
+  var items=myOnly?allItems.filter(function(i){return isMyBroker(i.broker);}):allItems;
+  var myCount=allItems.filter(function(i){return isMyBroker(i.broker);}).length;
 
   var h='<div class="card">'
-    +'<div class="card-title">🗓 11월 공모주 청약 목록 <span class="sub">· 총 '+items.length+'개사 일정</span></div>'
+    +'<div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+    +'<span>🗓 11월 공모주 청약 목록 <span class="sub">· '+(myOnly?'내 증권사 '+items.length+'개':'전체 '+items.length+'개')+'</span></span>'
+    +'<div style="display:flex;gap:4px">'
+    +'<button class="btn bsm" style="font-size:11px;padding:3px 8px;border-radius:6px;'+(myOnly?'background:var(--sf2);color:var(--mu)':'background:var(--bl);color:#fff;font-weight:700')+'" onclick="setIpoMyOnly(false)">전체('+allItems.length+')</button>'
+    +'<button class="btn bsm" style="font-size:11px;padding:3px 8px;border-radius:6px;'+(myOnly?'background:var(--gn);color:#fff;font-weight:700':'background:var(--sf2);color:var(--mu)')+'" onclick="setIpoMyOnly(true)">⭐ 내 증권사만('+myCount+')</button>'
+    +'</div></div>'
     +'<div class="ipo-list-wrap">';
 
   items.forEach(function(it){
     var isAct=(today>=it.start&&today<=it.end);
     var isSoon=(today<it.start);
     var stBadge=isAct?'<span class="ipo-tag act">● 오늘 청약</span>':(isSoon?'<span class="ipo-tag soon">청약 예정</span>':'<span class="ipo-tag end">종료</span>');
+    var isMine=isMyBroker(it.broker);
+    var mineBadge=isMine?'<span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#fef3c7;color:#92400e;font-weight:700;margin-left:4px">⭐ 내 증권사</span>':'';
     var cardBorderCls=isAct?' ipo-card-act':(isSoon?' ipo-card-soon':'');
 
     h+='<div class="ipo-card'+cardBorderCls+'">'
       +'<div class="ipo-card-top">'
-      +'<span class="ipo-card-nm">'+escCatHtml(it.name)+' <span class="ipo-mkt">'+escCatHtml(it.market)+'</span></span>'
+      +'<span class="ipo-card-nm">'+escCatHtml(it.name)+' <span class="ipo-mkt">'+escCatHtml(it.market)+'</span>'+mineBadge+'</span>'
       +stBadge
       +'</div>'
       +'<div class="ipo-card-grid">'
       +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">주관 증권사</span><span class="ipo-cg-val hl-bl">'+escCatHtml(it.broker)+'</span></div>'
       +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">확정 공모가</span><span class="ipo-cg-val">'+escCatHtml(it.price)+'</span></div>'
       +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">청약 기간</span><span class="ipo-cg-val hl-dt">'+it.start.slice(5)+' ~ '+it.end.slice(5)+'</span></div>'
+      +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">상장일(발행일)</span><span class="ipo-cg-val">'+it.listing.slice(5)+' <small>(환불 '+it.refund.slice(5)+')</small></span></div>'
+      +'</div>'
+      +'</div>';
+  });
       +'<div class="ipo-cg-item"><span class="ipo-cg-lbl">상장일(발행일)</span><span class="ipo-cg-val">'+it.listing.slice(5)+' <small>(환불 '+it.refund.slice(5)+')</small></span></div>'
       +'</div>'
       +'</div>';
