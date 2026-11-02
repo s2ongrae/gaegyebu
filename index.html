@@ -956,6 +956,36 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .nw-item[open] .nw-prev{display:none}
 .nw-item[hidden],#ipo-box li[hidden],#nw-none[hidden]{display:none}
 .ipo-tag{display:inline-block;margin-right:4px;padding:0 6px;border-radius:8px;background:var(--sf3);color:var(--mu2);font-weight:700}
+.ipo-vnav{display:flex;background:var(--sf2);padding:2px;border-radius:var(--rs);border:1px solid var(--bd);margin-bottom:10px;gap:2px}
+.ipo-vbtn{flex:1;border:none;background:none;color:var(--mu2);font-size:12px;font-weight:700;padding:5px;border-radius:6px;cursor:pointer;font-family:inherit;text-align:center}
+.ipo-vbtn.on{background:var(--sf);color:var(--bl);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.ipo-cal-box{border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:10px;margin-bottom:10px}
+.ipo-cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;text-align:center}
+.ipo-cal-h{font-size:11px;font-weight:700;color:var(--mu);padding-bottom:4px}
+.ipo-cal-d{min-height:50px;background:var(--sf2);border-radius:6px;padding:3px 2px;cursor:pointer;border:1px solid transparent;display:flex;flex-direction:column;align-items:center;min-width:0}
+.ipo-cal-d.today{border-color:var(--gn);background:rgba(39,103,73,.12)}
+.ipo-cal-d.on{border-color:var(--bl);background:var(--sf3)}
+.ipo-cal-n{font-size:11px;font-weight:700;line-height:1;margin-bottom:2px}
+.ipo-cal-d.sun .ipo-cal-n{color:var(--rd)}
+.ipo-cal-d.sat .ipo-cal-n{color:var(--bl)}
+.ipo-cal-chips{width:100%;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.ipo-cal-chip{font-size:8.5px;line-height:1.1;padding:1px 2px;border-radius:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;font-weight:700}
+.ipo-cal-chip.act{background:var(--gn)}
+.ipo-cal-chip.soon{background:var(--bl)}
+.ipo-dt-card{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--rs);padding:12px;margin-bottom:10px}
+.ipo-dt-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ipo-dt-title{font-size:15px;font-weight:900;color:var(--tx);display:flex;align-items:center;gap:6px}
+.ipo-dt-st{font-size:11px;padding:2px 7px;border-radius:10px;font-weight:800}
+.ipo-dt-st.act{background:#d1fae5;color:#065f46}
+.ipo-dt-st.soon{background:#dbeafe;color:#1e40af}
+.ipo-dt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:12px}
+.ipo-dt-item{display:flex;flex-direction:column}
+.ipo-dt-lbl{font-size:11px;color:var(--mu)}
+.ipo-dt-val{font-size:12.5px;font-weight:700;color:var(--tx)}
+.ipo-card{border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:10px 12px;margin-bottom:8px;cursor:pointer}
+.ipo-card.on{border-color:var(--bl);background:var(--sf2)}
+.ipo-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:13px;font-weight:700}
+.ipo-card-sub{display:flex;justify-content:space-between;font-size:12px;color:var(--mu2);margin-top:2px}
 .tk-morebtn{width:100%;margin-top:6px}
 .tk-chart{height:200px;position:relative}
 .tk-od{display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--bd);font-size:13px}
@@ -9645,32 +9675,138 @@ function renderStockAna(){
   }
   el.innerHTML=h+'</div>';
 }
-// ── 🗓 공모주: 증권사 칩으로 거르기 · 기사마다 언급된 증권사 표시 ─────────
-var IPO_ALIAS={'미래에셋증권':/미래에셋/,'삼성증권':/삼성증권/,'NH투자증권':/NH투자|NH증권|농협/,'한국투자증권':/한국투자|한투/};
-function ipoBrokersOf(title,brokers){return brokers.filter(function(b){var re=IPO_ALIAS[b]||new RegExp(b.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));return re.test(String(title||''));});}
-function setIpoFilter(b){
-  var box=document.getElementById('ipo-box');if(!box)return;
-  box.querySelectorAll('li[data-br]').forEach(function(li){li.hidden=b!=='all'&&li.getAttribute('data-br').split('|').indexOf(b)<0;});
-  document.querySelectorAll('.ipo-br .nw-chip').forEach(function(c){c.classList.toggle('on',c.getAttribute('data-b')===b);});
+// ── 🗓 공모주: 캘린더형 보기 · 리스트형 보기 · 종목명/청약기간/발행일/증권사 ──
+var DEFAULT_IPO_ITEMS=[
+  {name:'바로팜',market:'코스닥',broker:'미래에셋증권',start:'2026-11-02',end:'2026-11-03',price:'16,400원',refund:'2026-11-05',listing:'2026-11-11'},
+  {name:'동원파츠',market:'코스닥',broker:'삼성증권',start:'2026-11-02',end:'2026-11-03',price:'26,500원',refund:'2026-11-05',listing:'2026-11-10'},
+  {name:'넥스아이',market:'코스닥',broker:'한국투자증권',start:'2026-11-03',end:'2026-11-04',price:'8,000원',refund:'2026-11-06',listing:'2026-11-12'},
+  {name:'영광와이케이엠씨',market:'코스닥',broker:'대신증권',start:'2026-11-04',end:'2026-11-05',price:'9,400~11,000원',refund:'2026-11-09',listing:'2026-11-18'},
+  {name:'옵토닉스',market:'코스닥',broker:'한국투자증권',start:'2026-11-05',end:'2026-11-06',price:'12,000원',refund:'2026-11-10',listing:'2026-11-17'},
+  {name:'에이엘로봇',market:'코스닥',broker:'대신증권',start:'2026-11-06',end:'2026-11-09',price:'15,700~17,600원',refund:'2026-11-11',listing:'2026-11-20'},
+  {name:'하나에어로다이내믹스',market:'코스닥',broker:'IBK투자증권',start:'2026-11-10',end:'2026-11-11',price:'4,700~5,700원',refund:'2026-11-13',listing:'2026-11-25'},
+  {name:'씨앤엠',market:'코스닥',broker:'한국투자증권',start:'2026-11-12',end:'2026-11-13',price:'10,000~13,000원',refund:'2026-11-17',listing:'2026-11-26'},
+  {name:'제이앤티지',market:'코스닥',broker:'대신, NH투자',start:'2026-11-12',end:'2026-11-13',price:'26,400~31,900원',refund:'2026-11-17',listing:'2026-11-27'},
+  {name:'엠비디',market:'코스닥',broker:'하나증권',start:'2026-11-12',end:'2026-11-13',price:'9,600~11,700원',refund:'2026-11-17',listing:'2026-11-26'},
+  {name:'에스에프씨',market:'코스피',broker:'미래, 한투, 삼성',start:'2026-11-18',end:'2026-11-19',price:'31,600~36,100원',refund:'2026-11-23',listing:'2026-11-27'},
+  {name:'유캐스트',market:'코스닥',broker:'유진, 신영증권',start:'2026-11-18',end:'2026-11-19',price:'19,000~23,000원',refund:'2026-11-23',listing:'2026-11-27'},
+  {name:'아델',market:'코스닥',broker:'삼성, 미래에셋',start:'2026-11-23',end:'2026-11-24',price:'18,000~25,000원',refund:'2026-11-26',listing:'2026-12-03'},
+  {name:'제논',market:'코스닥',broker:'삼성증권',start:'2026-11-24',end:'2026-11-25',price:'9,700~12,200원',refund:'2026-11-27',listing:'2026-12-04'},
+  {name:'케이엠에프',market:'코스닥',broker:'IBK투자증권',start:'2026-11-24',end:'2026-11-25',price:'15,000~17,800원',refund:'2026-11-27',listing:'2026-12-04'},
+  {name:'에이엔에이치스트럭쳐',market:'코스닥',broker:'NH투자증권',start:'2026-11-27',end:'2026-11-30',price:'11,200~13,600원',refund:'2026-12-02',listing:'2026-12-08'}
+];
+var IPO_VIEW_KEY='gaegyebu_ipo_view';
+var _selectedIpoName=null;
+
+function getIpoItems(d){
+  if(d&&d.ipo&&Array.isArray(d.ipo.items)&&d.ipo.items.length)return d.ipo.items;
+  return DEFAULT_IPO_ITEMS;
 }
+function switchIpoView(view){
+  try{localStorage.setItem(IPO_VIEW_KEY,view);}catch(e){}
+  renderIpo();
+}
+function selectIpoItem(name){
+  _selectedIpoName=name;
+  renderIpo();
+}
+function setIpoFilter(b){/* 호환성 유지용 빈 함수 */}
+
 function renderIpo(){
   var el=document.getElementById('d-ipo');if(!el)return;
-  var d=withFreshNews(renderIpo),now=Date.now(),brokers=(d&&Array.isArray(d.brokers)&&d.brokers.length)?d.brokers:['미래에셋증권','삼성증권','NH투자증권','한국투자증권'];
-  var ns=d&&d.ipo?newsList(d.ipo):[],tagged=ns.map(function(n){return{n:n,b:ipoBrokersOf(n.title,brokers)};});
-  var h='<div class="card"><div class="card-title">🗓 공모주 소식 <span class="sub">· 4개 증권사 관련 최근 7일 청약 기사'+(d&&d.ipo&&d.ipo.at?' · '+newsWhen(d.ipo.at)+' 갱신':'')+'</span></div>'
-    +'<div class="ipo-br"><button class="nw-chip on" data-b="all" onclick="setIpoFilter(\'all\')">전체 <small>'+ns.length+'</small></button>'
-    +brokers.map(function(b){var c=tagged.filter(function(t){return t.b.indexOf(b)>=0;}).length;
-      return'<button class="nw-chip" data-b="'+escCatHtml(String(b))+'" onclick="setIpoFilter(this.getAttribute(\'data-b\'))">'+escCatHtml(String(b))+' <small>'+c+'</small></button>';}).join('')+'</div>'
-    +newsStatusHtml(d);
-  if(d&&d.ipo){
-    h+='<div class="al wrn mb8">⚠️ 일정표가 아니라 관련 기사 모음이에요. 청약일·공모가는 증권사 앱에서 꼭 확인하세요.</div>';
-    if(!ns.length)h+=newsListHtml(d.ipo,now);
-    else h+='<ul class="nw-list" id="ipo-box">'+tagged.map(function(t){
-      return newsLinkHtml(t.n,now,t.b.map(function(b){return'<span class="ipo-tag">'+escCatHtml(b.replace(/증권$/,''))+'</span>';}).join('')).replace('<li>','<li data-br="'+escCatHtml(t.b.join('|'))+'">');
-    }).join('')+'</ul>';
-    h+=NEWS_FOOT;
+  var d=withFreshNews(renderIpo);
+  var items=getIpoItems(d);
+  var today=localToday();
+  var curView=localStorage.getItem(IPO_VIEW_KEY)||'cal';
+  if(!_selectedIpoName){
+    var activeToday=items.filter(function(i){return today>=i.start&&today<=i.end;});
+    _selectedIpoName=activeToday.length?activeToday[0].name:items[0].name;
   }
-  el.innerHTML=h+'</div>';
+  var selItem=items.filter(function(i){return i.name===_selectedIpoName;})[0]||items[0];
+
+  var h='<div class="card">'
+    +'<div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+    +'<span>🗓 공모주 청약 캘린더 <span class="sub">· 2026년 11월 일정</span></span>'
+    +'<div class="ipo-vnav" style="margin-bottom:0">'
+    +'<button class="ipo-vbtn '+(curView==='cal'?'on':'')+'" onclick="switchIpoView(\'cal\')">📅 달력 보기</button>'
+    +'<button class="ipo-vbtn '+(curView==='list'?'on':'')+'" onclick="switchIpoView(\'list\')">📋 목록 보기</button>'
+    +'</div></div>';
+
+  if(curView==='cal'){
+    h+='<div class="ipo-cal-box">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<span style="font-size:13px;font-weight:700">2026년 11월</span>'
+      +'<span style="font-size:11px;font-weight:700;color:var(--gn)">● 오늘 청약 가능</span>'
+      +'</div>'
+      +'<div class="ipo-cal-grid">'
+      +'<div class="ipo-cal-h" style="color:var(--rd)">일</div><div class="ipo-cal-h">월</div><div class="ipo-cal-h">화</div>'
+      +'<div class="ipo-cal-h">수</div><div class="ipo-cal-h">목</div><div class="ipo-cal-h">금</div><div class="ipo-cal-h" style="color:var(--bl)">토</div>';
+
+    // 2026-11-01 은 일요일(0), 총 30일
+    for(var day=1;day<=30;day++){
+      var dayStr='2026-11-'+String(day).padStart(2,'0');
+      var dow=(day-1)%7;
+      var isToday=(dayStr===today);
+      var dayItems=items.filter(function(i){return dayStr>=i.start&&dayStr<=i.end;});
+      var hasSel=dayItems.some(function(i){return i.name===selItem.name;});
+
+      var cls='ipo-cal-d';
+      if(dow===0)cls+=' sun';
+      if(dow===6)cls+=' sat';
+      if(isToday)cls+=' today';
+      if(hasSel)cls+=' on';
+
+      var clickAct=dayItems.length?"selectIpoItem('"+escCatHtml(dayItems[0].name)+"')":"";
+      h+='<div class="'+cls+'" '+(clickAct?'onclick="'+clickAct+'"':'')+'>'
+        +'<span class="ipo-cal-n">'+day+'</span>'
+        +'<div class="ipo-cal-chips">';
+      dayItems.forEach(function(it){
+        var chipCls=isToday?'act':'soon';
+        h+='<span class="ipo-cal-chip '+chipCls+'" title="'+escCatHtml(it.name)+' ('+escCatHtml(it.broker)+')">'+escCatHtml(it.name)+'</span>';
+      });
+      h+='</div></div>';
+    }
+    h+='</div></div>';
+  }else{
+    h+='<div style="margin-bottom:10px">';
+    items.forEach(function(it){
+      var isAct=(today>=it.start&&today<=it.end);
+      var isSoon=(today<it.start);
+      var stLabel=isAct?'청약 진행중':(isSoon?'청약 예정':'청약 종료');
+      var stCol=isAct?'var(--gn)':(isSoon?'var(--bl)':'var(--mu)');
+      var isSel=(it.name===selItem.name);
+      h+='<div class="ipo-card '+(isSel?'on':'')+'" onclick="selectIpoItem(\''+escCatHtml(it.name)+'\')">'
+        +'<div class="ipo-card-top">'
+        +'<span>'+escCatHtml(it.name)+' <small style="font-size:11px;color:var(--mu2);font-weight:600">('+escCatHtml(it.market)+')</small></span>'
+        +'<span style="font-size:11px;font-weight:700;color:'+stCol+'">'+stLabel+'</span>'
+        +'</div>'
+        +'<div class="ipo-card-sub"><span>주관: <b>'+escCatHtml(it.broker)+'</b></span><span>공모가: <b>'+escCatHtml(it.price)+'</b></span></div>'
+        +'<div class="ipo-card-sub"><span>기간: <b>'+it.start.slice(5)+' ~ '+it.end.slice(5)+'</b></span><span>상장: <b>'+it.listing.slice(5)+'</b></span></div>'
+        +'</div>';
+    });
+    h+='</div>';
+  }
+
+  // 선택된 종목 상세 정보 패널
+  var selAct=(today>=selItem.start&&today<=selItem.end);
+  var selSoon=(today<selItem.start);
+  var selStText=selAct?'오늘 청약 진행중':(selSoon?'청약 예정':'청약 종료');
+  var selStCls=selAct?'act':'soon';
+
+  h+='<div class="ipo-dt-card">'
+    +'<div class="ipo-dt-head">'
+    +'<div class="ipo-dt-title"><span>'+escCatHtml(selItem.name)+'</span><span style="font-size:11px;padding:2px 6px;border-radius:6px;background:var(--sf);color:var(--mu2);font-weight:700">'+escCatHtml(selItem.market)+'</span></div>'
+    +'<span class="ipo-dt-st '+selStCls+'">'+selStText+'</span>'
+    +'</div>'
+    +'<div class="ipo-dt-grid">'
+    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">주관 증권사</span><span class="ipo-dt-val" style="color:var(--bl)">'+escCatHtml(selItem.broker)+'</span></div>'
+    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">확정 공모가</span><span class="ipo-dt-val">'+escCatHtml(selItem.price)+'</span></div>'
+    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">청약 기간</span><span class="ipo-dt-val">'+selItem.start+' ~ '+selItem.end+'</span></div>'
+    +'<div class="ipo-dt-item"><span class="ipo-dt-lbl">환불 / 상장(발행일)</span><span class="ipo-dt-val">'+selItem.refund+' / '+selItem.listing+'</span></div>'
+    +'</div>'
+    +'</div>';
+
+  h+='</div>';
+  el.innerHTML=h;
 }
 function renderStock(){
   scheduleChartPrune();
