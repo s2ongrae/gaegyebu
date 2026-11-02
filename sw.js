@@ -2,7 +2,7 @@
 // 원칙 ① 앱 화면(index.html)은 "인터넷 먼저": 연결되면 항상 최신 버전, 끊기거나 느리면(3.5초) 저장해 둔 것
 //      ② 서버(Apps Script)·구글 폰트 등 다른 주소의 요청은 절대 가로채지 않는다(동기화·인증이 그대로 동작)
 //      ③ 같은 주소의 데이터(거래 등)는 서비스 워커가 아니라 앱이 직접 localStorage에 저장한다
-const VERSION = 'v1-2026-11-02';
+const VERSION = 'v1-2026-11-02-toss';
 const CACHE = 'gaegyebu-' + VERSION;
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable-512.png', './apple-touch-icon.png', './favicon.png'];
 // index.html의 <script integrity=…>와 같은 주소·같은 버전(무결성 검증을 통과해야 하므로 CORS 응답을 그대로 저장)

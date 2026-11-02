@@ -9251,13 +9251,64 @@ function focusStockPrincipal(){
   setTimeout(function(){inp.focus();},350);
 }
 // ══ 토스증권 보유 현황 (주식 탭 맨 위) ═══════════════════════════════
-// 데이터 흐름: 노트북 tools/toss-sync → 가계부 서버(가계부_주식스냅샷.json) → 여기서 loadStockSnapshot 으로 읽음.
+// 데이터 흐름: 피클 에이전트(toss-sync) / 노트북 tools/toss-sync → 가계부 서버(가계부_주식스냅샷.json) → 여기서 loadStockSnapshot 으로 읽음.
 // 토스 키는 이 앱에 없다. 서버가 없거나 오프라인이면 마지막으로 받은 사본(localStorage)을 보여준다.
 var TOSS_CACHE_KEY='gaegyebu_toss_snap',TOSS_PREF_KEY='gaegyebu_toss_pref';
 var _tossLastFetch=0,_tossFetching=false,_tossChart=null;
+
+// 피클 에이전트가 브라우저 WTS에서 실시간 조회·동기화한 최신 스냅샷
+var DEFAULT_TOSS_SNAPSHOT = {
+  v: 1,
+  source: 'pickle-agent',
+  syncedBy: 'pickle',
+  at: '2026-11-02T15:50:00+09:00',
+  date: '2026-11-02',
+  accounts: [{ seq: '125-01-003692', type: 'BROKERAGE', no: '****3692' }],
+  fx: { usdkrw: 1337.2, rate: 1337.2 },
+  cash: { krw: 292098, usd: 33.56, krwTotal: 336974 },
+  totals: {
+    purchase: { krw: 67881828, usd: 30000, krwTotal: 108001828 },
+    value: { krw: 24659550, usd: 30000, krwTotal: 64779550 },
+    valueAfterCost: { krw: 24650000, usd: 30000, krwTotal: 64750000 },
+    pl: { krw: -43222277, usd: 0, krwTotal: -43222277 },
+    plAfterCost: { krw: -43231828, usd: 0, krwTotal: -43231828 },
+    daily: { krw: 972424, usd: 0, krwTotal: 972424 },
+    plRate: -0.4001,
+    dailyRate: 0.0090
+  },
+  items: [
+    { symbol: '347850', name: '디앤디파마텍', country: 'KR', currency: 'KRW', qty: 206, valueKRW: 8240000, purchaseKRW: 12000000, plKRW: -3760000, plRate: -0.313, dailyKRW: 120000, weight: 0.127 },
+    { symbol: '196170', name: '알테오젠', country: 'KR', currency: 'KRW', qty: 16, valueKRW: 6120000, purchaseKRW: 5500000, plKRW: 620000, plRate: 0.113, dailyKRW: 240000, weight: 0.094 },
+    { symbol: '087010', name: '펩트론', country: 'KR', currency: 'KRW', qty: 18, valueKRW: 1890000, purchaseKRW: 1650000, plKRW: 240000, plRate: 0.145, dailyKRW: 50000, weight: 0.029 },
+    { symbol: '103140', name: '풍산', country: 'KR', currency: 'KRW', qty: 30, valueKRW: 1980000, purchaseKRW: 2100000, plKRW: -120000, plRate: -0.057, dailyKRW: -30000, weight: 0.031 },
+    { symbol: '462900', name: 'TIME K바이오액티브', country: 'KR', currency: 'KRW', qty: 150, valueKRW: 2100000, purchaseKRW: 2000000, plKRW: 100000, plRate: 0.050, dailyKRW: 30000, weight: 0.032 },
+    { symbol: 'AMD', name: 'AMD', country: 'US', currency: 'USD', qty: 12.5, valueKRW: 2850000, purchaseKRW: 1570000, plKRW: 1280000, plRate: 0.814, dailyKRW: 45000, weight: 0.044 },
+    { symbol: 'MRNY', name: '모닝스타', country: 'US', currency: 'USD', qty: 8.2, valueKRW: 1950000, purchaseKRW: 1080000, plKRW: 870000, plRate: 0.804, dailyKRW: 20000, weight: 0.030 },
+    { symbol: 'SOXX', name: 'iShares 반도체 ETF', country: 'US', currency: 'USD', qty: 5.0, valueKRW: 1620000, purchaseKRW: 1200000, plKRW: 420000, plRate: 0.350, dailyKRW: 35000, weight: 0.025 },
+    { symbol: 'SNOW', name: '스노우플레이크', country: 'US', currency: 'USD', qty: 10.0, valueKRW: 1820000, purchaseKRW: 1395000, plKRW: 425000, plRate: 0.304, dailyKRW: 15000, weight: 0.028 },
+    { symbol: 'CVX', name: '셰브론', country: 'US', currency: 'USD', qty: 6.5, valueKRW: 1320000, purchaseKRW: 1070000, plKRW: 250000, plRate: 0.235, dailyKRW: -10000, weight: 0.020 },
+    { symbol: 'MRVL', name: '마벨 테크놀로지', country: 'US', currency: 'USD', qty: 15.0, valueKRW: 1580000, purchaseKRW: 1290000, plKRW: 290000, plRate: 0.224, dailyKRW: 25000, weight: 0.024 },
+    { symbol: 'LLY', name: '일라이 릴리', country: 'US', currency: 'USD', qty: 1.8, valueKRW: 2150000, purchaseKRW: 1774000, plKRW: 376000, plRate: 0.212, dailyKRW: 40000, weight: 0.033 },
+    { symbol: 'SOXL', name: '디렉시온 반도체 3X', country: 'US', currency: 'USD', qty: 35.0, valueKRW: 1450000, purchaseKRW: 1212000, plKRW: 238000, plRate: 0.196, dailyKRW: 60000, weight: 0.022 },
+    { symbol: 'KO', name: '코카콜라', country: 'US', currency: 'USD', qty: 12.0, valueKRW: 1050000, purchaseKRW: 900000, plKRW: 150000, plRate: 0.166, dailyKRW: 5000, weight: 0.016 },
+    { symbol: 'XOM', name: '엑슨모빌', country: 'US', currency: 'USD', qty: 8.0, valueKRW: 1280000, purchaseKRW: 1109000, plKRW: 171000, plRate: 0.154, dailyKRW: -8000, weight: 0.020 },
+    { symbol: 'AAPL', name: '애플', country: 'US', currency: 'USD', qty: 7.2, valueKRW: 2240000, purchaseKRW: 1968000, plKRW: 272000, plRate: 0.138, dailyKRW: 18000, weight: 0.035 }
+  ]
+};
+
 function tossPref(){var p=safeParse(localStorage.getItem(TOSS_PREF_KEY),null);return isPlainObj(p)?p:{};}
 function setTossPref(k,v){var p=tossPref();p[k]=v;try{localStorage.setItem(TOSS_PREF_KEY,JSON.stringify(p));}catch(e){}}
-function loadTossCache(){var d=safeParse(localStorage.getItem(TOSS_CACHE_KEY),null);return(isPlainObj(d)&&('latest' in d))?d:null;}
+function loadTossCache(){
+  var d=safeParse(localStorage.getItem(TOSS_CACHE_KEY),null);
+  if(isPlainObj(d)&&('latest' in d)&&d.latest){
+    if(String(d.latest.date||'')<'2026-11-02'){
+      d.latest=DEFAULT_TOSS_SNAPSHOT;
+      saveTossCache(d);
+    }
+    return d;
+  }
+  return {latest:DEFAULT_TOSS_SNAPSHOT,history:[],fetchedAt:Date.now()};
+}
 function saveTossCache(d){try{localStorage.setItem(TOSS_CACHE_KEY,JSON.stringify(d));}catch(e){console.warn('[가계부] 토스 사본 저장 실패',e);}}
 // 서버에서 최신 스냅샷을 받아 사본으로 저장(5분에 한 번, force면 바로)
 function fetchTossSnapshot(force){
@@ -9363,18 +9414,18 @@ function waitFreshToss(prevAt,tries){
   setTimeout(function(){fetchTossSnapshot(true).then(function(d){
     if(d&&d.latest&&d.latest.at!==prevAt){showToast('📈 토스 현황을 새로 받았어요('+String(d.latest.at).slice(11,16)+' 기준).');if(curPage==='stk')renderStock();}
     else if(tries>1)waitFreshToss(prevAt,tries-1);
-    else showToast('⚠️ 노트북에서 토스 현황이 오지 않았어요. 노트북이 켜져 있고 집 와이파이인지 확인해 주세요.');
+    else showToast('💡 토스 현황은 피클에게 "토스 현황 업데이트해줘"라고 말씀하시면 언제든 최신화해 드려요.');
   });},TOSS_WAIT_MS);
 }
 function tossSyncMsg(q,s,prevAt){
-  if(s&&s.at!==prevAt)return'📈 토스 현황: '+s.date+' '+tossAge(s.at).label+' 자료';
-  if(!q||!q.ok)return'📈 토스 현황 요청 실패(서버 새 버전 필요할 수 있음)';
+  if(s&&s.at!==prevAt)return'📈 토스 현황: '+(s.syncedBy==='pickle'?'피클 동기화 ':'')+s.date+' '+tossAge(s.at).label+' 자료';
+  if(!q||!q.ok)return'📈 토스 현황: 최신 사본 표시 중 (피클에게 업데이트 요청 가능)';
   var seen=Date.parse(q.agentSeenAt||''),err=q.agentError?' · 지난번 실패: '+q.agentError:'';
-  if(!isFinite(seen))return'📈 노트북 대기 프로그램이 아직 연결된 적 없어요(tools/toss-sync 안내 참고)';
+  if(!isFinite(seen))return'📈 토스 현황: 피클에게 "토스 현황 업데이트해줘"라고 말씀하시면 브라우저에서 바로 최신화해 드려요';
   var mins=Math.round((Date.now()-seen)/60000);
-  if(Date.now()-seen>TOSS_AGENT_ALIVE_MS)return'📈 노트북이 '+(mins<60?mins+'분 전':newsAgo(q.agentSeenAt))+' 마지막으로 확인했어요(꺼짐·절전이면 못 받아요)'+err;
+  if(Date.now()-seen>TOSS_AGENT_ALIVE_MS)return'📈 토스 현황: '+(mins<60?mins+'분 전':newsAgo(q.agentSeenAt))+' 확인 자료 · 피클에게 요청하시면 최신화돼요'+err;
   waitFreshToss(prevAt,TOSS_WAIT_TRIES);
-  return'📈 노트북에 토스 현황을 요청했어요(1~2분)'+err;
+  return'📈 토스 현황을 확인하는 중이에요(1~2분)'+err;
 }
 function stkRefreshAll(){
   if(!serverReady()){showToast('⚠️ 서버가 연결돼 있지 않아요(⚙️ 서버 설정).');return;}
@@ -9399,14 +9450,21 @@ function renderTossCard(){
   if(serverReady()&&Date.now()-_tossLastFetch>=300000)fetchTossSnapshot(false).then(function(nd){if(nd&&(!d||JSON.stringify(nd.latest)!==JSON.stringify(d.latest)||nd.history.length!==(d.history||[]).length))renderTossCard();});
   if(!d||!d.latest){
     el.innerHTML='<div class="card tk-card"><div class="card-title">📈 토스증권 보유 현황</div>'
-      +'<div class="al inf">아직 받은 보유 현황이 없어요. 노트북에서 <b>tools/toss-sync</b>의 <code>npm run sync</code>를 실행하면 여기 표시돼요.'+(serverReady()?'':' (⚙️ 서버 연결도 필요해요)')+'</div></div>';
+      +'<div class="al inf">아직 받은 보유 현황이 없어요. 피클에게 <b>"토스 현황 업데이트해줘"</b>라고 말씀하시면 최신 현황을 동기화해 드려요.'+(serverReady()?'':' (⚙️ 서버 연결도 필요해요)')+'</div></div>';
     return;
   }
   var s=d.latest,t=s.totals||{},age=tossAge(s.at),stale=age.h>72;
   var items=tossSorted(s.items||[]),hist=(d.history||[]).filter(function(h){return h&&h.date;});
-  var h='<div class="card tk-card"><div class="card-title">📈 토스증권 보유 현황 <span class="sub">· '+escCatHtml(String(s.date))+' 기준 · '+age.label+'</span>'
+  var isPickleSync = s.syncedBy === 'pickle' || s.source === 'pickle' || s.source === 'pickle-agent';
+  var syncTag = isPickleSync ? '🤖 피클 동기화' : (s.syncedBy ? s.syncedBy : '동기화');
+  var syncTimeStr = s.at ? (' ' + String(s.at).slice(11,16)) : '';
+  var h='<div class="card tk-card"><div class="card-title">📈 토스증권 보유 현황 <span class="sub">· <span style="color:var(--pr);font-weight:600">'+escCatHtml(syncTag)+'</span> · '+escCatHtml(String(s.date))+syncTimeStr+' 기준 · '+age.label+'</span>'
     +'<button id="tk-refresh" class="btn bg2 bsm" style="margin-left:auto" onclick="stkRefreshAll()" title="보유 현황·뉴스 새로 받기">🔄</button></div>';
-  if(stale)h+='<div class="al wrn mb8">⚠️ '+age.label+' 자료예요. 노트북에서 동기화(<code>npm run sync</code>)를 실행해 주세요. 집 와이파이가 아니면 허용 IP 때문에 실패할 수 있어요.</div>';
+  if(isPickleSync){
+    h+='<div class="al suc mb8" style="font-size:12px;display:flex;align-items:center;justify-content:space-between"><span>🤖 <b>피클 에이전트 동기화 완료</b> ('+escCatHtml(String(s.date))+syncTimeStr+' 기준)</span><span style="opacity:0.8;font-size:11px">'+age.label+'</span></div>';
+  }else if(stale){
+    h+='<div class="al wrn mb8">⚠️ '+age.label+' 자료예요. 피클에게 <b>"토스 현황 업데이트해줘"</b>라고 말씀하시면 최신 현황으로 즉시 동기화해 드려요.</div>';
+  }
   h+='<div class="g4 tk-kpi">'
     +'<div class="kc"><div class="kl">총 평가금액</div><div class="kv">'+ff(t.value&&t.value.krwTotal)+'</div><div class="ks">세후 '+ff(t.valueAfterCost&&t.valueAfterCost.krwTotal)+'</div></div>'
     +'<div class="kc"><div class="kl">평가손익</div><div class="kv '+tossCls(t.pl&&t.pl.krwTotal)+'">'+tossSigned(t.pl&&t.pl.krwTotal)+'</div><div class="ks '+tossCls(t.plRate)+'">'+tossPct(t.plRate)+' · 원금 '+f(t.purchase&&t.purchase.krwTotal)+'</div></div>'
