@@ -16,8 +16,16 @@ const DRY = process.argv.includes('--dry');
   if (DRY) { T.log('--dry: 서버에는 보내지 않았어요.'); return; }
   const r = await T.uploadSnapshot({ url: env.GAEGYEBU_SERVER_URL, key: env.GAEGYEBU_SERVER_KEY, snapshot: s });
   T.log('✔ 가계부에 저장했어요 · 날짜별 기록', r.historyCount + '일');
+  await T.reportStatus({ url: env.GAEGYEBU_SERVER_URL, key: env.GAEGYEBU_SERVER_KEY, error: '' });
+  T.writeStatusFile(env.__file, { ok: true, by: 'sync' });
 })().catch(async e => {
-  T.warn('✗ ' + e.message);
-  if (e instanceof T.TossIpError) { const ip = await T.publicIp(); T.warn('  지금 공인 IP: ' + (ip || '(확인 실패)') + ' → 토스증권 웹 설정 > Open API > 허용 IP 에 등록하세요.'); }
-  process.exit(1);
+  // 실패도 가계부 서버·노트북 상태 파일에 남긴다(정해진 시각 실행·피클 실행에서도 앱에 "지난번 실패: 이유"가 보이게)
+  const cls = T.classifyError(e);
+  let msg = T.errorText(e, cls);
+  if (e instanceof T.TossIpError) { const ip = await T.publicIp(); msg = '[IP] 토스 허용 IP가 아닌 곳이에요(지금 ' + (ip || '?') + '). 토스증권 웹 설정 > Open API > 허용 IP 에 등록하세요.'; }
+  T.warn('✗ ' + msg);
+  let env = {}; try { env = T.loadEnv(); } catch (x) { /* .env 없음 */ }
+  await T.reportStatus({ url: env.GAEGYEBU_SERVER_URL, key: env.GAEGYEBU_SERVER_KEY, error: msg });
+  if (env.__file) T.writeStatusFile(env.__file, { ok: false, by: 'sync', code: cls.code, error: msg });
+  process.exit({ IP: 2, AUTH: 3, API: 4, SERVER: 5, NET: 6 }[cls.code] || 1); // 종료 코드로도 구분(피클·작업 스케줄러가 읽을 수 있게)
 });

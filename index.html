@@ -2937,6 +2937,10 @@ function syncNow(opts){
         attempt();return;
       }
       if(res&&res.error==='busy'){tries++;if(tries>4){fail('서버가 바빠요. 잠시 뒤 다시 시도해 주세요.');return;}setTimeout(attempt,1500);return;}
+      if(res&&res.error==='wipe_guard'){ // 서버가 막음: 이 기기에서 자산 항목·예산 항목·목표·할부가 통째로 비어 있음(2026-11-04 같은 사고 방지)
+        var WN={ai:'자산 항목',bt:'예산 항목',goals:'목표',installments:'할부'};
+        fail('동기화 멈춤: 이 기기에서 '+(res.lists||[]).map(function(k){return WN[k]||k;}).join('·')+'이(가) 비어 있어서, 서버 데이터를 지키려고 저장을 막았어요. 다른 기기에서 확인하거나 📥 가져오기로 복원해 주세요.');return;
+      }
       if(res&&res.error==='shrink'){
         _syncShrinkBlocked={serverCount:res.serverCount,incomingCount:res.incomingCount};
         fail('동기화 멈춤: 이 기기 거래가 서버보다 훨씬 적어요 ('+res.incomingCount+' < '+res.serverCount+'건). 🔄 버튼으로 확인해 주세요.');return;
@@ -9359,16 +9363,18 @@ function waitFreshToss(prevAt,tries){
   setTimeout(function(){fetchTossSnapshot(true).then(function(d){
     if(d&&d.latest&&d.latest.at!==prevAt){showToast('📈 토스 현황을 새로 받았어요('+String(d.latest.at).slice(11,16)+' 기준).');if(curPage==='stk')renderStock();}
     else if(tries>1)waitFreshToss(prevAt,tries-1);
-    else showToast('💡 토스 현황은 피클에게 "토스 현황 업데이트해줘"라고 말씀하시면 언제든 최신화해 드려요.');
+    else showToast('💡 토스 현황은 🔄를 누르면 노트북 대기 프로그램이 토스에서 받아 와요(노트북이 켜져 있고 집 와이파이일 때).');
   });},TOSS_WAIT_MS);
 }
 function tossSyncMsg(q,s,prevAt){
   if(s&&s.at!==prevAt)return'📈 토스 현황: '+(s.syncedBy==='pickle'?'피클 동기화 ':'')+s.date+' '+tossAge(s.at).label+' 자료';
-  if(!q||!q.ok)return'📈 토스 현황: 최신 사본 표시 중 (피클에게 업데이트 요청 가능)';
+  // 토스 숫자는 노트북 대기 프로그램(tools/toss-sync/agent.js)이 토스 Open API로만 받아 온다. 🔄 는 그 프로그램에 '받아 와 줘' 요청만 남긴다.
+  // (2026-11-05: 화면을 보고 숫자를 만들어 넣는 방식은 서버가 거절 — 출처·합계·시각 검사)
+  if(!q||!q.ok)return'📈 토스 현황: 최신 사본 표시 중 (🔄로 노트북에 업데이트 요청 가능)';
   var seen=Date.parse(q.agentSeenAt||''),err=q.agentError?' · 지난번 실패: '+q.agentError:'';
-  if(!isFinite(seen))return'📈 토스 현황: 피클에게 "토스 현황 업데이트해줘"라고 말씀하시면 브라우저에서 바로 최신화해 드려요';
+  if(!isFinite(seen))return'📈 토스 현황: 노트북 대기 프로그램(agent.js)이 아직 연결된 적이 없어요. 노트북에서 켜 두면 🔄로 받아 와요';
   var mins=Math.round((Date.now()-seen)/60000);
-  if(Date.now()-seen>TOSS_AGENT_ALIVE_MS)return'📈 토스 현황: '+(mins<60?mins+'분 전':newsAgo(q.agentSeenAt))+' 확인 자료 · 피클에게 요청하시면 최신화돼요'+err;
+  if(Date.now()-seen>TOSS_AGENT_ALIVE_MS)return'📈 토스 현황: 노트북 대기 프로그램이 '+(mins<60?mins+'분 전':newsAgo(q.agentSeenAt))+' 마지막으로 확인했어요(꺼짐·절전 중일 수 있음) · 노트북을 켜면 요청을 이어서 처리해요'+err;
   waitFreshToss(prevAt,TOSS_WAIT_TRIES);
   return'📈 토스 현황을 확인하는 중이에요(1~2분)'+err;
 }

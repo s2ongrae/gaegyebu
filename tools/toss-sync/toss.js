@@ -192,6 +192,36 @@ async function publicIp(fetchImpl = globalThis.fetch) {
   try { const r = await fetchImpl('https://api.ipify.org?format=json'); const j = await r.json(); return j.ip || null; } catch (e) { return null; }
 }
 
+// ── 8. 오류 구분 · 결과 알리기(2026-11-05) ─────────────────────────────
+// 오류 종류: IP(허용 IP 아님) · AUTH(키) · API(토스 응답) · SERVER(가계부 서버) · NET(인터넷) · OTHER
+// transient: 잠깐 뒤 다시 하면 될 수 있는 것(429·5xx·연결 끊김) → 대기 프로그램이 한 번 더 시도한다.
+const NET_RE = /fetch failed|ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket|network|timeout/i;
+function classifyError(e) {
+  const m = String((e && e.message) || e || '');
+  if (e instanceof TossIpError) return { code: 'IP', transient: false };
+  if (e instanceof TossAuthError) return { code: 'AUTH', transient: false };
+  if (e instanceof ReadOnlyError) return { code: 'READONLY', transient: false };
+  if (e instanceof TossApiError) return { code: 'API', transient: e.status === 429 || e.status >= 500 };
+  if (/가계부 서버/.test(m)) return { code: 'SERVER', transient: /busy|5\d\d|fetch failed|ECONN|ETIMEDOUT/i.test(m) };
+  if (NET_RE.test(m)) return { code: 'NET', transient: true };
+  return { code: 'OTHER', transient: false };
+}
+const ERROR_HINT = { IP: '집 와이파이인지, 토스 허용 IP가 지금 IP와 같은지 확인', AUTH: '.env 의 토스 키 확인', API: '토스 쪽 응답 오류(잠시 뒤 다시)', SERVER: '가계부 서버 주소·키 또는 서버 상태 확인', NET: '노트북 인터넷 연결 확인', READONLY: '조회 전용 도구에서 막힌 호출', OTHER: '' };
+function errorText(e, cls) { cls = cls || classifyError(e); return mask(('[' + cls.code + '] ' + ((e && e.message) || e) + (ERROR_HINT[cls.code] ? ' → ' + ERROR_HINT[cls.code] : '')).slice(0, 300)); }
+// 결과를 가계부 서버에 남긴다(앱 주식 탭에 "지난번 실패: …"로 보임). error: '' 이면 성공. 알리기 실패는 조용히 넘어감.
+async function reportStatus({ url, key, error, fetchImpl = globalThis.fetch }) {
+  if (!url || !key) return false;
+  registerSecret(key);
+  try {
+    const r = await fetchImpl(url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ k: key, action: 'pollTossSync', error: mask(String(error || '')).slice(0, 300) }), redirect: 'follow' });
+    const j = await r.json().catch(() => ({})); return !!j.ok;
+  } catch (e) { return false; }
+}
+// 마지막 결과를 노트북에도 남김(gaegyebu-data/toss-sync-status.json) — 피클·사람이 이 파일만 보면 상태를 안다
+function writeStatusFile(envFile, status) {
+  try { fs.writeFileSync(path.join(path.dirname(envFile), 'toss-sync-status.json'), JSON.stringify(Object.assign({ at: kstIso() }, status), null, 2)); return true; } catch (e) { return false; }
+}
+
 const won = v => (v == null ? '-' : Math.round(v).toLocaleString('ko-KR') + '원');
 const pct = v => (v == null ? '-' : (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + '%');
-module.exports = { loadEnv, mask, log, warn, registerSecret, maskAccountNo, TossClient, TossError, TossIpError, TossAuthError, TossApiError, ReadOnlyError, READ_ONLY, buildSnapshot, collect, uploadSnapshot, publicIp, kstDate, won, pct };
+module.exports = { loadEnv, mask, log, warn, registerSecret, maskAccountNo, TossClient, TossError, TossIpError, TossAuthError, TossApiError, ReadOnlyError, READ_ONLY, buildSnapshot, collect, uploadSnapshot, publicIp, kstDate, won, pct, classifyError, errorText, reportStatus, writeStatusFile };

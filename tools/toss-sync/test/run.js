@@ -112,7 +112,7 @@ function mockToss(opts = {}) {
     check('막힌 경로 ' + p + ' 는 요청 자체를 만들지 않음', err instanceof T.ReadOnlyError, err && err.message);
   }
   const src = fs.readFileSync(path.join(__dirname, '..', 'toss.js'), 'utf8');
-  check('코드 안의 POST는 토큰 발급과 가계부 업로드 2곳뿐(주문 코드 없음)', (src.match(/method:\s*'POST'/g) || []).length === 2 && !/side:\s*'BUY'|\/orders['"]\s*,\s*\{\s*method:\s*'POST'/.test(src));
+  check('코드 안의 POST는 토큰 발급·가계부 업로드·가계부 상태 알림 3곳뿐(주문 코드 없음)', (src.match(/method:\s*'POST'/g) || []).length === 3 && /action: 'pollTossSync', error:/.test(src) && !/side:\s*'BUY'|\/orders['"]\s*,\s*\{\s*method:\s*'POST'/.test(src));
   check('get()은 GET만 보냄', /method: 'GET'/.test(src) && !/method: (?:'PUT'|'DELETE'|'PATCH')/.test(src));
   const logs = []; const ol = console.log, oe = console.error; console.log = (...a) => logs.push(a.join(' ')); console.error = (...a) => logs.push(a.join(' '));
   T.registerSecret(SKEY);

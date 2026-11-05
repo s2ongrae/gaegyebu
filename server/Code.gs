@@ -147,6 +147,10 @@ function handleSave_(body) {
       return jsonOut({ ok: false, error: 'shrink', serverCount: curN, incomingCount: p.txs.length });
     }
 
+    // 자산 항목·예산 항목·목표·할부를 통째로 비우는 저장은 멈춤(2026-11-04 사고: 이 목록들이 한꺼번에 비어 서버에 저장됨).
+    // 복원·가져오기처럼 일부러 하는 경우(force)는 통과. 목표·할부 하나만 비우는 건 정상 사용일 수 있어 허용.
+    if (!body.force) { const wiped = wipeCheck_(cur, p); if (wiped) return jsonOut({ ok: false, error: 'wipe_guard', lists: wiped }); }
+
     p.__rev = curRev + 1;
     const text = JSON.stringify(p);
     if (text.length > MAX_DATA_CHARS) return jsonOut({ ok: false, error: 'too_large' });
@@ -157,6 +161,15 @@ function handleSave_(body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+const WIPE_LISTS = ['ai', 'bt', 'goals', 'installments'];
+// 서버에는 있는데 이번 저장에서 빈 배열([])이 된 목록. 자산 항목(ai)·예산 항목(bt)이 3개 이상 있다가 비거나, 두 목록 이상이 한꺼번에 비면 막는다.
+// (예전 앱처럼 그 칸을 아예 안 보내면(undefined) 비운 것으로 보지 않음)
+function wipeCheck_(cur, p) {
+  const emptied = WIPE_LISTS.filter(k => Array.isArray(cur[k]) && cur[k].length > 0 && Array.isArray(p[k]) && p[k].length === 0);
+  const core = emptied.filter(k => (k === 'ai' || k === 'bt') && cur[k].length >= 3);
+  return (core.length || emptied.length >= 2) ? emptied : null;
 }
 
 // 하루에 한 번, 덮어쓰기 직전의 파일을 백업 폴더에 남기고 오래된 백업은 휴지통으로 보냅니다.
@@ -189,6 +202,8 @@ function backupIfNeeded_(file) {
 const STOCK_FILE_NAME = '가계부_주식스냅샷.json';
 const STOCK_HISTORY_MAX = 1500;     // 날짜별 요약 최대 보관(약 4년)
 const STOCK_SNAPSHOT_MAX_CHARS = 600000;
+const STOCK_SNAPSHOT_SOURCE = 'tossinvest-openapi';   // tools/toss-sync 의 buildSnapshot 이 붙이는 출처
+const STOCK_SNAPSHOT_MAX_AGE_MS = 3 * 86400000;
 
 function getStockFile_() {
   const folder = getFolder_();
@@ -211,6 +226,18 @@ function validateStockSnapshot_(s) {
   for (const it of s.items) { if (!it || typeof it !== 'object' || typeof it.symbol !== 'string' || finiteOrNull_(it.valueKRW) === null) return '종목 항목 형식'; }
   if (s.orders && (!Array.isArray(s.orders) || s.orders.length > 500)) return 'orders 형식';
   if (JSON.stringify(s).length > STOCK_SNAPSHOT_MAX_CHARS) return '스냅샷이 너무 커요';
+  // ── 2026-11-05: 노트북 동기화 도구(토스 Open API)가 만든 자료만 받는다 ──
+  // 화면을 보고 숫자를 만들어 넣은 자료(2026-11-02 임의 스냅샷)가 저장되지 않도록 출처·시각·합계를 검사한다.
+  if (s.source !== STOCK_SNAPSHOT_SOURCE) return '토스 Open API로 받은 자료가 아니에요(출처: ' + String(s.source || '없음').slice(0, 30) + ')';
+  const at = Date.parse(String(s.at || ''));
+  if (!isFinite(at)) return '기준 시각(at) 형식이 아니에요';
+  if (at > Date.now() + 10 * 60000) return '기준 시각이 미래예요';
+  if (Date.now() - at > STOCK_SNAPSHOT_MAX_AGE_MS) return '3일보다 오래된 자료예요';
+  if (Utilities.formatDate(new Date(at), 'Asia/Seoul', 'yyyy-MM-dd') !== s.date) return '날짜(date)와 기준 시각(at)이 안 맞아요';
+  for (const it of s.items) { const q = finiteOrNull_(it.qty); if (q === null || q <= 0) return '수량이 0 이하이거나 없는 종목(' + String(it.symbol).slice(0, 12) + ')'; }
+  const tot = s.totals.value.krwTotal, sumV = s.items.reduce((a, it) => a + it.valueKRW, 0);
+  if (Math.abs(sumV - tot) > Math.max(1000, Math.abs(tot) * 0.002)) return '종목 평가액 합계(' + Math.round(sumV) + ')와 총 평가금액(' + Math.round(tot) + ')이 안 맞아요';
+  if (s.items.length) { const w = s.items.reduce((a, it) => a + (Number(it.weight) || 0), 0); if (w < 0.98 || w > 1.02) return '종목 비중 합계가 100%가 아니에요'; }
   return '';
 }
 function stockSummary_(s) {
@@ -220,7 +247,10 @@ function stockSummary_(s) {
 }
 function handleSaveStockSnapshot_(body) {
   const bad = validateStockSnapshot_(body.snapshot);
-  if (bad) return jsonOut({ ok: false, error: 'bad_snapshot', detail: bad });
+  if (bad) { // 거절 이유를 남겨 앱 주식 탭에 "지난번 실패: …"로 보이게
+    PropertiesService.getScriptProperties().setProperty('STOCK_AGENT_ERR', ('[SERVER] 서버가 저장을 거절했어요: ' + bad).slice(0, 300));
+    return jsonOut({ ok: false, error: 'bad_snapshot', detail: bad });
+  }
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(20000)) return jsonOut({ ok: false, error: 'busy' });
   try {
