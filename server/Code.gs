@@ -43,6 +43,7 @@ function doPost(e) {
       case 'requestTossSync': return handleRequestTossSync_();
       case 'pollTossSync': return handlePollTossSync_(body);
       case 'loadStockSnapshot': return handleLoadStockSnapshot_();
+      case 'loadStockItemHistory': return handleLoadStockItemHistory_(body);
       case 'loadStockNews': return handleLoadStockNews_();
       case 'requestNewsRefresh': return handleRequestNewsRefresh_();
       case 'getCalendarEvents': return handleGetCalendarEvents(body);
@@ -216,6 +217,34 @@ function readStock_(file) {
   return { latest: null, history: [] };
 }
 const finiteOrNull_ = v => (typeof v === 'number' && isFinite(v)) ? v : null;
+// 종목별 날짜 기록(앱 종목 상세의 추이용): 별도 파일에 하루 하나 { date, items: { 종목코드: [원화 평가금액, 수익률, 현재가] } }, 최근 400일.
+// 스냅샷 파일과 나눈 이유: 앱이 현황을 읽을 때마다 받는 양이 커지지 않게(종목 하나씩 따로 조회).
+const STOCK_ITEMS_FILE_NAME = '가계부_주식종목기록.json';
+const STOCK_ITEMS_DAYS_MAX = 400;
+function getStockItemsFile_() {
+  const folder = getFolder_(), files = folder.getFilesByName(STOCK_ITEMS_FILE_NAME);
+  return files.hasNext() ? files.next() : folder.createFile(STOCK_ITEMS_FILE_NAME, JSON.stringify({ days: [] }), MimeType.PLAIN_TEXT);
+}
+function readStockItems_(file) {
+  try { const d = JSON.parse(file.getBlob().getDataAsString()); if (d && Array.isArray(d.days)) return d; } catch (_) {}
+  return { days: [] };
+}
+function saveStockItemsDay_(snap) {
+  const file = getStockItemsFile_(), d = readStockItems_(file), items = {};
+  (snap.items || []).forEach(x => { if (x && x.symbol) items[String(x.symbol)] = [finiteOrNull_(x.valueKRW), finiteOrNull_(x.plRate), finiteOrNull_(x.last)]; });
+  const days = d.days.filter(x => x && x.date !== snap.date); // 같은 날짜는 마지막 것으로 교체
+  days.push({ date: snap.date, items }); days.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  while (days.length > STOCK_ITEMS_DAYS_MAX) days.shift();
+  file.setContent(JSON.stringify({ days }));
+}
+function handleLoadStockItemHistory_(body) {
+  const sym = String(body.symbol || '');
+  if (!sym || sym.length > 40) return jsonOut({ ok: false, error: 'bad_symbol' });
+  const files = getFolder_().getFilesByName(STOCK_ITEMS_FILE_NAME);
+  const d = files.hasNext() ? readStockItems_(files.next()) : { days: [] };
+  const points = d.days.filter(x => x.items && x.items[sym]).map(x => ({ date: x.date, v: x.items[sym][0], r: x.items[sym][1], p: x.items[sym][2] }));
+  return jsonOut({ ok: true, symbol: sym, points });
+}
 // 스냅샷 모양 검사: 숫자 칸이 숫자인지, 날짜 형식, 크기. 통과 못 하면 저장하지 않는다.
 function validateStockSnapshot_(s) {
   if (!s || typeof s !== 'object' || Array.isArray(s)) return 'snapshot 이 없어요';
@@ -260,6 +289,7 @@ function handleSaveStockSnapshot_(body) {
     hist.push(sum); hist.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     while (hist.length > STOCK_HISTORY_MAX) hist.shift();
     file.setContent(JSON.stringify({ latest: snap, history: hist }));
+    try { saveStockItemsDay_(snap); } catch (e) { console.warn('종목별 기록 저장 실패', e); } // 실패해도 현황 저장은 그대로
     const pr = PropertiesService.getScriptProperties();
     pr.setProperty('STOCK_SYNC_SAVED', new Date().toISOString()); pr.setProperty('STOCK_AGENT_ERR', ''); // 폰 🔄 요청은 이걸로 처리됨
     return jsonOut({ ok: true, saved: true, date: sum.date, historyCount: hist.length });
