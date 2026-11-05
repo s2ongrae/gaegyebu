@@ -321,9 +321,10 @@ function handlePollTossSync_(body) {
 }
 function handleLoadStockSnapshot_() {
   const folder = getFolder_(), files = folder.getFilesByName(STOCK_FILE_NAME);
-  if (!files.hasNext()) return jsonOut({ ok: true, latest: null, history: [] });
+  const sync = tossSyncState_(); // 노트북 대기 프로그램이 마지막으로 확인한 시각·실패 이유(앱 카드에 계속 보이게)
+  if (!files.hasNext()) return jsonOut({ ok: true, latest: null, history: [], sync });
   const d = readStock_(files.next());
-  return jsonOut({ ok: true, latest: d.latest, history: d.history });
+  return jsonOut({ ok: true, latest: d.latest, history: d.history, sync });
 }
 
 // ── 아침 브리핑: 보유 종목 최신 뉴스 링크 + 공모주 관련 기사 (구글 뉴스 RSS · 무료 · 키 없음) ─────────────
