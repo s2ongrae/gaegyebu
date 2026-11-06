@@ -882,22 +882,7 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .stk-dt-tr{display:flex;justify-content:space-between;gap:6px;font-size:12px;color:var(--mu2);margin-top:3px}
 .stk-dt-od{display:grid;grid-template-columns:36px minmax(0,1fr) minmax(0,1.4fr) auto;gap:6px;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--bd);align-items:center}
 .stk-dt-od>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rb-set{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:10px}
-.rb-in{display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;font-size:12px;color:var(--mu2);background:var(--sf2);border-radius:var(--rs);padding:6px 8px;min-width:0}
-.rb-in>span{flex:1 1 100%}
-.rb-in input{width:56px;padding:4px 6px;border:1px solid var(--bd);border-radius:6px;font-size:14px;font-family:inherit;background:var(--sf);color:var(--tx)}
-.rb-sec{font-size:13px;font-weight:800;margin:12px 0 6px}
-.rb-sec small,.stk-dt-sec small,.rb-sum b small{font-size:12px;font-weight:400;color:var(--mu)}
-.rb-line{font-size:13px;margin-bottom:6px}
-.rb-row{display:flex;justify-content:space-between;gap:8px;font-size:13px;padding:6px 4px;border-top:1px solid var(--bd);cursor:pointer}
-.rb-row:hover{background:var(--sf2)}
-.rb-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.rb-row>b{white-space:nowrap}
-.rb-row small{font-size:12px;color:var(--mu);font-weight:400}
-.rb-sum{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:6px}
-.rb-sum>div{background:var(--sf2);border-radius:var(--rs);padding:6px 10px;min-width:0;font-size:12px;color:var(--mu)}
-.rb-sum b{display:block;font-size:14px;color:var(--tx)}
-.rb-more summary{cursor:pointer;font-size:13px;font-weight:700;padding:6px 4px;color:var(--bl)}
+.stk-dt-sec small{font-size:12px;font-weight:400;color:var(--mu)}
 .goal-debts{display:flex;flex-direction:column;gap:2px;margin-top:2px}
 .goal-debts-bar{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:4px}
 .goal-debt{display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--bd);border-radius:var(--rs);font-size:13px;cursor:pointer;background:var(--sf)}
@@ -912,9 +897,14 @@ body{word-break:keep-all;overflow-wrap:break-word}
 @keyframes stkspin{to{transform:rotate(360deg)}}
 .tk-sorts{display:flex;gap:4px;align-items:center;font-size:12px;color:var(--mu);margin-bottom:6px}
 .tk-list{border-top:1px solid var(--bd)}
-.tk-row{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 56px;gap:8px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--bd);font-size:13px}
+.tk-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,.95fr) minmax(0,.95fr) minmax(0,1.1fr) minmax(0,1.1fr) minmax(0,.95fr) 52px;gap:8px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--bd);font-size:13px}
 .tk-row>span{min-width:0;text-align:right;font-weight:700}
 .tk-row>span.tk-nm{text-align:left}
+/* 평균단가·현재가: PC에서는 표의 별도 칸(머리글이 이름표라 '평균/현재' 글자는 숨김), 폰에서는 이름표를 붙여 한 칸에 나란히 */
+.tk-pxs{display:contents}
+.tk-av,.tk-px{min-width:0;text-align:right;white-space:nowrap}
+.tk-av i,.tk-px i{display:none;font-style:normal;font-size:12px;font-weight:400;color:var(--mu);margin-right:4px}
+.tk-px.tk-up{color:var(--rd)}.tk-px.tk-dn{color:var(--bl)}
 .tk-row small{display:block;font-size:12px;color:var(--mu2);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tk-nm b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tk-hd{font-size:12px;color:var(--mu);padding:6px 2px}
@@ -1028,8 +1018,11 @@ body{word-break:keep-all;overflow-wrap:break-word}
   .an-grid>.an-box{display:none}
   .an-grid.an-show-loss>.an-loss,.an-grid.an-show-gain>.an-gain,.an-grid.an-show-move>.an-move{display:block}
   .an-grid>.an-box .an-hd{display:none}
-  .tk-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm v" "nm pl";column-gap:10px;row-gap:2px;padding:8px 0}
+  .tk-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm v" "px pl";column-gap:10px;row-gap:3px;padding:8px 0}
   .tk-nm{grid-area:nm}.tk-v{grid-area:v}.tk-pl{grid-area:pl}
+  .tk-pxs{display:flex;flex-wrap:wrap;gap:0 12px;grid-area:px;min-width:0;text-align:left;font-weight:600;font-size:13px}
+  .tk-av,.tk-px{text-align:left}
+  .tk-av i,.tk-px i{display:inline}
   .tk-dl,.tk-w{display:none}
   .tk-v small,.tk-pl small{display:inline;margin-left:4px}
   .tk-chart{height:180px}
@@ -9501,11 +9494,15 @@ function renderTossCard(){
     var tv=tossNum(t.value&&t.value.krwTotal),open=!!tossPref()['open_'+g.k],more=g.xs.length-TOSS_GROUP_SHOW;
     h+='<div class="tk-grp" id="tk-grp-'+g.k+'"><div class="tk-grp-hd"><span class="tk-grp-nm"><b>'+g.t+'</b><small>'+g.xs.length+'종목 · 비중 '+(tv>0?Math.round(gv/tv*100):0)+'%</small></span>'
       +'<span class="tk-grp-sum">'+ff(gv)+'<small class="'+tossCls(gl)+'">'+tossSigned(gl)+' ('+tossPct(gp>0?gl/gp:null)+')</small><small class="'+tossCls(gd)+'">오늘 '+tossSigned(gd)+'</small></span></div>';
-    h+='<div class="tk-list"><div class="tk-row tk-hd"><span>종목</span><span>평가금액</span><span>손익</span><span>오늘</span><span>비중</span></div>';
+    h+='<div class="tk-list"><div class="tk-row tk-hd"><span>종목</span><span>평균단가</span><span>현재가</span><span>평가금액</span><span>손익</span><span>오늘</span><span>비중</span></div>';
     g.xs.forEach(function(x,i){
       var cur=x.currency==='USD',unit=function(v){return cur?('$'+tossNum(v).toLocaleString(undefined,{maximumFractionDigits:2})):tossNum(v).toLocaleString()+'원';};
+      // 단가: 원화는 원 단위로 반올림(토스가 평균단가를 68,397.356처럼 소수로 줘서), 달러는 센트까지. 현재가는 평균보다 높으면 빨강·낮으면 파랑(수익·손실 색과 같은 규칙)
+      var pxFmt=function(v){return cur?('$'+tossNum(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})):Math.round(tossNum(v)).toLocaleString()+'원';};
+      var pxCls=tossNum(x.last)>tossNum(x.avg)?'tk-up':(tossNum(x.last)<tossNum(x.avg)?'tk-dn':'');
       h+='<div class="tk-row tk-click'+(!open&&i>=TOSS_GROUP_SHOW?' tk-more':'')+'"'+stkClickAttr(x.symbol)+'>'
-        +'<span class="tk-nm"><b>'+escCatHtml(x.name)+'</b><small>'+escCatHtml(x.symbol)+(cur?' · 🇺🇸':'')+' · '+tossNum(x.qty).toLocaleString()+'주 · 평균 '+unit(x.avg)+' → '+unit(x.last)+'</small></span>'
+        +'<span class="tk-nm"><b>'+escCatHtml(x.name)+'</b><small>'+escCatHtml(x.symbol)+(cur?' · 🇺🇸':'')+' · '+tossNum(x.qty).toLocaleString()+'주</small></span>'
+        +'<span class="tk-pxs"><span class="tk-av"><i>평균</i>'+pxFmt(x.avg)+'</span><span class="tk-px '+pxCls+'"><i>현재</i>'+pxFmt(x.last)+'</span></span>'
         +'<span class="tk-v">'+ff(x.valueKRW)+(cur?'<small>'+unit(x.value)+'</small>':'')+'</span>'
         +'<span class="tk-pl '+tossCls(x.plKRW)+'">'+tossSigned(x.plKRW)+'<small>'+tossPct(x.plRate)+'</small></span>'
         +'<span class="tk-dl '+tossCls(x.dailyKRW)+'">'+tossSigned(x.dailyKRW)+'<small>'+tossPct(x.dailyRate)+'</small></span>'
@@ -9720,53 +9717,6 @@ function openStockDetail(sym){
   document.body.appendChild(md);
   loadStockItemHistory(sym).then(function(ps){var el=document.getElementById('stk-dt-trend');if(el&&document.getElementById('stk-dt-md'))el.innerHTML=stkTrendHtml(ps);});
 }
-// ── ⚖️ 비중 맞추기·정리 도우미(계산만 · 주문 기능 없음) ─────────────────────
-// 목표: 국내 비중 · 한 종목 최대 비중 · 소액 기준(이 비중 미만은 정리 후보). 설정은 이 기기에 기억(토스 화면 설정과 같은 곳)
-function rbPref(){var p=tossPref().rb||{},n=function(k,d){var v=Number(p[k]);return isFinite(v)?v:d;};return{kr:n('kr',40),cap:n('cap',10),min:n('min',1)};}
-function setRbPref(k,v){
-  var n=Number(v);if(!isFinite(n)||String(v).trim()==='')return;
-  var p=rbPref();p[k]=Math.max(0,Math.min(100,n));setTossPref('rb',p);
-  var el=document.getElementById('rb-out');if(el)el.innerHTML=rebalanceOutHtml();
-}
-function rebalanceCardHtml(){
-  var p=rbPref(),inp=function(k,v,lbl,suf){return'<label class="rb-in"><span>'+lbl+'</span><input type="number" inputmode="decimal" min="0" max="100" step="1" value="'+v+'" oninput="setRbPref(\''+k+'\',this.value)">'+suf+'</label>';};
-  return'<div class="card mb12"><div class="card-title">⚖️ 비중 맞추기·정리 도우미 <span class="sub">· 계산만 보여 줘요(주문 기능 없음)</span></div>'
-    +'<div class="rb-set">'+inp('kr',p.kr,'국내 목표','%')+inp('cap',p.cap,'한 종목 최대','%')+inp('min',p.min,'소액 기준(미만)','%')+'</div>'
-    +'<div id="rb-out">'+rebalanceOutHtml()+'</div>'
-    +'<div class="nw-foot">세금·수수료·환전 비용은 빠진 계산이에요. 투자 추천이 아니에요.</div></div>';
-}
-function rebalanceOutHtml(){
-  var tc=loadTossCache(),s=tc&&tc.latest;if(!s||!(s.items||[]).length)return'';
-  var p=rbPref(),it=s.items,T=it.reduce(function(a,x){return a+tossNum(x.valueKRW);},0);if(!(T>0))return'';
-  var fx=tossNum(s.fx&&s.fx.usdkrw),dom=it.filter(function(x){return!tossIsForeign(x);}).reduce(function(a,x){return a+tossNum(x.valueKRW);},0);
-  var h='',diff=T*p.kr/100-dom,dr=dom/T;
-  // 1) 국내·해외
-  h+='<div class="rb-sec">🏠 국내 · 🌎 해외</div><div class="rb-line">지금 <b>'+Math.round(dr*100)+'% · '+Math.round((1-dr)*100)+'%</b> → 목표 <b>'+Math.round(p.kr)+'% · '+Math.round(100-p.kr)+'%</b></div>';
-  h+=Math.abs(diff)<T*0.01?'<div class="al suc mb8">목표와 거의 같아요(차이 1% 미만).</div>'
-    :'<div class="al inf mb8">'+(diff>0?'국내를 <b>'+ff(diff)+'</b> 더 사거나, 해외를 그만큼 줄이면 맞아요.':'해외를 <b>'+ff(-diff)+'</b> 더 사거나, 국내를 그만큼 줄이면 맞아요.')+'</div>';
-  // 2) 한 종목 최대
-  var over=it.filter(function(x){return tossNum(x.weight)*100>p.cap;}).sort(function(a,b){return tossNum(b.weight)-tossNum(a.weight);});
-  h+='<div class="rb-sec">🎯 한 종목 '+p.cap+'% 넘는 종목 <small>'+over.length+'개</small></div>';
-  h+=over.length?over.map(function(x){
-    var cut=tossNum(x.valueKRW)-T*p.cap/100,price=tossNum(x.last)*(x.currency==='USD'?fx:1),q=price>0?cut/price:null;
-    return'<div class="rb-row"'+stkClickAttr(x.symbol)+'><span>'+escCatHtml(x.name)+' <small>'+(tossNum(x.weight)*100).toFixed(1)+'%</small></span><b>'+ff(cut)+' 줄이기'+(q!=null?' <small>약 '+(x.currency==='USD'?q.toFixed(2):Math.ceil(q))+'주</small>':'')+'</b></div>';
-  }).join(''):'<div class="em">없어요.</div>';
-  // 3) 소액 종목(정리 후보)
-  var small=it.filter(function(x){return tossNum(x.weight)*100<p.min;}).sort(function(a,b){return tossNum(a.valueKRW)-tossNum(b.valueKRW);});
-  var sv=small.reduce(function(a,x){return a+tossNum(x.valueKRW);},0),loss=small.filter(function(x){return tossNum(x.plKRW)<0;}),gain=small.filter(function(x){return tossNum(x.plKRW)>0;});
-  var sl=loss.reduce(function(a,x){return a+tossNum(x.plKRW);},0),sg=gain.reduce(function(a,x){return a+tossNum(x.plKRW);},0);
-  h+='<div class="rb-sec">🧹 비중 '+p.min+'% 미만 소액 종목 <small>'+small.length+'개</small></div>';
-  if(small.length){
-    h+='<div class="rb-sum"><div><span>합계</span><b>'+ff(sv)+' <small>'+Math.round(sv/T*100)+'%</small></b></div>'
-      +'<div><span>모두 정리하면</span><b>'+it.length+' → '+(it.length-small.length)+'종목</b></div>'
-      +'<div><span>손실 '+loss.length+'개(팔면 확정)</span><b class="tk-dn">'+tossSigned(sl)+'</b></div>'
-      +'<div><span>수익 '+gain.length+'개</span><b class="tk-up">'+tossSigned(sg)+'</b></div></div>';
-    var rowS=function(x){return'<div class="rb-row"'+stkClickAttr(x.symbol)+'><span>'+escCatHtml(x.name)+' <small>'+(tossNum(x.weight)*100).toFixed(2)+'%</small></span><b>'+ff(x.valueKRW)+' <small class="'+tossCls(x.plRate)+'">'+tossPct(x.plRate,1)+'</small></b></div>';};
-    h+=small.slice(0,8).map(rowS).join('');
-    if(small.length>8)h+='<details class="rb-more"><summary>나머지 '+(small.length-8)+'개 보기</summary>'+small.slice(8).map(rowS).join('')+'</details>';
-  }else h+='<div class="em">없어요.</div>';
-  return h;
-}
 function renderStockAna(){
   var el=document.getElementById('d-stk-ana');if(!el)return;
   var tc=loadTossCache(),s=tc&&tc.latest,h='',now=Date.now();
@@ -9806,7 +9756,6 @@ function renderStockAna(){
   }else{
     h+='<div class="card mb12"><div class="card-title">🔍 보유 종목 분석</div><div class="al inf">토스증권 보유 현황을 받으면 집중도·손익 분석이 보여요(📈 보유 현황 탭 참고).</div></div>';
   }
-  if(s&&Array.isArray(s.items)&&s.items.length)h+=rebalanceCardHtml();
   // 3) 종목별 뉴스
   var items=(d&&Array.isArray(d.items))?d.items:[],bySym={};
   ((s&&s.items)||[]).forEach(function(x){bySym[x.symbol]=x;});
