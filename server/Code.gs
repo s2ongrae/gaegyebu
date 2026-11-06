@@ -91,14 +91,27 @@ function rotateSecretKey() {
 
 // ── 데이터 파일 ─────────────────────────────────────────────────
 function getFolder_() {
+  // 같은 이름 폴더가 여럿이면(드라이브에서 복사·이동 등) 데이터 파일이 든 폴더를 고른다. 아무 데도 없으면 첫 폴더(없으면 새로 만듦).
   const folders = DriveApp.getFoldersByName(FOLDER_NAME);
-  return folders.hasNext() ? folders.next() : DriveApp.createFolder(FOLDER_NAME);
+  let first = null;
+  while (folders.hasNext()) {
+    const f = folders.next();
+    if (!first) first = f;
+    if (f.getFilesByName(FILE_NAME).hasNext()) return f;
+  }
+  return first || DriveApp.createFolder(FOLDER_NAME);
 }
+// 데이터 파일이 없거나 깨졌을 때: 빈 데이터로 대신하지 않고 요청을 멈춘다(2026-11-06 안전장치).
+// 빈 데이터를 돌려주면 앱이 그걸 "서버에서 다 지웠다"로 읽고 기기 데이터까지 지운 뒤 빈 상태를 저장할 수 있었다.
+function dataProblem_(code) { const e = new Error(code); e.dataProblem = code; return e; }
 
 function getOrCreateFile() {
   const folder = getFolder_();
   const files = folder.getFilesByName(FILE_NAME);
   if (files.hasNext()) return files.next();
+  // 백업은 있는데 데이터 파일만 없으면(옮겨짐·지워짐·이름 바뀜) 처음 쓰는 게 아니므로 새 빈 파일을 만들지 않는다.
+  const it = folder.getFiles();
+  while (it.hasNext()) { if (it.next().getName().indexOf(BACKUP_PREFIX) === 0) throw dataProblem_('data_missing'); }
   return folder.createFile(FILE_NAME, JSON.stringify({ txs: [], assets: {}, budgets: {} }), MimeType.PLAIN_TEXT);
 }
 
@@ -107,7 +120,7 @@ function parseData_(text) {
     const d = JSON.parse(text);
     if (d && typeof d === 'object' && !Array.isArray(d)) return d;
   } catch (_) {}
-  return { txs: [], assets: {}, budgets: {} };
+  throw dataProblem_('data_corrupt'); // 깨진 파일 위에 저장하지 않음(드라이브 파일 버전 기록이나 백업으로 복원)
 }
 
 function readData_() {
@@ -116,7 +129,7 @@ function readData_() {
 
 function handleMeta_() {
   const d = readData_();
-  return jsonOut({ ok: true, rev: Number(d.__rev) || 0, txCount: (d.txs || []).length });
+  return jsonOut({ ok: true, rev: Number(d.__rev) || 0, txCount: (d.txs || []).length, backup: backupState_() });
 }
 
 function handleLoad_() {
@@ -152,25 +165,37 @@ function handleSave_(body) {
     // 복원·가져오기처럼 일부러 하는 경우(force)는 통과. 목표·할부 하나만 비우는 건 정상 사용일 수 있어 허용.
     if (!body.force) { const wiped = wipeCheck_(cur, p); if (wiped) return jsonOut({ ok: false, error: 'wipe_guard', lists: wiped }); }
 
+    // 보낸 내용에 없는 칸(예전 버전 앱이 모르는 칸 등)은 지우지 않고 서버 값을 그대로 둔다(2026-11-06).
+    Object.keys(cur).forEach(k => { if (k !== '__rev' && p[k] === undefined) p[k] = cur[k]; });
+
     p.__rev = curRev + 1;
     const text = JSON.stringify(p);
     if (text.length > MAX_DATA_CHARS) return jsonOut({ ok: false, error: 'too_large' });
 
     backupIfNeeded_(file);
     file.setContent(text);
-    return jsonOut({ ok: true, success: true, rev: curRev + 1, savedAt: new Date().toLocaleString('ko-KR') });
+    return jsonOut({ ok: true, success: true, rev: curRev + 1, savedAt: new Date().toLocaleString('ko-KR'), backup: backupState_() });
   } finally {
     lock.releaseLock();
   }
 }
 
 const WIPE_LISTS = ['ai', 'bt', 'goals', 'installments'];
+const WIPE_SHRINK_MIN = 6;      // 이만큼 이상 있던 목록·달 수가
+const WIPE_SHRINK_RATIO = 0.5;  // 절반보다 적게 남으면 멈춤
 // 서버에는 있는데 이번 저장에서 빈 배열([])이 된 목록. 자산 항목(ai)·예산 항목(bt)이 3개 이상 있다가 비거나, 두 목록 이상이 한꺼번에 비면 막는다.
 // (예전 앱처럼 그 칸을 아예 안 보내면(undefined) 비운 것으로 보지 않음)
+// 2026-11-06 추가: 자산 항목·예산 항목이 6개 이상에서 절반 아래로 줄거나(기본 항목으로 바뀌는 경우 등),
+// 월별 자산값(assets)·월별 예산(budgets)의 달 수가 6개 이상에서 절반 아래로 줄어도 멈춘다. 일부러 지운 거면 앱 🔄 확인으로 통과(force).
 function wipeCheck_(cur, p) {
   const emptied = WIPE_LISTS.filter(k => Array.isArray(cur[k]) && cur[k].length > 0 && Array.isArray(p[k]) && p[k].length === 0);
   const core = emptied.filter(k => (k === 'ai' || k === 'bt') && cur[k].length >= 3);
-  return (core.length || emptied.length >= 2) ? emptied : null;
+  const isObj = v => v && typeof v === 'object' && !Array.isArray(v);
+  const shrunk = ['ai', 'bt'].filter(k => Array.isArray(cur[k]) && cur[k].length >= WIPE_SHRINK_MIN && Array.isArray(p[k]) && p[k].length > 0 && p[k].length < cur[k].length * WIPE_SHRINK_RATIO)
+    .concat(['assets', 'budgets'].filter(k => isObj(cur[k]) && Object.keys(cur[k]).length >= WIPE_SHRINK_MIN && isObj(p[k]) && Object.keys(p[k]).length < Object.keys(cur[k]).length * WIPE_SHRINK_RATIO));
+  const out = (core.length || emptied.length >= 2) ? emptied.slice() : [];
+  shrunk.forEach(k => { if (out.indexOf(k) < 0) out.push(k); });
+  return out.length ? out : null;
 }
 
 // 하루에 한 번, 덮어쓰기 직전의 파일을 백업 폴더에 남기고 오래된 백업은 휴지통으로 보냅니다.
@@ -183,6 +208,8 @@ function backupIfNeeded_(file) {
     if (!folder.getFilesByName(name).hasNext()) {
       folder.createFile(name, file.getBlob().getDataAsString(), MimeType.PLAIN_TEXT);
     }
+    const pr = PropertiesService.getScriptProperties();
+    pr.setProperty('BACKUP_LAST', today); pr.setProperty('BACKUP_ERR', '');
     const cutoff = Utilities.formatDate(new Date(Date.now() - BACKUP_KEEP_DAYS * 86400000), tz, 'yyyy-MM-dd');
     const it = folder.getFiles();
     while (it.hasNext()) {
@@ -194,7 +221,13 @@ function backupIfNeeded_(file) {
     }
   } catch (err) {
     Logger.log('백업 실패(저장은 계속): ' + err.message); // 백업이 실패해도 저장 자체를 막지는 않음
+    try { PropertiesService.getScriptProperties().setProperty('BACKUP_ERR', (Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM-dd HH:mm') + ' ' + err.message).slice(0, 200)); } catch (_) {}
   }
+}
+// 앱 상태줄에 보여 줄 드라이브 백업 상태: 마지막으로 백업 파일이 있었던 날짜와 최근 실패 이유(성공하면 지워짐)
+function backupState_() {
+  const pr = PropertiesService.getScriptProperties();
+  return { last: pr.getProperty('BACKUP_LAST') || null, error: pr.getProperty('BACKUP_ERR') || null };
 }
 
 // ── 토스증권 보유 현황 스냅샷 ───────────────────────────────────────
