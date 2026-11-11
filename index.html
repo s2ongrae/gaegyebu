@@ -4970,6 +4970,9 @@ function renderHis(){
 function calMove(d){var p=calYM.split('-');var y=parseInt(p[0]),m=parseInt(p[1]);m+=d;if(m>12){m=1;y++;}if(m<1){m=12;y--;}calYM=y+'-'+String(m).padStart(2,'0');renderCal();}
 // ── 카드 실적 관리 (하나 MG+S / 신한 Mr.Life / 롯데 LOCA 365) ──────────────
 // 혜택 정보는 2026-08 기준 조사 자료. 카드사 정책은 예고 없이 바뀔 수 있어서 대략적인 참고용이에요.
+// 2026-11-11: 약관상 실적에서 빠지는 결제(공과금·보험료·세금 등)를 자동으로 빼고 "인정 실적"으로 구간을 판단한다.
+//  예) 2026-09 롯데 LOCA 365: 총 결제 600,711원 중 대출이자·보험료·전기요금 등 466,226원이 제외 → 인정 134,485원(미달성).
+// 카드사 앱에서 확인한 실제 실적(피클이 서버 saveCardPerf 로 넣음)이 있으면 그 숫자를 가장 먼저 쓴다.
 var CARD_BENEFIT_INFO={
   '하나카드(신)':{
     name:'하나카드 MG+ S',
@@ -4978,7 +4981,7 @@ var CARD_BENEFIT_INFO={
       {min:600000,discount:30000,label:'60만원'},
       {min:1000000,discount:60000,label:'100만원'}
     ],
-    desc:'간편결제(네이버·카카오·토스페이 등, 건당 1만원↑) 10% 청구할인 · 영상스트리밍/디지털멤버십 50% 할인'
+    desc:'간편결제(네이버·카카오·토스페이 등, 건당 1만원↑) 10% 청구할인 · 영상스트리밍/디지털멤버십 50% 할인 (공과금·관리비·세금·상품권은 실적 제외)'
   },
   '신한카드(신)':{
     name:'신한카드 Mr.Life',
@@ -4987,27 +4990,95 @@ var CARD_BENEFIT_INFO={
       {min:500000,discount:27000,label:'50~100만원'},
       {min:1000000,discount:40000,label:'100만원↑'}
     ],
-    desc:'공과금(전기·가스·통신) 10% 할인 · TIME할인(편의점·병원·약국·택시·커피·온라인, 밤9시~아침9시+주말) 10% · 대형마트 10% · 주유 리터당 60원'
+    desc:'공과금(전기·가스·통신) 10% 할인 · TIME할인(편의점·병원·약국·택시·커피·온라인, 밤9시~아침9시+주말) 10% · 대형마트 10% · 주유 리터당 60원 (할인받은 공과금·TIME 결제도 실적 인정, 세금·상품권은 제외)'
   },
   '롯데카드(신)':{
     name:'롯데카드 LOCA 365',
     tiers:[
       {min:500000,discount:16500,label:'50만원↑(단일구간)'}
     ],
-    desc:'아파트관리비/도시가스/전기 10%할인(각 5천원 한도) · 교통/통신/배달앱 10%할인 · 스트리밍(OTT) 1,500원 할인'
+    desc:'아파트관리비/도시가스/전기 10%할인(각 5천원 한도) · 교통/통신/배달앱 10%할인 · 스트리밍(OTT) 1,500원 할인 (⚠️ 할인받은 결제·보험료·공과금·세금·대출이자는 실적 제외)'
   }
 };
+// 실적 제외 판별에 쓰는 분류(가계부 CATS 이름 그대로). 메모는 뜻이 분명한 단어만 본다("보험 상담 커피" 같은 일반 결제가 빠지지 않게).
+var CARD_EX_UTIL=['관리비','가스비','전기요금','월세'];
+var CARD_EX_INS_SUB=['보험료','엄마보험','자동차 보험','보험업무지출'];
+var CARD_EX_TAX_SUB=['자동차 세금','자동차 벌금'];
+var CARD_EX_TAX_MEMO=/국세|지방세|재산세|자동차세|소득세|과태료|범칙금/;
+var CARD_EX_GIFT_MEMO=/상품권|기프트카드|선불\s*충전|충전금/;
+function cardTxIsLoan(t){return(t.mid==='주거'&&(t.sub==='대출이자'||t.sub.indexOf('대출')>=0))||t.sub==='이자/대출';}
+function cardTxIsInsurance(t){return CARD_EX_INS_SUB.indexOf(t.sub)>=0||(t.sub==='펫보험/병원'&&/보험/.test(t.memo||''));} // 펫보험/병원은 메모에 '보험'이 있을 때만(병원비는 실적 인정)
+function cardTxIsTax(t){return CARD_EX_TAX_SUB.indexOf(t.sub)>=0||CARD_EX_TAX_MEMO.test(t.memo||'');}
+function cardTxIsGift(t){return CARD_EX_GIFT_MEMO.test(t.memo||'');}
+// 반환: 제외 이유 문자열(실적에서 뺌) | null(실적 인정)
+function getCardExclusionReason(pay,t){
+  var mid=t.mid||'',sub=t.sub||'';
+  if(pay==='롯데카드(신)'){
+    if(mid==='주거'&&CARD_EX_UTIL.indexOf(sub)>=0)return'관리비·공과금(할인 결제 실적 제외)';
+    if(cardTxIsLoan(t))return'대출이자(실적 제외)';
+    if(mid==='통신')return'통신요금(할인 결제 실적 제외)';
+    if(cardTxIsInsurance(t))return'보험료(실적 제외)';
+    if(cardTxIsTax(t))return'세금·벌과금(실적 제외)';
+    if(cardTxIsGift(t))return'상품권·선불충전(실적 제외)';
+  }else if(pay==='하나카드(신)'){
+    if(mid==='주거'&&CARD_EX_UTIL.indexOf(sub)>=0)return'공과금·관리비(실적 제외)';
+    if(cardTxIsLoan(t))return'대출이자(실적 제외)';
+    if(cardTxIsTax(t))return'세금·벌과금(실적 제외)';
+    if(cardTxIsGift(t))return'상품권·선불충전(실적 제외)';
+  }else if(pay==='신한카드(신)'){
+    if(cardTxIsTax(t))return'세금·벌과금(실적 제외)';
+    if(cardTxIsGift(t))return'상품권·선불충전(실적 제외)';
+  }
+  return null;
+}
+// ── 카드사 앱에서 확인한 실제 실적(서버 가계부_카드실적.json) ──
+// 피클이 서버 saveCardPerf 로 넣고, 앱은 loadCardPerf 로 읽어 사본(localStorage)만 둔다. 앱에서 이 값을 고쳐 저장하지 않는다.
+var CARDPERF_CACHE_KEY='gaegyebu_cardperf_verified';
+var _cardPerfLastFetch=0,_cardPerfFetching=false;
+function loadCardPerfCache(){var d=safeParse(localStorage.getItem(CARDPERF_CACHE_KEY),null);return(isPlainObj(d)&&isPlainObj(d.months))?d:{months:{}};}
+function getCardPerfVerified(ym,pay){
+  var m=loadCardPerfCache().months[ym],v=isPlainObj(m)?m[pay]:null;
+  if(!isPlainObj(v))return null;
+  var n=Number(v.amount);
+  return(isFinite(n)&&n>=0)?{amount:n,at:String(v.at||''),note:String(v.note||''),source:String(v.source||'')}:null;
+}
+function fetchCardPerf(force){
+  if(!serverReady()||_cardPerfFetching)return Promise.resolve(false);
+  if(!force&&Date.now()-_cardPerfLastFetch<300000)return Promise.resolve(false);
+  _cardPerfFetching=true;_cardPerfLastFetch=Date.now();
+  return serverCall({action:'loadCardPerf'},15000).then(function(r){
+    _cardPerfFetching=false;
+    if(!r||!r.ok||!isPlainObj(r.months))return false; // 서버가 아직 옛 버전(unknown_action)이면 조용히 넘어감
+    var before=localStorage.getItem(CARDPERF_CACHE_KEY),next=JSON.stringify({months:r.months,fetchedAt:Date.now()});
+    try{localStorage.setItem(CARDPERF_CACHE_KEY,next);}catch(e){}
+    return !before||JSON.stringify(safeParse(before,{}).months)!==JSON.stringify(r.months);
+  }).catch(function(e){_cardPerfFetching=false;console.warn('[가계부] 카드 실적 불러오기 실패',e);return false;});
+}
+// 카드 하나의 한 달 실적 계산(월별 카드·월 총평이 같은 숫자를 쓰도록 한 곳에서)
+function computeCardPerf(pay,ym,txs){
+  txs=txs||getTxs(ym).filter(function(t){return t.type==='지출';});
+  var cTxs=txs.filter(function(t){return t.payment===pay;});
+  var total=0,excluded=0,excludedList=[];
+  cTxs.forEach(function(t){
+    var amt=Number(t.amount)||0;total+=amt;
+    var reason=getCardExclusionReason(pay,t);
+    if(reason){excluded+=amt;excludedList.push({t:t,reason:reason,amount:amt});}
+  });
+  var auto=Math.max(0,total-excluded),verified=getCardPerfVerified(ym,pay);
+  return{total:total,excluded:excluded,excludedList:excludedList,auto:auto,verified:verified,spent:verified?verified.amount:auto};
+}
 function renderCardPerf(ym){
   var wrap=document.getElementById('d-cardperf');
   if(!wrap)return;
+  fetchCardPerf(false).then(function(changed){if(changed&&calYM===ym){renderCardPerf(ym);renderMonthlyReview(ym);}});
   var txs=getTxs(ym).filter(function(t){return t.type==='지출';});
   var cardKeys=Object.keys(CARD_BENEFIT_INFO);
   var hasAny=false;
-  var html='<div class="card"><div class="card-title">💳 카드 실적 관리 <span class="sub">· 전월실적 기준(2026-08 조사) · 정확한 조건은 카드사 앱에서 다시 확인하세요</span></div>';
+  var html='<div class="card"><div class="card-title">💳 카드 실적 관리 <span class="sub">· 약관상 실적 제외(공과금·보험료·세금 등)를 뺀 인정 실적 · 정확한 조건은 카드사 앱에서 다시 확인하세요</span></div>';
   cardKeys.forEach(function(pay,ci){
     var info=CARD_BENEFIT_INFO[pay];
-    var spent=txs.filter(function(t){return t.payment===pay;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
-    if(spent>0)hasAny=true;
+    var cp=computeCardPerf(pay,ym,txs),spent=cp.spent,verified=cp.verified;
+    if(cp.total>0||verified)hasAny=true;
     var tiers=info.tiers;
     var curTierIdx=-1;
     for(var i=0;i<tiers.length;i++){if(spent>=tiers[i].min)curTierIdx=i;}
@@ -5018,10 +5089,15 @@ function renderCardPerf(ym){
     var pct=ceil>floor?Math.min(Math.round((spent-floor)/(ceil-floor)*100),100):100;
     var barColor=curTier?'var(--gn)':'var(--mu2)';
     var rowId='cardperf-'+ci;
+    var subLine=verified
+      ?'카드사 확인 실적'+(verified.at?' · '+escCatHtml(verified.at.slice(0,10)):'')+' (가계부 계산 '+ff(cp.auto)+')'
+      :(cp.excluded>0?'총 결제 '+ff(cp.total)+' − 실적 제외 '+ff(cp.excluded):'');
     html+='<div style="background:var(--sf2);border-radius:var(--r);padding:12px 14px;margin-bottom:10px;cursor:pointer" onclick="toggleCatSub(\''+rowId+'\')">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-      +'<span style="font-size:13px;font-weight:700">'+info.name+'</span>'
-      +'<span style="font-size:13px;font-weight:900;color:var(--tx)">'+ff(spent)+'</span>'
+      +'<span style="font-size:13px;font-weight:700">'+info.name+(verified?' <span style="font-size:10px;padding:2px 6px;border-radius:8px;background:rgba(16,185,129,.2);color:var(--gn)">카드사 확인</span>':'')+'</span>'
+      +'<span style="text-align:right"><span style="font-size:13px;font-weight:900;color:var(--tx)">'+ff(spent)+'</span>'
+      +(subLine?'<span style="font-size:10px;color:var(--mu2);display:block">'+subLine+'</span>':'')
+      +'</span>'
       +'</div>'
       +'<div style="height:6px;background:var(--sf3);border-radius:3px;overflow:hidden;margin-bottom:6px">'
       +'<div style="width:'+pct+'%;height:100%;background:'+barColor+';border-radius:3px"></div></div>'
@@ -5031,7 +5107,19 @@ function renderCardPerf(ym){
       +'</div>'
       +'<div id="'+rowId+'" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--bd);font-size:11px;color:var(--mu)">'
       +info.desc
-      +'<div style="margin-top:6px;display:flex;gap:10px;flex-wrap:wrap">'
+      +(verified&&verified.note?'<div style="margin-top:6px;color:var(--gn)">카드사 확인 메모: '+escCatHtml(verified.note)+'</div>':'');
+    if(cp.excludedList.length){
+      html+='<div style="margin-top:8px;padding:8px 10px;background:rgba(239,68,68,.08);border-radius:6px;border:1px solid rgba(239,68,68,.2)">'
+        +'<div style="font-weight:700;color:var(--rd);margin-bottom:4px">🚫 실적 제외 '+cp.excludedList.length+'건 · '+ff(cp.excluded)+'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:3px;max-height:120px;overflow-y:auto">'
+        +cp.excludedList.map(function(x){
+          return'<div style="display:flex;justify-content:space-between;gap:8px;color:var(--mu2)">'
+            +'<span>• '+escCatHtml(x.t.date.slice(5))+' '+escCatHtml(x.t.mid)+'>'+escCatHtml(x.t.sub)+(x.t.memo?' ('+escCatHtml(x.t.memo)+')':'')+' <span style="font-size:9.5px;color:var(--mu)">['+escCatHtml(x.reason)+']</span></span>'
+            +'<span style="font-weight:600;white-space:nowrap">'+ff(x.amount)+'</span></div>';
+        }).join('')
+        +'</div></div>';
+    }
+    html+='<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">'
       +tiers.map(function(t){return'<span style="padding:2px 8px;border-radius:10px;background:'+(spent>=t.min?'rgba(16,185,129,.15)':'var(--sf3)')+';color:'+(spent>=t.min?'var(--gn)':'var(--mu)')+'">'+t.label+' → 한도 '+ff(t.discount)+'</span>';}).join('')
       +'</div>'
       +'</div>'
@@ -5750,8 +5838,8 @@ function renderMonthlyReview(ym){
   var txs=getTxs(ym).filter(function(t){return t.type==='지출';});
   Object.keys(CARD_BENEFIT_INFO).forEach(function(pay){
     var info=CARD_BENEFIT_INFO[pay];
-    var spent=txs.filter(function(t){return t.payment===pay;}).reduce(function(s,t){return s+(Number(t.amount)||0);},0);
-    if(spent>0&&spent<info.tiers[0].min){
+    var cp=computeCardPerf(pay,ym,txs),spent=cp.spent;
+    if((cp.total>0||cp.verified)&&spent<info.tiers[0].min){
       lines.push({icon:'💳',text:info.name+' 최소 실적구간까지 '+ff(info.tiers[0].min-spent)+' 남았어요',color:'var(--mu2)'});
     }
   });

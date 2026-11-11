@@ -48,6 +48,8 @@ function doPost(e) {
       case 'requestNewsRefresh': return handleRequestNewsRefresh_();
       case 'getCalendarEvents': return handleGetCalendarEvents(body);
       case 'aiSearchParse': return handleAiSearchParse(body);
+      case 'saveCardPerf': return handleSaveCardPerf_(body);
+      case 'loadCardPerf': return handleLoadCardPerf_();
       default: return jsonOut({ ok: false, error: 'unknown_action' });
     }
   } catch (err) {
@@ -358,6 +360,54 @@ function handleLoadStockSnapshot_() {
   if (!files.hasNext()) return jsonOut({ ok: true, latest: null, history: [], sync });
   const d = readStock_(files.next());
   return jsonOut({ ok: true, latest: d.latest, history: d.history, sync });
+}
+
+// ── 카드 실적: 카드사 앱에서 확인한 실제 전월실적(2026-11-11) ─────────────────────
+// 피클(비서)이 카드사 앱·홈페이지에서 확인한 "인정 실적" 숫자를 한 칸씩 넣는다. 앱 월별 탭이 이 숫자를 가계부 계산보다 먼저 쓴다.
+// 가계부 데이터 파일과 "별도 파일"에 둔다(토스 스냅샷과 같은 이유: 앱 동기화가 모르는 칸이라 지워지거나, 전체 저장(save)으로 거래를 건드릴 위험).
+// saveCardPerf 는 지정한 달·카드의 숫자 하나만 바꾼다. 거래·자산·예산은 읽지도 쓰지도 않는다.
+const CARD_PERF_FILE_NAME = '가계부_카드실적.json';
+const CARD_PERF_CARDS = ['하나카드(신)', '신한카드(신)', '롯데카드(신)']; // 앱 결제수단 이름과 똑같아야 함
+const CARD_PERF_MONTHS_MAX = 36;
+const CARD_PERF_AMOUNT_MAX = 100000000;
+function getCardPerfFile_() {
+  const folder = getFolder_(), files = folder.getFilesByName(CARD_PERF_FILE_NAME);
+  return files.hasNext() ? files.next() : folder.createFile(CARD_PERF_FILE_NAME, JSON.stringify({ months: {} }), MimeType.PLAIN_TEXT);
+}
+function readCardPerf_(file) {
+  try { const d = JSON.parse(file.getBlob().getDataAsString()); if (d && d.months && typeof d.months === 'object' && !Array.isArray(d.months)) return d; } catch (_) {}
+  return { months: {} };
+}
+// body: { ym:'YYYY-MM'(카드를 쓴 달), card:'롯데카드(신)', amount: 원 단위 정수(null 이면 그 칸 지움), note?: 100자 이하, source?: 30자 이하 }
+function handleSaveCardPerf_(body) {
+  const ym = String(body.ym || ''), card = String(body.card || '');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(ym)) return jsonOut({ ok: false, error: 'bad_ym', detail: 'ym 은 YYYY-MM (카드를 쓴 달)' });
+  if (ym > Utilities.formatDate(new Date(), 'Asia/Seoul', 'yyyy-MM')) return jsonOut({ ok: false, error: 'bad_ym', detail: '아직 오지 않은 달이에요' });
+  if (CARD_PERF_CARDS.indexOf(card) < 0) return jsonOut({ ok: false, error: 'bad_card', detail: '가능한 카드: ' + CARD_PERF_CARDS.join(', ') });
+  const del = body.amount === null;
+  const amount = Number(body.amount);
+  if (!del && (typeof body.amount !== 'number' || !isFinite(amount) || amount < 0 || amount > CARD_PERF_AMOUNT_MAX || Math.round(amount) !== amount)) {
+    return jsonOut({ ok: false, error: 'bad_amount', detail: 'amount 는 0 이상 정수(원), 지우려면 null' });
+  }
+  if (body.note !== undefined && (typeof body.note !== 'string' || body.note.length > 100)) return jsonOut({ ok: false, error: 'bad_note', detail: 'note 는 100자 이하 글자' });
+  if (body.source !== undefined && (typeof body.source !== 'string' || body.source.length > 30)) return jsonOut({ ok: false, error: 'bad_source' });
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return jsonOut({ ok: false, error: 'busy' });
+  try {
+    const file = getCardPerfFile_(), d = readCardPerf_(file);
+    const month = (d.months[ym] && typeof d.months[ym] === 'object') ? d.months[ym] : {};
+    const prev = month[card] && typeof month[card].amount === 'number' ? month[card].amount : null;
+    if (del) delete month[card];
+    else month[card] = { amount, at: new Date().toISOString(), source: body.source || 'pickle', note: body.note || '' };
+    if (Object.keys(month).length) d.months[ym] = month; else delete d.months[ym];
+    Object.keys(d.months).sort().slice(0, Math.max(0, Object.keys(d.months).length - CARD_PERF_MONTHS_MAX)).forEach(k => { delete d.months[k]; });
+    file.setContent(JSON.stringify({ months: d.months }));
+    return jsonOut({ ok: true, saved: !del, deleted: del, ym, card, amount: del ? null : amount, prev });
+  } finally { lock.releaseLock(); }
+}
+function handleLoadCardPerf_() {
+  const files = getFolder_().getFilesByName(CARD_PERF_FILE_NAME);
+  return jsonOut({ ok: true, months: files.hasNext() ? readCardPerf_(files.next()).months : {} });
 }
 
 // ── 아침 브리핑: 보유 종목 최신 뉴스 링크 + 공모주 관련 기사 (구글 뉴스 RSS · 무료 · 키 없음) ─────────────
