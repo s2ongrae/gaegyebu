@@ -1,0 +1,6 @@
+#!/bin/sh
+# 커밋 전에 개인정보·비밀값 검사. 켜기(저장소마다 한 번): git config core.hooksPath .githooks
+node tools/privacy-guard.js --staged || {
+  echo "커밋을 멈췄어요. 위 목록을 고친 뒤 다시 커밋하세요."
+  exit 1
+}
