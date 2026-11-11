@@ -1,0 +1,16 @@
+name: privacy-guard
+on:
+  push:
+  pull_request:
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 개인정보·비밀값 검사
+        run: node tools/privacy-guard.js
