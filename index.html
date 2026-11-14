@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
@@ -35,8 +35,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .fold-card>summary::before{content:'▸ ';color:var(--mu)}
 .fold-card[open]>summary::before{content:'▾ '}
 .fold-card>summary .sub{font-size:11px;font-weight:400;color:var(--mu)}
-.nav-r{margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0}
-.nav-r select{background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:4px 7px;border-radius:var(--rs);font-size:12px;cursor:pointer;font-family:inherit}
 .sbar{position:fixed;top:50px;left:0;right:0;height:36px;background:var(--sf2);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 14px;gap:8px;z-index:99;font-size:12px;overflow-x:auto}
 .sbar::-webkit-scrollbar{display:none}
 .si{color:var(--mu2);display:flex;align-items:center;gap:5px;flex-shrink:0}
@@ -286,7 +284,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 /* 모달 */
 .mdbg{position:fixed;inset:0;background:#00000099;z-index:200;align-items:center;justify-content:center;display:none}
 .mdbg.on{display:flex}
-.ac-wrap{position:relative;width:100%}
 .ac-input{width:100%;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:8px 10px;border-radius:var(--rs);font-family:inherit;font-size:14px;outline:none;box-sizing:border-box}
 .ac-input:focus{border-color:var(--bl);box-shadow:0 0 0 2px rgba(43,108,176,.15)}
 .ac-drop{position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--sf);border:1px solid var(--bd2);border-radius:var(--rs);box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:999;max-height:220px;overflow-y:auto;display:none}
@@ -302,11 +299,25 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .mdh h3{font-size:15px;font-weight:700}.mdc{background:none;border:none;color:var(--mu);cursor:pointer;font-size:22px}
 /* 입력+내역 레이아웃 */
 .inp-layout{display:grid;grid-template-columns:360px 1fr;gap:12px;align-items:start}
+.ti-hint{font-size:12px;color:var(--mu2);margin-top:3px}
+.ti-hint.wrn{color:#92400e;font-weight:700}
+.ti-date-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px}
+.ti-date-sub .ti-hint{margin-top:0}
+.ti-date-btns{display:inline-flex;gap:4px}
+.ti-date-btns button{border:1px solid var(--bd);background:var(--sf2);color:var(--mu2);border-radius:12px;padding:2px 9px;font-size:12px;font-weight:700;font-family:inherit;cursor:pointer}
+.ti-quick{display:flex;flex-wrap:nowrap;gap:6px;margin-bottom:10px;align-items:center;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.ti-quick:empty{display:none}
+.ti-quick-l{font-size:12px;color:var(--mu2);font-weight:700;flex:none}
+.ti-quick button{flex:none;border:1px solid var(--bd);background:var(--sf2);color:var(--tx);border-radius:16px;padding:4px 10px;font-size:13px;font-family:inherit;cursor:pointer;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ti-quick button small{font-size:12px;color:var(--mu2)}
+.ac-memo{background:rgba(139,92,246,.06)}
+.toast-act{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e2a;color:#f1f5f9;padding:8px 10px 8px 14px;border-radius:8px;font-size:13px;z-index:1000;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 24px);box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.toast-act button{background:#3b82f6;color:#fff;border:0;border-radius:6px;padding:6px 10px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;flex:none}
 .his-panel{position:sticky;top:86px;max-height:calc(100vh - 98px);overflow-y:auto}
 /* misc */
 .tr{text-align:right}.tg{color:var(--gn)}.trd{color:var(--rd)}.tb{color:var(--bl)}.ty{color:var(--yw)}.tpu{color:var(--pu)}.tm{color:var(--mu2)}.fw{font-weight:700}
-.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}.mb16{margin-bottom:16px}
-.fx{display:flex}.fxc{align-items:center}.fxb{justify-content:space-between}.g8{gap:8px}.g12{gap:12px}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mb8{margin-bottom:8px}.mb12{margin-bottom:12px}
+.fx{display:flex}.fxc{align-items:center}.fxb{justify-content:space-between}.g8{gap:8px}
 .ovx{overflow-x:auto}.em{text-align:center;padding:28px;color:var(--mu);font-size:13px}
 .ld{text-align:center;padding:40px;color:var(--mu)}
 .sp{width:26px;height:26px;border:2px solid var(--bd);border-top-color:var(--bl);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 8px}
@@ -351,11 +362,6 @@ body{background:var(--bg);color:var(--tx);font-family:'Noto Sans KR',sans-serif;
 .flow-chips{font-size:11px;color:var(--mu);line-height:1.9}
 .flow-chip{display:inline-block;background:var(--sf3);color:var(--mu2);border-radius:10px;padding:1px 8px;margin:0 4px 0 0;font-weight:600}
 .flow-chk-hint{font-size:11px;color:var(--mu);margin-left:6px}
-.stk-ins{display:flex;flex-direction:column;gap:7px}
-.stk-ins-row{display:flex;gap:8px;font-size:13px;font-weight:600;line-height:1.5}
-.stk-ins-row .i{flex-shrink:0}
-.stk-ins-row b{font-weight:900}
-.stk-ins-row .m{color:var(--mu);font-weight:500;font-size:11px}
 .stk-note{font-size:11px;color:var(--mu);margin:-4px 2px 12px}
 .trend-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
 .trend-grid .card{min-width:0}
@@ -589,6 +595,11 @@ input[type=number],input[type=date],select{min-height:36px}
 @media(max-width:900px){
   .g2>*,.g3>*,.g4>*,.g5>*,.inp-layout>*,.stock-2col-grid>*,.asset-comp-grid>*,.asset-comp-row>*,.bud-grid>*{min-width:0}
   .inp-layout{grid-template-columns:minmax(0,1fr)}
+  .inp-layout>div:first-child{display:contents}
+  .inp-layout>div:first-child>.card:nth-child(1){order:1}
+  .inp-layout>.his-panel{order:2}
+  .inp-layout>div:first-child>.card:nth-child(2){order:3}
+  .inp-layout>div:first-child>.card:nth-child(3){order:4}
   .asset-comp-grid{grid-template-columns:minmax(0,1fr)} /* 태블릿: 두 칸이면 범례가 121px로 좁아져 항목 이름이 0px로 사라졌음 */
 }
 @media(max-width:700px){
@@ -667,7 +678,6 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .flow-note{font-size:12px!important}
 .flow-chips{font-size:12px!important}
 .flow-chk-hint{font-size:12px!important}
-.stk-ins-row .m{font-size:12px!important}
 .stk-note{font-size:12px!important}
 .stk-ic-s{font-size:12px!important}
 .stk-ends{font-size:12px!important}
@@ -775,7 +785,6 @@ body{word-break:keep-all;overflow-wrap:break-word}
   .flow-check-top span{font-size:13px!important}
   .flow-chips{font-size:12.5px!important}
   .flow-chk-hint{font-size:12.5px!important}
-  .stk-ins-row .m{font-size:12.5px!important}
   .stk-note{font-size:12.5px!important}
   .chart-note{font-size:13px!important}
   .stk-ic-h{font-size:13px!important}
@@ -937,7 +946,6 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .nw-list small{display:block;font-size:12px;color:var(--mu)}
 .nw-earn{display:inline-block;margin-right:4px;padding:0 6px;border-radius:8px;background:var(--bl);color:#fff;font-size:12px;font-weight:700;vertical-align:1px}
 .nw-foot{font-size:12px;color:var(--mu);margin-top:10px}
-.ipo-br{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
 .an-bar{display:flex;height:6px;border-radius:3px;background:var(--sf);overflow:hidden;margin:6px 0 2px}
 .an-bar i{display:block;height:100%}
 .an-row.up,.an-row.dn{padding:4px 6px}
@@ -979,7 +987,7 @@ body{word-break:keep-all;overflow-wrap:break-word}
 .nw-prev>span{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .nw-prev small{flex:none;font-size:12px;color:var(--mu)}
 .nw-item[open] .nw-prev{display:none}
-.nw-item[hidden],#ipo-box li[hidden],#nw-none[hidden]{display:none}
+.nw-item[hidden],#nw-none[hidden]{display:none}
 .ipo-tag{display:inline-block;margin-right:4px;padding:0 6px;border-radius:8px;background:var(--sf3);color:var(--mu2);font-weight:700}
 .ipo-list-wrap{display:flex;flex-direction:column;gap:10px;margin-top:6px}
 .ipo-card{border:1px solid var(--bd);background:var(--sf);border-radius:var(--rs);padding:12px 14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);transition:border-color .15s}
@@ -1029,7 +1037,6 @@ body{word-break:keep-all;overflow-wrap:break-word}
   .tk-apply .btn{flex:1 1 100%;justify-content:space-between}
 }
 </style>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js" integrity="sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT" crossorigin="anonymous"></script>
 </head>
 <body>
 <div id="lock-screen" style="display:none;position:fixed;inset:0;background:var(--bg,#0f1420);z-index:9999;align-items:center;justify-content:center">
@@ -1151,8 +1158,9 @@ body{word-break:keep-all;overflow-wrap:break-word}
             <div id="ti-ac-drop" class="ac-drop"></div>
           </div>
         </div>
+        <div id="ti-quick" class="ti-quick"></div>
         <div class="fg c2">
-          <div><label>날짜</label><input type="date" id="ti-date"></div>
+          <div><label>날짜</label><input type="date" id="ti-date" onchange="updateTiDateHint()"><div class="ti-date-sub"><span class="ti-date-btns"><button type="button" onclick="setTiDate(0)">오늘</button><button type="button" onclick="setTiDate(-1)">어제</button></span><span id="ti-date-hint" class="ti-hint"></span></div></div>
           <div id="ti-mid-wrap"><label>카테고리</label><select id="ti-mid" onchange="onMid()"><option value="">-- 선택 --</option></select></div>
         </div>
         <div class="fg c2">
@@ -1175,7 +1183,7 @@ body{word-break:keep-all;overflow-wrap:break-word}
         </div>
         <div id="ti-suggest-hint" style="display:none;font-size:11px;color:var(--pu);background:rgba(139,92,246,.08);border-radius:var(--rs);padding:6px 10px;margin-bottom:10px"></div>
         <div class="fg c2">
-          <div><label>금액(원)</label><input type="number" id="ti-amt" placeholder="0" min="0"></div>
+          <div><label>금액(원)</label><input type="number" id="ti-amt" placeholder="0" min="0" inputmode="numeric" enterkeyhint="next" oninput="updateAmtSay()"><div id="ti-amt-say" class="ti-hint"></div></div>
           <div><label>거래출처</label><select id="ti-pay"></select></div>
         </div>
         <div class="fg c2">
@@ -1189,7 +1197,7 @@ body{word-break:keep-all;overflow-wrap:break-word}
           <div><label>현재 회차</label><input type="number" id="ti-inst-current" placeholder="예: 1" value="1" oninput="onInstFieldsChange()"></div>
         </div>
         <div class="fg c2">
-          <div><label>메모</label><input type="text" id="ti-memo" placeholder="내용 입력"></div>
+          <div><label>메모</label><input type="text" id="ti-memo" placeholder="내용 입력" enterkeyhint="done"></div>
         </div>
         <div class="fx g8 mt8">
           <button class="btn bp" onclick="saveTx()" id="ti-btn">💾 저장</button>
@@ -1312,7 +1320,7 @@ body{word-break:keep-all;overflow-wrap:break-word}
       <div><label>소분류</label><select id="em-sub"></select></div>
     </div>
     <div class="fg c2">
-      <div><label>금액</label><input type="number" id="em-amt" min="0"></div>
+      <div><label>금액</label><input type="number" id="em-amt" min="0" inputmode="numeric"></div>
       <div><label>거래출처</label><select id="em-pay"></select></div>
     </div>
     <div class="fg c2">
@@ -1325,6 +1333,7 @@ body{word-break:keep-all;overflow-wrap:break-word}
     </div>
     <div class="fx g8 mt12">
       <button class="btn bp" onclick="saveEdit()">💾 수정 저장</button>
+      <button class="btn bg2" onclick="copyFromEdit()" title="같은 분류·메모·결제수단으로 오늘 날짜 새 거래를 입력">📄 복사해서 새로 입력</button>
       <button class="btn brd" onclick="deleteFromEdit()">🗑️ 삭제</button>
       <button class="btn bg2" onclick="closeMd('edit-md')">취소</button>
     </div>
@@ -1609,7 +1618,6 @@ var FX=[
 ];
 var FX_KEYS=FX.map(function(f){return f.mid+'|'+f.sub+'|'+f.memo;});
 
-var FX_VERSION='2026-06-26-v3';  // FX 업데이트 시 변경
 function loadFX(){
   var v=safeParse(localStorage.getItem('gaegyebu_fx2'),null);
   if(Array.isArray(v))FX=v.filter(function(f){return isPlainObj(f)&&typeof f.mid==='string'&&typeof f.sub==='string';});
@@ -1962,7 +1970,7 @@ function renderGoalsCard(){
     }
     html+='<div class="goal-c '+(simText?'dtl-card':'')+'" id="dtl-goal-'+i+'" onclick="goalTap(this,'+(simText?1:0)+')" style="background:var(--sf2);border-radius:var(--r);padding:14px;position:relative">'
       +'<div class="goal-h" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
-      +'<span class="goal-t" style="font-size:13px;font-weight:700">'+(p.done?'✅ ':'')+g.label+'</span>'
+      +'<span class="goal-t" style="font-size:13px;font-weight:700">'+(p.done?'✅ ':'')+escCatHtml(g.label)+'</span>'
       +'<span class="goal-b" style="display:flex;gap:2px">'
       +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:11px" onclick="event.stopPropagation();openEditGoal('+i+')">⚙️</button>'
       +'<button class="btn bg2 bsm" style="padding:2px 6px;font-size:11px" onclick="event.stopPropagation();deleteGoal('+i+')">🗑️</button>'
@@ -3814,7 +3822,8 @@ function initApp(){
   var now=new Date();
   curYM=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   calYM=curYM;
-  document.getElementById('ti-date').value=localYMD(now);
+  document.getElementById('ti-date').value=localYMD(now);_tiAutoDate=localYMD(now);
+  initTxKeys();
   migratePaysCleanup();
   var ps=document.getElementById('ti-pay');var eps=document.getElementById('em-pay');
   PAYS.forEach(function(p){var o=document.createElement('option');o.value=o.textContent=p;ps.appendChild(o);var o2=document.createElement('option');o2.value=o2.textContent=p;eps.appendChild(o2);});
@@ -3954,7 +3963,14 @@ function initTxAc(){
           return d.mid.toLowerCase().includes(kw2)||d.sub.toLowerCase().includes(kw2);
         })
       :[];
-    if(!results.length){drop.classList.remove('open');return;}
+    var memoHits=kw2.length>=2?memoIndex().filter(function(e){return e.memo.toLowerCase().indexOf(kw2)>=0;}).sort(function(a,b){return b.n-a.n;}).slice(0,5):[];
+    memoHits.forEach(function(e){
+      var item=document.createElement('div');item.className='ac-item ac-memo';
+      item.innerHTML='<span style="font-size:14px">📝</span><span class="ac-main">'+escCatHtml(e.memo)+'</span><span style="font-size:12px;color:var(--mu2);margin-left:6px">→ '+escCatHtml(e.mid+' / '+e.sub)+'</span><span class="ac-sub" style="margin-left:auto;font-size:12px;color:var(--mu)">'+e.n+'번'+(e.payment?' · '+escCatHtml(e.payment):'')+'</span>';
+      item.onmousedown=function(ev){ev.preventDefault();drop.classList.remove('open');fillTxForm({mid:e.mid,sub:e.sub,memo:e.memo,payment:e.payment});};
+      drop.appendChild(item);
+    });
+    if(!results.length&&!memoHits.length){drop.classList.remove('open');return;}
     results.slice(0,25).forEach(function(d,i){
       var item=document.createElement('div');item.className='ac-item';
       item.innerHTML='<span style="font-size:14px">'+(d.subIcon||d.icon||'')+'</span>'
@@ -4036,6 +4052,9 @@ function saveTx(){
   // 직전에 골랐던 값(낭비 등)이 그대로 남아 있어서 같이 저장되던 문제를 입력 시점에서 막는다.
   if(tx.type==='수입')tx.eval='';
   if(!tx.date||!tx.mid||!tx.amount){document.getElementById('ti-res').innerHTML='<div class="al wrn">⚠️ 날짜, 카테고리, 금액은 필수예요.</div>';btn.disabled=false;return;}
+  if(tx.amount<0||Math.floor(tx.amount)!==tx.amount){document.getElementById('ti-res').innerHTML='<div class="al wrn">⚠️ 금액은 0보다 큰 원 단위 숫자로 입력해 주세요.</div>';btn.disabled=false;return;}
+  if(!id){var warn=txSaveWarnings(tx);if(warn&&_txWarnSig!==txWarnSig(tx)){_txWarnSig=txWarnSig(tx);document.getElementById('ti-res').innerHTML='<div class="al wrn">'+warn+'<br><b>맞으면 💾 저장을 한 번 더 눌러 주세요.</b></div>';btn.disabled=false;return;}}
+  _txWarnSig=null;
   if(!isValidYMD(tx.date)){document.getElementById('ti-res').innerHTML='<div class="al wrn">⚠️ 날짜가 이상해요('+escCatHtml(tx.date)+'). 연도는 4자리로 입력해 주세요.</div>';btn.disabled=false;return;}
 
   if(ptype==='할부'&&!id){
@@ -4054,14 +4073,16 @@ function saveTx(){
   }
 
   if(id){updateTx(id,tx);document.getElementById('ti-res').innerHTML='<div class="al suc">✅ 수정 완료!</div>';document.getElementById('edit-id').value='';document.getElementById('ti-btn').textContent='💾 저장';document.getElementById('inp-title').textContent='✏️ 거래 입력';}
-  else{addTx(tx);document.getElementById('ti-res').innerHTML=ptype==='할부'?'<div class="al suc">✅ 저장 완료! 할부로 등록돼서 다음달부터 💳 할부 관리에서 자동으로 안내해드려요.</div>':'<div class="al suc">✅ 저장 완료!</div>';}
-  document.getElementById('ti-amt').value='';document.getElementById('ti-memo').value='';btn.disabled=false;
+  else{addTx(tx);afterTxSaved(tx);document.getElementById('ti-res').innerHTML=ptype==='할부'?'<div class="al suc">✅ 저장 완료! 할부로 등록돼서 다음달부터 💳 할부 관리에서 자동으로 안내해드려요.</div>':'<div class="al suc">✅ 저장 완료!</div>';}
+  document.getElementById('ti-amt').value='';document.getElementById('ti-memo').value='';btn.disabled=false;updateAmtSay();
+  var acBox=document.getElementById('ti-ac');if(acBox)acBox.value='';
+  if(!(window.matchMedia&&matchMedia('(pointer:coarse)').matches))document.getElementById('ti-amt').focus(); // PC는 같은 분류로 이어서 입력하기 쉽게(폰은 키보드가 다시 튀어나오지 않게 그대로)
   document.getElementById('ti-ptype').value='일시불';onPayTypeChange();
   document.getElementById('ti-inst-principal').value='';document.getElementById('ti-inst-months').value='';document.getElementById('ti-inst-rate').value='0';document.getElementById('ti-inst-current').value='1';
   // 월별 카드 삽입
   setTimeout(function(){document.getElementById('ti-res').innerHTML='';},2500);renderHis();renderInsList();
 }
-function resetTx(){document.getElementById('edit-id').value='';document.getElementById('inp-title').textContent='✏️ 거래 입력';document.getElementById('ti-btn').textContent='💾 저장';document.getElementById('ti-mid').value='';document.getElementById('ti-type').value='';document.getElementById('ti-sub').innerHTML='';document.getElementById('ti-amt').value='';document.getElementById('ti-memo').value='';document.getElementById('ti-evg').style.visibility='hidden';var ptg=document.getElementById('ti-ptg');if(ptg)ptg.style.display='none';document.getElementById('ti-ptype').value='일시불';onPayTypeChange();}
+function resetTx(){var acBox=document.getElementById('ti-ac');if(acBox)acBox.value='';_txWarnSig=null;document.getElementById('edit-id').value='';document.getElementById('inp-title').textContent='✏️ 거래 입력';document.getElementById('ti-btn').textContent='💾 저장';document.getElementById('ti-mid').value='';document.getElementById('ti-type').value='';document.getElementById('ti-sub').innerHTML='';document.getElementById('ti-amt').value='';document.getElementById('ti-memo').value='';document.getElementById('ti-evg').style.visibility='hidden';var ptg=document.getElementById('ti-ptg');if(ptg)ptg.style.display='none';document.getElementById('ti-ptype').value='일시불';onPayTypeChange();}
 // select 옵션에 없는 값(더 이상 안 쓰는 결제수단 등)이 저장되어 있어도,
 // 그 값을 잃어버리지 않게 임시로 옵션을 추가해서 안전하게 보존한다.
 function ensureSelectHasValue(selId,val){
@@ -4077,8 +4098,8 @@ function openEdit(id){
   var db=loadDB();var tx=(db.txs||[]).find(function(t){return t.id===id;});if(!tx)return;
   editId=id;
   document.getElementById('em-date').value=tx.date||'';
-  document.getElementById('em-mid').value=tx.mid||'';onEmMid();
-  setTimeout(function(){document.getElementById('em-sub').value=tx.sub||'';},50);
+  ensureSelectHasValue('em-mid',tx.mid);document.getElementById('em-mid').value=tx.mid||'';onEmMid();
+  ensureSelectHasValue('em-sub',tx.sub);document.getElementById('em-sub').value=tx.sub||''; // 목록에 없는 소분류도 그대로(예전엔 50ms 뒤 첫 소분류로 조용히 바뀔 수 있었음)
   document.getElementById('em-type').value=tx.type||'';
   document.getElementById('em-amt').value=tx.amount||'';
   document.getElementById('em-memo').value=tx.memo||'';
@@ -4100,6 +4121,8 @@ function saveEdit(){
   // 수정 모달은 eval이 비어 있으면 '소비'로 채워서 보여주기 때문에, 수입 거래를 수정만 해도 '소비'가 붙던 문제를 막는다.
   if(tx.type==='수입')tx.eval='';
   if(!isValidYMD(tx.date)){showToast('⚠️ 날짜가 이상해요('+tx.date+'). 연도는 4자리로 입력해 주세요.');return;}
+  if(!tx.mid){showToast('⚠️ 카테고리를 골라 주세요.');return;}
+  if(!(tx.amount>0)||Math.floor(tx.amount)!==tx.amount){showToast('⚠️ 금액은 0보다 큰 원 단위 숫자로 입력해 주세요.');return;}
   updateTx(editId,tx);
   // "고정지출로 등록" 체크박스가 켜져 있고, 아직 등록 안 된 경우에만 FX에 새로 추가
   var mkFixed=document.getElementById('em-mkfixed');
@@ -4114,7 +4137,137 @@ function saveEdit(){
   }
   closeMd("edit-md");renderHis();showToast('✅ 수정 완료!');
 }
-function deleteFromEdit(){if(!editId)return;if(!confirm('이 거래를 삭제할까요?'))return;deleteTx(editId);closeMd("edit-md");renderHis();showToast('🗑️ 삭제됐어요.');}
+function deleteFromEdit(){
+  if(!editId)return;if(!confirm('이 거래를 삭제할까요?'))return;
+  var gone=(loadDB().txs||[]).find(function(t){return t.id===editId;});
+  deleteTx(editId);closeMd("edit-md");renderHis();
+  if(gone&&String(gone.id).indexOf('auto-mt-')!==0)showToastAction('🗑️ 삭제됐어요.','되돌리기',function(){restoreTx(gone);});
+  else showToast('🗑️ 삭제됐어요.');
+}
+// ── 입력 도우미(2026-11-12) ────────────────────────────────────────────
+// 지운 거래를 같은 번호 그대로 되살림(동기화는 번호 기준이라 다른 기기에서도 그대로 살아남)
+function restoreTx(tx){var db=loadDB();if(!db.txs)db.txs=[];if(!db.txs.some(function(t){return t.id===tx.id;})){db.txs.push(tx);saveDB(db);}renderHis();showToast('↩️ 되돌렸어요.');}
+// 버튼이 달린 알림(6초)
+function showToastAction(msg,label,fn){
+  var t=document.createElement('div');t.className='toast-act';
+  var sp=document.createElement('span');sp.textContent=msg;t.appendChild(sp);
+  var b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=function(){t.remove();fn();};t.appendChild(b);
+  document.body.appendChild(t);setTimeout(function(){t.remove();},6000);
+}
+// 저장 직후: 무엇이 저장됐는지 + [되돌리기]
+function afterTxSaved(tx){
+  var d=tx.date.slice(5).replace('-','/');
+  showToastAction('✅ '+d+' '+tx.mid+'>'+tx.sub+' '+ff(tx.amount)+' 저장'+(tx.date.slice(0,7)!==gYM()?' (다른 달이라 지금 보는 내역엔 안 보여요)':''),'되돌리기',function(){deleteTx(tx.id);renderHis();showToast('↩️ 저장을 취소했어요.');});
+}
+// 같은 소분류의 최근 금액 중간값(평소 금액). 거래가 3건 미만이면 0
+function subMedianAmount(mid,sub){
+  var a=(loadDBRO().txs||[]).filter(function(t){return t.mid===mid&&t.sub===sub&&Number(t.amount)>0;}).sort(function(x,y){return x.date<y.date?1:-1;}).slice(0,30).map(function(t){return Number(t.amount);}).sort(function(x,y){return x-y;});
+  return a.length>=3?a[Math.floor(a.length/2)]:0;
+}
+// 저장 전 확인할 것: (지출만) 평소보다 5배 넘게 큰 금액 · 같은 날 같은 분류·금액 거래(중복 정리와 같은 기준)
+function txSaveWarnings(tx){
+  var w=[],med=subMedianAmount(tx.mid,tx.sub);
+  if(tx.type==='지출'&&med>0&&tx.amount>=med*5)w.push('💡 이 소분류는 평소 '+ff(med)+' 정도인데 '+ff(tx.amount)+'이에요. 0을 하나 더 치지 않았는지 확인해 주세요.');
+  var dup=(loadDBRO().txs||[]).find(function(t){return t.date===tx.date&&t.type===tx.type&&t.mid===tx.mid&&t.sub===tx.sub&&Number(t.amount)===tx.amount;});
+  if(dup)w.push('⚠️ 같은 날 같은 분류·금액 거래가 이미 있어요'+(dup.memo?'(메모: '+escCatHtml(dup.memo)+')':'')+'.');
+  return w.join('<br>');
+}
+var _txWarnSig=null;
+function txWarnSig(tx){return[tx.date,tx.mid,tx.sub,tx.amount].join('|');}
+// 금액을 "5만 2천원"처럼 읽어 주기
+function amtKorean(n){
+  n=Math.floor(Math.abs(n));if(!n)return'';
+  var eok=Math.floor(n/1e8),man=Math.floor(n%1e8/1e4),rest=n%1e4,out=[];
+  if(eok)out.push(eok.toLocaleString()+'억');if(man)out.push(man.toLocaleString()+'만');
+  if(rest){var ch=Math.floor(rest/1000),r2=rest%1000;out.push((ch?ch+'천':'')+(r2?(ch?' ':'')+r2:''));}
+  return out.join(' ')+'원';
+}
+function updateAmtSay(){
+  var el=document.getElementById('ti-amt-say'),v=Number(document.getElementById('ti-amt').value);if(!el)return;
+  if(!v){el.textContent='';el.className='ti-hint';return;}
+  var bad=v<0||Math.floor(v)!==v;
+  el.className='ti-hint'+(bad?' wrn':'');
+  el.textContent=bad?'⚠️ 0보다 큰 원 단위 숫자만 저장돼요':ff(v)+' ('+amtKorean(v)+')';
+  _txWarnSig=null;
+}
+// 날짜: [오늘][어제] · 오늘이 아니면 칸 아래에 표시 · 다음 날 앱을 다시 열면(자동으로 넣은 날짜 그대로면) 오늘로
+var _tiAutoDate=null;
+function setTiDate(off){var d=new Date();d.setDate(d.getDate()+off);var v=localYMD(d);document.getElementById('ti-date').value=v;_tiAutoDate=off===0?v:null;updateTiDateHint();}
+function updateTiDateHint(){
+  var el=document.getElementById('ti-date-hint'),v=document.getElementById('ti-date').value;if(!el)return;
+  var t=localYMD(new Date()),y=new Date();y.setDate(y.getDate()-1);
+  if(!v||v===t){el.textContent='';el.className='ti-hint';return;}
+  var dd=new Date(v+'T00:00:00'),wd='일월화수목금토'.charAt(dd.getDay());
+  el.className='ti-hint wrn';el.textContent=v===localYMD(y)?'어제('+wd+') 날짜예요':'⚠️ '+(dd.getMonth()+1)+'월 '+dd.getDate()+'일('+wd+') 날짜예요';
+}
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState!=='visible')return;
+  var el=document.getElementById('ti-date');if(!el)return;
+  var t=localYMD(new Date());
+  if(_tiAutoDate&&el.value===_tiAutoDate&&_tiAutoDate!==t){el.value=t;_tiAutoDate=t;}
+  updateTiDateHint();
+});
+// Enter: 금액 → 메모로, 메모 → 저장
+function initTxKeys(){
+  var a=document.getElementById('ti-amt'),m=document.getElementById('ti-memo');if(!a||!m||a._keys)return;a._keys=true;
+  a.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing){e.preventDefault();m.focus();}});
+  m.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.isComposing){e.preventDefault();saveTx();}});
+}
+// 수정 창의 거래를 입력 폼에 복사(날짜는 오늘)
+function copyFromEdit(){
+  var g=function(id){return document.getElementById(id).value;};
+  var mid=g('em-mid'),sub=g('em-sub'),amt=g('em-amt'),memo=g('em-memo'),pay=g('em-pay');
+  closeMd('edit-md');if(curPage!=='inp')go('inp');
+  fillTxForm({mid:mid,sub:sub,amount:amt,memo:memo,payment:pay});setTiDate(0);
+  showToast('📄 입력 칸에 복사했어요. 금액만 확인하고 저장하세요.');
+}
+// 입력 폼 채우기(분류 → 소분류 추천 → 메모·결제수단·금액) 후 금액 칸으로
+function fillTxForm(o){
+  var midSel=document.getElementById('ti-mid');if(!midSel||!CATS[o.mid])return;
+  midSel.value=o.mid;onMid();
+  ensureSelectHasValue('ti-sub',o.sub);document.getElementById('ti-sub').value=o.sub;onTiSubChange();
+  if(o.memo!=null)document.getElementById('ti-memo').value=o.memo;
+  if(o.payment){ensureSelectHasValue('ti-pay',o.payment);document.getElementById('ti-pay').value=o.payment;}
+  if(o.amount)document.getElementById('ti-amt').value=o.amount;
+  var acBox=document.getElementById('ti-ac');if(acBox)acBox.value=o.mid+' / '+o.sub;
+  updateAmtSay();_txWarnSig=null;
+  var a=document.getElementById('ti-amt');if(a){a.focus();if(a.select)a.select();}
+}
+// 자주 쓰는 거래: 최근 90일에 3번 이상 같은 (분류·소분류·메모·결제수단)으로 넣은 변동 거래, 많이 쓴 순 8개(한 줄, 옆으로 밀어 보기)
+var _quickCache={key:'',list:[]};
+function quickTxList(){
+  var txs=loadDBRO().txs||[],key=txs.length+'|'+(txs.length?txs[txs.length-1].id:'');
+  if(_quickCache.key===key)return _quickCache.list;
+  var from=localYMD(new Date(Date.now()-90*864e5)),m={};
+  txs.forEach(function(t){
+    if(!t.date||t.date<from||!t.mid||!t.sub||t.installmentId||String(t.id).indexOf('auto-')===0||isFixed(t))return; // 고정 거래(보험료 등)는 고정 거래 카드에서
+    var k=[t.mid,t.sub,t.memo||'',t.payment||''].join('\u0001');
+    var e=m[k]||(m[k]={mid:t.mid,sub:t.sub,memo:t.memo||'',payment:t.payment||'',n:0,last:'',amount:0});
+    e.n++;if(t.date>=e.last){e.last=t.date;e.amount=Number(t.amount)||0;}
+  });
+  var list=Object.keys(m).map(function(k){return m[k];}).filter(function(e){return e.n>=3;}).sort(function(a,b){return b.n-a.n||(a.last<b.last?1:-1);}).slice(0,8);
+  _quickCache={key:key,list:list};return list;
+}
+function renderTiQuick(){
+  var el=document.getElementById('ti-quick');if(!el)return;
+  var list=quickTxList();
+  el.innerHTML=list.length?'<span class="ti-quick-l">⚡ 자주 쓰는</span>'+list.map(function(e,i){return'<button type="button" onclick="pickQuickTx('+i+')" title="'+escCatHtml(e.mid+' > '+e.sub+(e.payment?' · '+e.payment:''))+'">'+(SUB_ICON[e.sub]||CE[e.mid]||'')+' '+escCatHtml(e.memo||e.sub)+' <small>'+f(e.amount)+'</small></button>';}).join(''):'';
+}
+function pickQuickTx(i){var e=quickTxList()[i];if(e)fillTxForm({mid:e.mid,sub:e.sub,memo:e.memo,payment:e.payment,amount:e.amount});}
+// 카테고리 검색에서 과거 메모(가게 이름)도 찾기: 메모 → 가장 많이 쓴 분류·결제수단
+var _memoIdxCache={key:'',idx:null};
+function memoIndex(){
+  var txs=loadDBRO().txs||[],key=txs.length+'|'+(txs.length?txs[txs.length-1].id:'');
+  if(_memoIdxCache.key===key)return _memoIdxCache.idx;
+  var m={};
+  txs.forEach(function(t){
+    var memo=(t.memo||'').trim();if(!memo||!t.mid||!t.sub||!CATS[t.mid])return;
+    var e=m[memo]||(m[memo]={memo:memo,n:0,c:{}});e.n++;
+    var k=t.mid+'\u0001'+t.sub+'\u0001'+(t.payment||'');e.c[k]=(e.c[k]||0)+1;
+  });
+  var idx=Object.keys(m).map(function(k){var e=m[k],best=Object.keys(e.c).sort(function(a,b){return e.c[b]-e.c[a];})[0].split('\u0001');return{memo:e.memo,n:e.n,mid:best[0],sub:best[1],payment:best[2]};});
+  _memoIdxCache={key:key,idx:idx};return idx;
+}
 // ── 할부 관리 ────────────────────────────────────────────────
 // 총 원금과 총 개월수만 넣어두면, 매달 회차와 이번달 납부액을 자동 계산해서 알려준다.
 var INS_KEY='gaegyebu_installments';
@@ -4800,11 +4953,14 @@ function renderHis(){
       var memo=(t.memo||'').toLowerCase();
       var mid=(t.mid||'').toLowerCase();
       var sub=(t.sub||'').toLowerCase();
-      if(!memo.includes(kw)&&!mid.includes(kw)&&!sub.includes(kw))return false;
+      var pay=(t.payment||'').toLowerCase(),kwNum=kw.replace(/[,원\s]/g,'');
+      if(!memo.includes(kw)&&!mid.includes(kw)&&!sub.includes(kw)&&!pay.includes(kw)&&!(/^\d+$/.test(kwNum)&&String(t.amount).indexOf(kwNum)>=0))return false;
     }
     return true;
   });
-  txs.sort(function(a,b){return b.date>a.date?1:b.date<a.date?-1:0;});
+  var ord=new Map();txs.forEach(function(t,i){ord.set(t,i);}); // 같은 날짜면 나중에 넣은 거래(목록 뒤쪽)가 위로
+  txs.sort(function(a,b){return b.date>a.date?1:b.date<a.date?-1:ord.get(b)-ord.get(a);});
+  renderTiQuick();
 
   // 요약
   var tot={수입:0,지출:0,저축:0};
@@ -7837,7 +7993,6 @@ function renderRealPLCard(){
       }
     }
   }
-  var realGain=investGain-totalInterestCost;
   var currentInvestVal=hasInvest?investSeries[investSeries.length-1]:0;
 
   // ── 2) 보장성 보험료 대비 보험금 수령 비교 ──
@@ -7992,7 +8147,7 @@ function renderLiquidityCard(am,r){
 
   function itemRows(items,color){
     return items.length?items.sort(function(a,b){return b.v-a.v;}).map(function(x){
-      return'<div class="summary-row"><span>'+x.n+'</span><span style="font-weight:700;color:'+color+'">'+ff(x.v)+'</span></div>';
+      return'<div class="summary-row"><span>'+escCatHtml(x.n)+'</span><span style="font-weight:700;color:'+color+'">'+ff(x.v)+'</span></div>';
     }).join(''):'<div style="font-size:11px;color:var(--mu);padding:4px 0">없음</div>';
   }
 
@@ -8539,41 +8694,6 @@ function classifySavingsSub(text){
   return null;
 }
 
-// ── 개인 가계부 엑셀(월별 시트, "변동내역"+"고정내역" 2블록 구조) 가져오기 ──
-// 시트명이 YYYY-MM 형식인 시트들을 찾아서, 각 시트의 두 데이터 블록(날짜/대분류/중분류/소분류/금액/내용/거래출처/지출평가)을 읽는다.
-var HOME_XLSX_CAT_MAP={
-  '식비|식비':'식비|외식','식비|기타':'식비|외식','식비|기타식비':'식비|외식',
-  '생활|생필품':'생활|생활용품',
-  '유흥|담배':'유흥|기타유흥',
-  '자동차|벌금':'자동차|자동차 벌금','자동차|자동차보험':'자동차|자동차 보험','자동차|자동차세':'자동차|자동차 세금',
-  '저축|청년도약계좌':'저축|연금저축펀드','저축|청년저축펀드':'저축|연금저축펀드','저축|투자':'저축|연금저축펀드',
-  '주거|전기세':'주거|전기요금',
-  '수입|중고거래 수입':'수입|중고거래수입',
-  '여행|여행':'여행|기타여행비','여행|여행저축':'여행|기타여행비',
-  '금융지출|투자':'금융지출|투자손실',
-  '기타|기타업무처리':'생활|기타생활비','기타|연간비':'생활|기타생활비'
-};
-// ── 1회성 마이그레이션: 유흥>데이트 → 데이트 대분류로 이관 (2026-09 작업) ──
-// 실행 전 체크포인트 자동 저장. 실행 후 이 버튼은 숨김 처리됨(gaegyebu_migration_date_v1 플래그).
-var MIGRATION_DATE_FLAG='gaegyebu_migration_date_v1';
-function classifyDateTx(memo){
-  var m=memo||'';
-  var overrides={
-    '[장어] 주형이랑 식비 - 우렁각시 선물':'식비',
-    '주형이 용돈':'선물',
-    '올리브영-CD':'선물',
-    '쿠팡 - 여행지도 구매':'여행',
-    '[이환헤어] 주형이 머리 선물':'선물'
-  };
-  if(Object.prototype.hasOwnProperty.call(overrides,m))return overrides[m];
-  var giftKw=['선물','반지','꽃 + 편지지','케이크','생일','200일','600일','신발 - 나이키','루피 가방','쿠션','잠옷'];
-  var travelKw=['여행','숙소','숙박','글램핑','렌터카','제주도','칭다오','다낭','거제','태안','강릉','전주','통영','해운대','경주','부산','목포','양떼목장','휴게소'];
-  var transportKw=['택시','주차','하이패스','톨비','철도','승차권','대리'];
-  for(var i=0;i<giftKw.length;i++)if(m.indexOf(giftKw[i])>=0)return'선물';
-  for(var j=0;j<travelKw.length;j++)if(m.indexOf(travelKw[j])>=0)return'여행';
-  for(var k=0;k<transportKw.length;k++)if(m.indexOf(transportKw[k])>=0)return'교통비';
-  return'식비';
-}
 // ── 예산 템플릿(BT)에 아직 등록 안 된 카테고리에, 최근 실적 평균을 "초안"으로 채워두는 함수 ──
 // BT에 추가만 하고 값은 평균 지출액이라, 예산탭에서 그대로 확정해도 되고 원하는 값으로 고쳐도 됨.
 // (전월 95% 자동채움과 달리, 최근 최대 6개월 평균을 써서 카테고리 신설 초반의 값 튐을 줄인다.)
@@ -8619,9 +8739,27 @@ function fillMissingBudgetTemplatesManual(){
   if(curPage==='bud')renderBud();
 }
 
+// 엑셀 도구(SheetJS, 약 1MB)는 앱을 열 때마다 받지 않고 엑셀 가져오기를 누를 때만 불러온다(2026-11-10 가볍게). 주소·무결성 값은 예전 <script> 태그와 같음
+var XLSX_SRC='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js',XLSX_SRI='sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT';
+var _xlsxLoading=null;
+function loadXLSX(){
+  if(typeof XLSX!=='undefined')return Promise.resolve();
+  if(_xlsxLoading)return _xlsxLoading;
+  _xlsxLoading=new Promise(function(res,rej){
+    var sc=document.createElement('script');sc.src=XLSX_SRC;sc.integrity=XLSX_SRI;sc.crossOrigin='anonymous';
+    sc.onload=function(){res();};sc.onerror=function(){_xlsxLoading=null;rej(new Error('xlsx'));};
+    document.head.appendChild(sc);
+  });
+  return _xlsxLoading;
+}
 function importBankSalad(e){
   var file=e.target.files[0];if(!file)return;
   var isExcel=/\.xlsx?$/i.test(file.name);
+  if(isExcel&&typeof XLSX==='undefined'){ // 처음이면 엑셀 도구를 받은 뒤 같은 파일로 다시
+    showToast('📥 엑셀 도구를 불러오는 중…');
+    loadXLSX().then(function(){importBankSalad({target:{files:[file],value:''}});}).catch(function(){showToast('❌ 엑셀 도구를 불러오지 못했어요. 인터넷 연결을 확인해 주세요.');});
+    e.target.value='';return;
+  }
   var reader=new FileReader();
   reader.onload=function(ev){
     try{
@@ -9563,7 +9701,6 @@ function stkRefreshAll(){
     showToast(msg.join(' · '));renderStock();
   });
 }
-function tossRefresh(){var b=document.getElementById('tk-refresh');if(b)b.disabled=true;fetchTossSnapshot(true).then(function(d){if(b)b.disabled=false;if(d)showToast('🔄 토스증권 현황을 새로 받았어요.');else if(!serverReady())showToast('⚠️ 서버가 연결돼 있지 않아요.');renderTossCard();});}
 function renderTossCard(){
   var el=document.getElementById('d-toss');if(!el)return;
   var d=loadTossCache();
@@ -9928,7 +10065,6 @@ var DEFAULT_IPO_ITEMS=[
   {name:'케이엠에프',market:'코스닥',broker:'IBK투자증권',start:'2026-11-24',end:'2026-11-25',price:'15,000~17,800원',refund:'2026-11-27',listing:'2026-12-04'},
   {name:'에이엔에이치스트럭쳐',market:'코스닥',broker:'NH투자증권',start:'2026-11-27',end:'2026-11-30',price:'11,200~13,600원',refund:'2026-12-02',listing:'2026-12-08'}
 ];
-var IPO_VIEW_KEY='gaegyebu_ipo_view';
 var IPO_FILTER_KEY='gaegyebu_ipo_my_only';
 var MY_BROKERS=['삼성','한국투자','NH','나무','미래에셋'];
 
@@ -10037,9 +10173,6 @@ function renderStock(){
   var momPct=prevVal>0?((momChange/prevVal)*100).toFixed(1):'0';
 
   // 최초~현재 누적 성장
-  var firstVal=stockHist.length?stockHist[0].val:stockVal;
-  var totalGrowth=stockVal-firstVal;
-  var totalGrowthPct=firstVal>0?((totalGrowth/firstVal)*100).toFixed(1):'0';
 
   var html='';
 
