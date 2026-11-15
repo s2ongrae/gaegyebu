@@ -36,7 +36,9 @@ const RULES = [
   { id: 'phone', why: '휴대전화 번호', re: /(?<!\d)01[016789]-\d{3,4}-\d{4}(?!\d)/g,
     skip: m => /^010-0000-0000$/.test(m[0]) },
   { id: 'email', why: '이메일 주소', re: /[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g,
-    skip: m => /@(example\.(com|org)|users\.noreply\.github\.com|test\.com)$/i.test(m[0]) || /\.(png|jpe?g|svg|webp|js|css)$/i.test(m[0]) || /^[\w.-]+@\d/.test(m[0]) },
+    skip: m => /@(example\.(com|org)|users\.noreply\.github\.com|test\.com)$/i.test(m[0]) || /\.(png|jpe?g|svg|webp|js|css)$/i.test(m[0]) || /^[\w.-]+@\d/.test(m[0])
+      // URL 안의 패키지@버전(예: cdn/.../pretendard@v1.3.9/dist/...)은 이메일이 아니다 — 앞이 '/'이고 @ 뒤가 버전 숫자뿐일 때만
+      || (m.index > 0 && m.input[m.index - 1] === '/' && /^v?\d+(?:\.\d+)+$/.test(m[0].slice(m[0].indexOf('@') + 1))) },
   { id: 'account-no', why: '계좌번호 모양', re: /(?<![\d.-])\d{3,6}-\d{2,6}-\d{3,7}(?:-\d{1,3})?(?![\d.-])/g,
     skip: m => /^0+(-0+)+$/.test(m[0]) || /^(19|20)\d\d-/.test(m[0]) || /^01[016789]-\d{3,4}-\d{4}$/.test(m[0]) },
   { id: 'hardcoded-pin', why: '코드에 박힌 PIN',
