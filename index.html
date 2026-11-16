@@ -1358,6 +1358,25 @@ body{word-break:keep-all;overflow-wrap:break-word}
       <button class="btn brd bsm" onclick="clearServerURL()">연결 해제</button>
     </div>
     <div id="setup-res" class="mt8"></div>
+    <hr style="border:none;border-top:1px solid var(--bd);margin:16px 0 10px">
+    <div style="font-size:12px;font-weight:700;color:var(--mu2);margin-bottom:6px">💳 거래출처 관리</div>
+    <div id="paymgr-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <div class="fx g8">
+      <input type="text" id="paymgr-new" placeholder="새 결제수단 이름 (예: 현대카드(신))" autocomplete="off" style="flex:1;min-width:120px;background:var(--sf2);border:1px solid var(--bd2);color:var(--tx);padding:7px 9px;border-radius:var(--rs);font-size:12px;outline:none;font-family:inherit">
+      <button class="btn bp bsm" onclick="addPayMgr()">＋ 추가</button>
+    </div>
+    <div class="al inf" style="font-size:11px;line-height:1.5;margin-top:8px">추가한 결제수단은 입력 화면의 <b>거래출처</b> 드롭다운에 나타납니다. 안 쓰는 것은 🗑️로 지우세요. 이 기기 로컬에만 저장되며, 서버와 동기화되지 않습니다.</div>
+    <div id="paymgr-res" class="mt8" style="font-size:11px"></div>
+
+    <hr style="border:none;border-top:1px solid var(--bd);margin:16px 0 10px">
+    <div style="font-size:12px;font-weight:700;color:var(--mu2);margin-bottom:6px">🏷️ 자주 쓰는 거래 관리</div>
+    <div id="quickmgr-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <div class="al inf" style="font-size:11px;line-height:1.5">최근 90일에 3번 이상 같은 (분류·소분류·메모·결제수단)으로 넣은 변동 거래가 자동으로 잡힙니다. 안 쓰는 것은 🗑️로 강제 제외하세요. <b>재계산</b>을 누르면 목록이 다시 갱신됩니다.</div>
+    <div class="fx g8 mt8">
+      <button class="btn bg2 bsm" onclick="refreshQuickMgr()">🔄 재계산</button>
+      <button class="btn brd bsm" onclick="clearQuickMgr()">🗑️ 전체 제외 해제</button>
+    </div>
+    <div id="quickmgr-res" class="mt8" style="font-size:11px"></div>
   </div>
 </div>
 
@@ -1459,6 +1478,60 @@ function migratePaysCleanup(){
   var idx=PAYS.length;
   extra.forEach(function(p){var i=PAYS.indexOf(p);if(i>=0)PAYS.splice(i,1);});
   localStorage.removeItem(PAYS_CUSTOM_KEY);
+}
+
+// ── 거래출처 관리(설정 화면) ──────────────────────────────────
+// 기본 PAYS 7개는 코드에 하드코딩돼 있으므로 지울 수 없고, 사용자가 직접 추가한 것만 관리 가능하다.
+// 추가한 값은 PAYS_CUSTOM_KEY(gaegyebu_pays_custom)에만 저장. 입력 화면 드롭다운은 기본+추가를 합쳐 만든다.
+function readPayMgrExtra(){
+  return readArrKey(PAYS_CUSTOM_KEY).filter(function(x){return typeof x==="string";});
+}
+function writePayMgrExtra(list){
+  localStorage.setItem(PAYS_CUSTOM_KEY,JSON.stringify(list));scheduleSync();
+}
+function allPaysList(){
+  var seen={},out=[];
+  PAYS.forEach(function(p){if(!seen[p]){seen[p]=true;out.push(p);}});
+  readPayMgrExtra().forEach(function(p){if(!seen[p]){seen[p]=true;out.push(p);}});
+  return out;
+}
+function addPayMgr(){
+  var v=(document.getElementById("paymgr-new").value||"").trim();
+  var res=document.getElementById("paymgr-res");
+  if(!v){if(res)res.innerHTML="<div class=\"al wrn\" style=\"font-size:11px\">이름을 입력해주세요.</div>";return;}
+  if(PAYS.indexOf(v)>=0){if(res)res.innerHTML="<div class=\"al wrn\" style=\"font-size:11px\">"+escHtml(v)+"는 기본 목록에 있는 값이에요. 기본 값은 지울 수 없어요.</div>";return;}
+  if(readPayMgrExtra().indexOf(v)>=0){if(res)res.innerHTML="<div class=\"al inf\" style=\"font-size:11px\">이미 추가된 값이에요.</div>";return;}
+  var list=readPayMgrExtra();list.push(v);writePayMgrExtra(list);
+  document.getElementById("paymgr-new").value="";
+  renderPayMgr();
+  if(res)res.innerHTML="<div class=\"al suc\" style=\"font-size:11px\">"+escHtml(v)+" 추가했어요.</div>";
+  refreshPaySelects();
+}
+function removePayMgr(p){
+  var list=readPayMgrExtra().filter(function(x){return x!==p;});
+  writePayMgrExtra(list);
+  var db=loadDB();var changed=false;
+  (db.txs||[]).forEach(function(t){if(t.payment===p){t.payment=normalizePayment(p);changed=true;}});
+  if(changed){localStorage.setItem("gaegyebu",JSON.stringify(db));scheduleSync();}
+  renderPayMgr();
+  refreshPaySelects();
+  var res=document.getElementById("paymgr-res");if(res)res.innerHTML="<div class=\"al suc\" style=\"font-size:11px\">"+escHtml(p)+"를 제거했어요. 과거 내역은 자동으로 기본 결제수단으로 정리됐습니다.</div>";
+}
+function renderPayMgr(){
+  var el=document.getElementById("paymgr-list");if(!el)return;
+  var extra=readPayMgrExtra();
+  if(!extra.length){el.innerHTML="<span style=\"font-size:12px;color:var(--mu)\">추가한 결제수단이 없어요. 아래에新加로 넣을 수 있어요.</span>";return;}
+  el.innerHTML=extra.map(function(p){return "<span style=\"display:inline-flex;align-items:center;gap:4px;background:var(--sf2);border:1px solid var(--bd2);border-radius:14px;padding:3px 8px;font-size:12px\">"+escHtml(p)+" <button onclick=\"removePayMgr(\\\""+p.replace(/"/g,"\\\"")+"\\\")\" style=\"border:none;background:none;color:var(--br);cursor:pointer;font-size:14px;line-height:1;padding:0 2px\" title=\"제거\">🗑️</button></span>";}).join("");
+}
+function refreshPaySelects(){
+  ["ti-pay","em-pay"].forEach(function(id){
+    var sel=document.getElementById(id);if(!sel)return;
+    var cur=sel.value;
+    var html="";
+    allPaysList().forEach(function(p){html+="<option value=\""+escHtml(p)+"\">"+escHtml(p)+"</option>";});
+    sel.innerHTML=html;
+    if(cur&&Array.prototype.some.call(sel.options,function(o){return o.value===cur;}))sel.value=cur;
+  });
 }
 var MC={'식비':'#06b6d4','생활':'#94a3b8','꾸밈':'#ec4899','교통':'#f97316','자동차':'#64748b','주거':'#84cc16','통신':'#22d3ee','건강':'#f43f5e','금융지출':'#a78bfa','문화여가':'#fbbf24','교육':'#34d399','유흥':'#ef4444','데이트':'#f472b6','반려동물':'#fb923c','경조선물':'#e879f9','여행':'#38bdf8','업무지출':'#6366f1','수입':'#10b981','저축':'#3b82f6'};
 var CE={'식비':'🍱','생활':'🏠','꾸밈':'👔','교통':'🚌','자동차':'🚗','주거':'🏡','통신':'📱','건강':'💊','금융지출':'💳','문화여가':'🎬','교육':'📚','유흥':'🍻','데이트':'💑','반려동물':'🐱','경조선물':'🎁','여행':'✈️','업무지출':'💼','수입':'💰','저축':'🏦'};
@@ -3417,6 +3490,8 @@ function openSetup(){
   document.getElementById('server-url').value=url||'';document.getElementById('server-key').value=key||'';
   document.getElementById('setup-res').innerHTML='';
   document.getElementById('setup-md').classList.add('on');
+  renderPayMgr();
+  renderQuickMgr();
 }
 // 내보내기는 서버 백업과 똑같은 "전체" 데이터를 저장한다(예산 항목·목표·할부·자산 정의까지 포함해야 이 파일만으로 완전히 복구된다).
 function exportJSON(){var blob=new Blob([JSON.stringify(buildFullBackupPayload(),null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='가계부_백업_'+localToday()+'.json';a.click();showToast('✅ 내보내기 완료!');}
@@ -3865,12 +3940,15 @@ function getSubSuggestion(mid,sub,validPays){
   var cutStr=cut.getFullYear()+'-'+String(cut.getMonth()+1).padStart(2,'0')+'-'+String(cut.getDate()).padStart(2,'0');
   // validPays: 지금 거래출처 드롭다운에 실제로 있는 값들. 이력에는 있지만 드롭다운에 없는(더 이상 안 쓰는) 카드는 후보에서 뺀다.
   // (예전엔 전체 최빈값이 드롭다운에 없는 값이면 자동 채움이 조용히 실패했음)
+  // 추가: 더 이상 쓰지 않는 결제수단(현대카드 등)은 후보에서 제외
+  var EXCL_PAYS=['현대카드','현대카드(신)'];
   function isValid(p){return !validPays||validPays.indexOf(p)>=0;}
+  function isExcluded(p){return EXCL_PAYS.indexOf(p)>=0;}
   txs.forEach(function(t){
     if(t.mid===mid&&t.sub===sub){
       total++;
       if(t.eval)evalCount[t.eval]=(evalCount[t.eval]||0)+1;
-      if(t.payment&&isValid(t.payment)){
+      if(t.payment&&isValid(t.payment)&&!isExcluded(t.payment)){
         payAll[t.payment]=(payAll[t.payment]||0)+1;
         if(t.date>=cutStr)payRecent[t.payment]=(payRecent[t.payment]||0)+1;
       }
@@ -4245,8 +4323,12 @@ function quickTxList(){
   var txs=loadDBRO().txs||[],key=txs.length+'|'+(txs.length?txs[txs.length-1].id:'');
   if(_quickCache.key===key)return _quickCache.list;
   var from=localYMD(new Date(Date.now()-90*864e5)),m={};
+  var EXCL_PAYS=['현대카드','현대카드(신)'];
+  function isExcludedPay(p){return EXCL_PAYS.indexOf(p)>=0;}
   txs.forEach(function(t){
     if(!t.date||t.date<from||!t.mid||!t.sub||t.installmentId||String(t.id).indexOf('auto-')===0||isFixed(t))return; // 고정 거래(보험료 등)는 고정 거래 카드에서
+    // 현대카드 등 더 이상 쓰지 않는 결제수단은 자동으로 제외
+    if(isExcludedPay(t.payment))return;
     var k=[t.mid,t.sub,t.memo||'',t.payment||''].join('\u0001');
     var e=m[k]||(m[k]={mid:t.mid,sub:t.sub,memo:t.memo||'',payment:t.payment||'',n:0,last:'',amount:0});
     e.n++;if(t.date>=e.last){e.last=t.date;e.amount=Number(t.amount)||0;}
@@ -4256,10 +4338,51 @@ function quickTxList(){
 }
 function renderTiQuick(){
   var el=document.getElementById('ti-quick');if(!el)return;
-  var list=quickTxList();
+  var list=quickTxListExcl();
   el.innerHTML=list.length?'<span class="ti-quick-l">⚡ 자주 쓰는</span>'+list.map(function(e,i){return'<button type="button" onclick="pickQuickTx('+i+')" title="'+escCatHtml(e.mid+' > '+e.sub+(e.payment?' · '+e.payment:''))+'">'+(SUB_ICON[e.sub]||CE[e.mid]||'')+' '+escCatHtml(e.memo||e.sub)+' <small>'+f(e.amount)+'</small></button>';}).join(''):'';
 }
 function pickQuickTx(i){var e=quickTxList()[i];if(e)fillTxForm({mid:e.mid,sub:e.sub,memo:e.memo,payment:e.payment,amount:e.amount});}
+
+// ── 자주 쓰는 거래 관리(설정 화면) ──────────────────────────────
+// 사용자가 직접 제외한 (mid|sub|memo|payment) 조합을 localStorage에 저장해서,
+// quickTxList()가 자동으로 잡는 목록에서 강제로 빼낸다. 재계산 버튼으로 다시 갱신 가능.
+var QUICK_EXCL_KEY="gaegyebu_quick_excl";
+function readQuickExcl(){
+  return readArrKey(QUICK_EXCL_KEY).filter(function(x){return typeof x==="string";});
+}
+function writeQuickExcl(list){
+  localStorage.setItem(QUICK_EXCL_KEY,JSON.stringify(list));scheduleSync();
+}
+function quickExclKey(e){
+  return [e.mid,e.sub,e.memo||"",e.payment||""].join("");
+}
+function quickTxListExcl(){
+  var excl={};readQuickExcl().forEach(function(k){excl[k]=true;});
+  return quickTxList().filter(function(e){return !excl[quickExclKey(e)];});
+}
+function removeQuickExcl(e){
+  var k=quickExclKey(e);
+  var list=readQuickExcl().filter(function(x){return x!==k;});
+  writeQuickExcl(list);
+  renderQuickMgr();
+  var res=document.getElementById("quickmgr-res");if(res)res.innerHTML="<div class=\"al suc\" style=\"font-size:11px\">목록에서 제외했어요. 🔄 재계산으로 다시 잡을 수 있어요.</div>";
+}
+function refreshQuickMgr(){
+  _quickCache.key="";
+  renderQuickMgr();
+  var res=document.getElementById("quickmgr-res");if(res)res.innerHTML="<div class=\"al inf\" style=\"font-size:11px\">목록을 다시 계산했어요.</div>";
+}
+function clearQuickMgr(){
+  writeQuickExcl([]);
+  renderQuickMgr();
+  var res=document.getElementById("quickmgr-res");if(res)res.innerHTML="<div class=\"al inf\" style=\"font-size:11px\">제외 목록을 모두 지웠어요. 🔄 재계산으로 최신 목록을 확인할 수 있어요.</div>";
+}
+function renderQuickMgr(){
+  var el=document.getElementById("quickmgr-list");if(!el)return;
+  var list=quickTxListExcl();
+  if(!list.length){el.innerHTML="<span style=\"font-size:12px;color:var(--mu)\">자주 쓰는 거래가 없어요. 🔄 재계산으로 최신 상태를 확인하거나, 거래를 더 입력해보세요.</span>";return;}
+  el.innerHTML=list.map(function(e){return "<span style=\"display:inline-flex;align-items:center;gap:4px;background:var(--sf2);border:1px solid var(--bd2);border-radius:14px;padding:3px 8px;font-size:12px\">"+(SUB_ICON[e.sub]||CE[e.mid]||"")+" "+escHtml(e.memo||e.sub)+" <span style=\"color:var(--mu);font-size:11px\">· "+escHtml(e.mid+"/"+e.sub)+(e.payment?" · "+escHtml(e.payment):"")+" · "+e.n+"번</span> <button onclick=\"removeQuickExcl({"+e.mid+":"+JSON.stringify(e.mid).slice(1,-1)+","+e.sub+":"+JSON.stringify(e.sub).slice(1,-1)+","+e.memo+":"+JSON.stringify(e.memo||"").slice(1,-1)+","+e.payment+":"+JSON.stringify(e.payment||"").slice(1,-1)+"})\" style=\"border:none;background:none;color:var(--br);cursor:pointer;font-size:14px;line-height:1;padding:0 2px\" title=\"목록에서 제거\">🗑️</button></span>";}).join("");
+}
 // 카테고리 검색에서 과거 메모(가게 이름)도 찾기: 메모 → 가장 많이 쓴 분류·결제수단
 var _memoIdxCache={key:'',idx:null};
 function memoIndex(){
