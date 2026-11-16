@@ -4027,14 +4027,44 @@ function initTxAc(){
   function renderDrop(kw){
     drop.innerHTML='';selIdx=-1;
     var kw2=(kw||'').trim().toLowerCase();
-    var memoHits=kw2.length>=2?memoIndex().filter(function(e){return e.memo.toLowerCase().indexOf(kw2)>=0;}).sort(function(a,b){return b.n-a.n;}).slice(0,5):[];
-    memoHits.forEach(function(e){
-      var item=document.createElement('div');item.className='ac-item ac-memo';
-      item.innerHTML='<span style="font-size:14px">📝</span><span class="ac-main">'+escCatHtml(e.memo)+'</span><span style="font-size:12px;color:var(--mu2);margin-left:6px">→ '+escCatHtml(e.mid+' / '+e.sub)+'</span><span class="ac-sub" style="margin-left:auto;font-size:12px;color:var(--mu)">'+e.n+'번'+(e.payment?' · '+escCatHtml(e.payment):'')+'</span>';
-      item.onmousedown=function(ev){ev.preventDefault();drop.classList.remove('open');fillTxForm({mid:e.mid,sub:e.sub,memo:e.memo,payment:e.payment});};
+    var acData=buildAcData(); // 새 카테고리가 방금 추가됐을 수 있으니 검색할 때마다 최신 목록을 다시 만든다
+    var results=kw2
+      ?acData.filter(function(d){
+          return d.mid.toLowerCase().includes(kw2)||d.sub.toLowerCase().includes(kw2);
+        })
+      :[];
+    if(!results.length){drop.classList.remove('open');return;}
+    results.slice(0,25).forEach(function(d,i){
+      var item=document.createElement('div');item.className='ac-item';
+      item.innerHTML='<span style="font-size:14px">'+(d.subIcon||d.icon||'')+'</span>'
+        +'<span class="ac-main">'+d.mid+'</span>'
+        +'<span style="color:var(--mu);font-size:12px;margin:0 4px">/</span>'
+        +'<span style="font-size:12px;color:var(--tx)">'+d.sub+'</span>'
+        +'<span class="ac-sub ac-badge '+(d.type==='수입'?'bg':d.type==='저축'?'bb':'br')+'" style="margin-left:auto">'+d.type+'</span>';
+      item.onmousedown=function(e){
+        e.preventDefault();
+        // 중분류 select 업데이트
+        var midSel=document.getElementById('ti-mid');
+        if(midSel){midSel.value=d.mid;onMid();}
+        // 소분류 select 업데이트 (onMid 후에) — 자동완성으로 고른 경우에도
+        // "과거 이력 기반 결제수단/지출유형 추천"이 똑같이 동작하도록 onTiSubChange()를 명시적으로 호출한다.
+        // (예전엔 .value만 바꾸고 change 이벤트가 안 일어나서, 자동완성으로 선택했을 때만 추천이 안 뜨는 문제가 있었음)
+        setTimeout(function(){
+          var subSel=document.getElementById('ti-sub');
+          if(subSel){subSel.value=d.sub;onTiSubChange();}
+        },50);
+        // 대분류 업데이트
+        var typeSel=document.getElementById('ti-type');
+        if(typeSel)typeSel.value=d.type;
+        // 지출유형 표시
+        var evg=document.getElementById('ti-evg');
+        if(evg)evg.style.visibility=(d.type==='지출')?'visible':'hidden';
+        // 입력창 표시
+        inp.value=d.mid+' / '+d.sub;
+        drop.classList.remove('open');
+      };
       drop.appendChild(item);
     });
-    if(!memoHits.length){drop.classList.remove('open');return;}
     drop.classList.add('open');
   }
 
