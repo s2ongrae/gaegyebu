@@ -3934,37 +3934,23 @@ function onMid(){var m=document.getElementById('ti-mid').value;var c=CATS[m];doc
 // 그동안 이 카테고리에 뭘로 결제하고 어떻게 평가했는지 학습해서, 소분류 고르면 자동으로 채워준다.
 function getSubSuggestion(mid,sub,validPays){
   var db=loadDB();var txs=db.txs||[];
-  var payAll={},payRecent={},evalCount={},total=0;
-  // 최근 6개월(180일) 이력을 우선 보기 위한 기준일 - 카드를 갈아타는 경우(예: 현대카드→신한카드) 옛 카드가 전체 최빈값으로 남는 문제를 막는다.
-  var cut=new Date();cut.setDate(cut.getDate()-180);
-  var cutStr=cut.getFullYear()+'-'+String(cut.getMonth()+1).padStart(2,'0')+'-'+String(cut.getDate()).padStart(2,'0');
-  // validPays: 지금 거래출처 드롭다운에 실제로 있는 값들. 이력에는 있지만 드롭다운에 없는(더 이상 안 쓰는) 카드는 후보에서 뺀다.
-  // (예전엔 전체 최빈값이 드롭다운에 없는 값이면 자동 채움이 조용히 실패했음)
-  // 추가: 더 이상 쓰지 않는 결제수단(현대카드 등)은 후보에서 제외
-  var EXCL_PAYS=['현대카드','현대카드(신)'];
-  function isValid(p){return !validPays||validPays.indexOf(p)>=0;}
-  function isExcluded(p){return EXCL_PAYS.indexOf(p)>=0;}
-  txs.forEach(function(t){
-    if(t.mid===mid&&t.sub===sub){
-      total++;
-      if(t.eval)evalCount[t.eval]=(evalCount[t.eval]||0)+1;
-      if(t.payment&&isValid(t.payment)&&!isExcluded(t.payment)){
-        payAll[t.payment]=(payAll[t.payment]||0)+1;
-        if(t.date>=cutStr)payRecent[t.payment]=(payRecent[t.payment]||0)+1;
-      }
-    }
-  });
+  var evalCount={},total=0;
+  // 자동 결제수단 추천 끄기: 더 이상 자동으로 채우지 않음
+  // 사용자가 직접 선택해야 함
   function mode(obj){
     var best=null,bestN=0;
     Object.keys(obj).forEach(function(k){if(obj[k]>bestN){best=k;bestN=obj[k];}});
     return{val:best,n:bestN};
   }
-  function sum(obj){return Object.keys(obj).reduce(function(a,k){return a+obj[k];},0);}
-  var recentSum=sum(payRecent),allSum=sum(payAll);
-  var useRecent=recentSum>=2; // 최근 이력이 2건 이상이면 최근 기준, 아니면 전체 기준으로 대체
-  var payMode=useRecent?mode(payRecent):mode(payAll);
+  txs.forEach(function(t){
+    if(t.mid===mid&&t.sub===sub){
+      total++;
+      if(t.eval)evalCount[t.eval]=(evalCount[t.eval]||0)+1;
+    }
+  });
   var evalMode=mode(evalCount);
-  return{payment:payMode.val,paymentN:payMode.n,paymentTotal:useRecent?recentSum:allSum,paymentBasis:useRecent?'최근 6개월':'전체',eval:evalMode.val,evalN:evalMode.n,total:total};
+  // 결제수단 자동 추천 끄기 (payment: null)
+  return{payment:null,paymentN:0,paymentTotal:0,paymentBasis:'',eval:evalMode.val,evalN:evalMode.n,total:total};
 }
 // 이력 학습과 상관없이 항상 같은 거래출처로 채워야 하는 소분류들 (mid|sub -> 거래출처).
 // 택시는 이력이 1건 이하여도, 과거에 다른 카드로 쓴 적이 있어도 신한카드로 고정한다.
