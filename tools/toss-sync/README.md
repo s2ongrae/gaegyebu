@@ -32,7 +32,18 @@
 - 노트북이 확인할 때마다 시각이 남아서, 앱이 "노트북이 몇 분 전 마지막으로 확인했는지" 알려 줘요. 실패(허용 IP 등)하면 그 이유도 앱 알림에 떠요.
 - 같은 요청은 한 번만 처리하고, 동기화는 1분에 한 번까지예요. 기록: `gaegyebu-data/toss-agent.log`. 두 번 켜도 하나만 돌아요.
 - 노트북 시작 시 자동으로 켜기: 시작프로그램 폴더(`shell:startup`)의 `gaegyebu-toss-agent.vbs`가 창 없이 `node agent.js`를 실행해요. 끄려면 그 파일을 지우고, 작업 관리자에서 `node.exe`(agent.js)를 끝내면 돼요.
-- 시험: `node agent.js --once`(한 번만 확인).
+- 시험: `node agent.js --once`(한 번만 확인). 지금 상태 보기: `node agent.js --status`(하트비트·pid·마지막 결과를 JSON으로).
+
+### 3-0. 스스로 멈추지 않게 (2026-11-16 보강)
+예전에는 한 번 매달린 호출이나 예외로 대기 프로그램이 **조용히 멈추면** 알 방법이 없었어요(앱에는 "노트북이 11:06에 마지막 확인"처럼 그대로 남음). 지금은 이렇게 막아요.
+- **모든 호출에 시간 제한**(기본 30초, `TOSS_AGENT_TIMEOUT_MS`): 응답이 없으면 끊고 다음 확인으로 넘어가요. 예전엔 fetch 가 끝나지 않으면 확인 루프 전체가 그대로 멈출 수 있었어요.
+- **워치독**(기본 15분, `TOSS_AGENT_TICK_MAX_MS`): 한 번 확인이 상한을 넘으면 끊고 다음 확인을 다시 예약해요.
+- **지수 백오프**: 실패하면 20→40→80→160→300초(최대 `TOSS_AGENT_MAX_BACKOFF_MS`)로 간격을 늘리고, 성공하면 20초로 돌아와요.
+- **예외로 죽지 않음**: `uncaughtException`·`unhandledRejection`은 로그만 남기고 계속 돌아요.
+- **하트비트 파일** `gaegyebu-data/toss-agent-beat.json`: 확인할 때마다 `{pid, at, polls, fails, lastSyncAt}`을 새로 써요. 이 파일이 "살아 있음"의 증거이고, `hub-agent` 데몬이 이걸 보고 죽었으면 자동으로 다시 켜요.
+- **멈춘 프로세스 정리**: pid 가 살아 있어도 하트비트가 `TOSS_AGENT_STALE_MS`(기본 3×확인간격, 최소 60초) 넘게 끊겼으면 멈춘 것으로 보고 정리한 뒤 새로 시작해요. 그래서 "이미 실행 중"이라고 물러나는 일이 없어요.
+- 확인이 끝나면 다음 확인을 반드시 예약하고, 예약이 비면 1분 안에 스스로 다시 채우는 안전장치도 있어요.
+- 시험: `npm test`(가짜 토스 서버, 실제 호출 없음). 새 시험 `test/agent-resilience.js`가 시간 제한·워치독·백오프·하트비트·멈춘 pid 정리를 확인해요.
 
 ## 3-1. 정해진 시각 자동 실행(선택, 윈도우)
 평일 장 마감 후 16:10에 자동 동기화. 관리자 권한이 필요 없는 일반 작업으로 등록돼요(경로는 내 폴더로 바꾸기).
@@ -40,6 +51,14 @@
 schtasks /Create /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST 16:10 /TN "가계부 토스 동기화" /TR "cmd /c cd /d C:\Users\나\문서\gaegyebu\tools\toss-sync && node sync.js >> ..\..\..\gaegyebu-data\toss-sync.log 2>&1"
 ```
 - 노트북이 켜져 있고(절전 X) **집 와이파이**일 때만 성공해요. 회사·카페에서는 허용 IP가 달라 403이 정상.
+- ⚠️ **16:10에 노트북이 절전이면 그냥 안 돌아요**(윈도우 기본값). 아래 두 설정을 켜 두면 ① 절전에서 깨워서 돌리고 ② 놓친 실행은 깨어난 뒤 바로 따라잡아요. PowerShell(관리자 아니어도 본인 작업이면 됨):
+```powershell
+$s = Get-ScheduledTask -TaskName "가계부 토스 동기화"
+$s.Settings.WakeToRun = $true            # 절전에서 컴퓨터를 깨워 실행
+$s.Settings.StartWhenAvailable = $true   # 놓친 실행은 가능한 한 빨리 따라잡기
+Set-ScheduledTask -TaskName "가계부 토스 동기화" -Settings $s.Settings
+```
+- `hub-agent` 데몬이 켜져 있으면 **평일 16:10이 지난 뒤 그날 성공 기록이 없을 때 한 번 따라잡기 동기화**도 해요(`TOSS_WATCH_CATCHUP=on`, `TOSS_CATCHUP_TIME=16:10`).
 - 지우기: `schtasks /Delete /TN "가계부 토스 동기화" /F`
 - 이 명령은 제가 실제 윈도우에서 실행해 보진 못했어요. 막히면 Claude Code에 "작업 스케줄러에 등록해 줘"라고 하세요.
 
@@ -53,6 +72,8 @@ schtasks /Create /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST 16:10 /TN "가계부 토�
 ## 5. 문제 해결
 - `허용 IP가 아닌 곳에서 호출했어요(403)` → 출력된 "지금 공인 IP"를 토스증권 웹 허용 IP에 등록(집 인터넷 IP는 통신사 사정으로 바뀔 수 있어요)
 - `토큰 발급 실패` → `.env`의 키 확인(복사할 때 공백·따옴표)
+- 앱에 "노트북이 몇 시간 전 마지막으로 확인"이 계속 떠 있음 → 대기 프로그램이 멈췄거나 노트북이 절전이에요. `node agent.js --status`로 `alive`·`beatAgeSec`를 보고, 죽었으면 다시 켜면 돼요(멈춘 pid 는 스스로 정리하고 새로 시작). `hub-agent` 데몬이 돌고 있으면 자동으로 다시 켜 줘요.
+- 하트비트가 최신인데 앱이 안 바뀜 → ① 폰에서 🔄를 눌렀는지(요청이 있어야 동기화) ② `toss-sync-status.json`의 실패 사유 ③ 집 와이파이(허용 IP) 확인.
 - `가계부 서버 저장 실패: unauthorized` → `GAEGYEBU_SERVER_KEY`가 앱 ⚙️ 서버 설정의 키와 같은지 확인
 - `가계부 서버 저장 실패: unknown_action` → 1-4의 서버 업데이트(새 버전 배포)를 안 한 것
 - 호출 한도: 계좌 목록 초당 1회 등. 이 도구는 429를 받으면 `Retry-After`만큼 기다렸다 다시 해요.
