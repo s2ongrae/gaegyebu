@@ -1042,6 +1042,14 @@ body{word-break:keep-all;overflow-wrap:break-word}
   .tk-chart{height:180px}
   .tk-apply .btn{flex:1 1 100%;justify-content:space-between}
 }
+/* 320px 이하 - 스크롤/넘침 방지 */
+@media(max-width:320px){
+  .fg select,.fg input{width:100%}
+  .btn{padding:4px 8px;font-size:12px}
+  .btn.sm-sec{padding:2px 6px;font-size:11px}
+  .nav{padding-left:8px}
+  .his-row-grid{gap:4px}
+}
 </style>
 </head>
 <body>
