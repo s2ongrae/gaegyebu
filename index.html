@@ -1271,9 +1271,14 @@ body{word-break:keep-all;overflow-wrap:break-word}
 <div class="pg" id="pg-ast">
   <div class="sbar2" style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--bd);padding-bottom:0">
     <button class="nb ast-subtab on" onclick="switchAstSub('overview')" id="ast-sub-overview">🏦 개요</button>
+    <button class="nb ast-subtab" onclick="switchAstSub('tax')" id="ast-sub-tax">🧾 절세</button>
     <button class="nb ast-subtab" onclick="switchAstSub('risk')" id="ast-sub-risk">⚠️ 부채 &amp; 리스크<span class="sub-badge" id="ast-risk-badge" style="display:none"></span></button>
   </div>
   <!-- 부채·리스크: 얼마나 위험한가 → 매달 얼마 나가나 → 먼저 갚으면 얼마 아끼나 → 비상금은 되나 순서 -->
+  <div class="ast-subpanel" id="ast-panel-tax" style="display:none">
+    <div class="sec-divider">🧾 절세 관리 <span class="sub" style="font-size:11px;color:var(--mu)">· 한도 대비 사용률을 한눈에 · 연말정산 때 열어보세요</span></div>
+    <div id="d-taxhub"></div>
+  </div>
   <div class="ast-subpanel" id="ast-panel-risk" style="display:none">
     <div class="sec-divider">⚠️ 부채 &amp; 리스크</div>
     <div id="d-leverage" class="mb12"></div>

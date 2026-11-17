@@ -6327,13 +6327,18 @@ function onBud(el,ym,m,s){
   el.style.borderColor='var(--gn)';
   setTimeout(function(){el.style.borderColor='';renderBud();},700);
 }
-// ── 자산 탭 서브탭(개요/리스크/절세/시뮬레이터) 전환 ──────────────────────────────
+// ── 자산 탭 서브탭(개요/절세/리스크) 전환. 마지막 선택은 이 기기에 기억 ──────────────────────────────
+var AST_SUB_KEY='gaegyebu_ast_sub',AST_SUBS=['overview','tax','risk'];
 function switchAstSub(name){
-  ['overview','risk'].forEach(function(k){
+  if(AST_SUBS.indexOf(name)<0)name='overview';
+  if(name==='tax'){try{renderTaxHub();}catch(e){console.error('[가계부] 절세 화면 오류',e);}}
+  AST_SUBS.forEach(function(k){
     var panel=document.getElementById('ast-panel-'+k);if(panel)panel.style.display=(k===name?'':'none');
     var tab=document.getElementById('ast-sub-'+k);if(tab)tab.classList.toggle('on',k===name);
   });
+  try{localStorage.setItem(AST_SUB_KEY,name);}catch(e){}
 }
+function restoreAstSub(){var v=null;try{v=localStorage.getItem(AST_SUB_KEY);}catch(e){}switchAstSub(v||'overview');}
 // ── 주식 탭 서브탭(개요=월별 주식계좌·실현손익 / 보유 현황=토스 연동 종목 / 분석 / 공모주) 전환. 마지막 선택은 이 기기에 기억 ──
 var STK_SUB_KEY='gaegyebu_stk_sub',STK_SUBS=['overview','hold','ana','ipo'];
 function switchStkSub(name){
@@ -6502,6 +6507,7 @@ function fillAssetsFromPrev(ym){
 }
 function renderAst(){
   scheduleChartPrune();
+  restoreAstSub(); // 탭 이동 시 .nb의 on 표시가 지워지므로 서브탭 표시를 다시 맞춤 (마지막 선택 기억)
   var ym=gYM();var am=getAssets(ym);var r=calcNW(am,ym);
   var prevYMast=getPrevAssetYM(ym);var prevAm=prevYMast?getAssets(prevYMast):null;var prevR=prevYMast?calcNW(prevAm,prevYMast):null;
   renderLiquidityCard(am,r);
@@ -7045,6 +7051,112 @@ function renderTaxLimitCard(ym){
     +'</div>';
   wrap.innerHTML=html;
 }
+// ── 절세 관리 탭 렌더링 ──────────────────────────────
+function renderTaxHub(){
+  var wrap=document.getElementById('d-taxhub');
+  if(!wrap)return;
+  var ym=gYM();
+  var year=ym.slice(0,4);
+  var limits=loadTaxLimits();
+  var allTxs=loadDB().txs||[];
+
+  // 연도별 누적 계산
+  var isaPaid=0, pensionPaid=0, irpPaid=0, cheongyakPaid=0;
+  var cardPaid=0, cashPaid=0, insurancePaid=0, rentPaid=0;
+  var isaRows=[], pensionRows=[], irpRows=[], cheongyakRows=[];
+  var cardRows=[], cashRows=[], insuranceRows=[], rentRows=[];
+
+  allTxs.forEach(function(t){
+    if(!t.date||t.date.slice(0,4)!==year)return;
+    var amt=Number(t.amount)||0;
+    if(t.type==='저축'){
+      if(t.sub==='ISA'){isaPaid+=amt;isaRows.push(t);}
+      else if(t.sub==='연금저축펀드'){pensionPaid+=amt;pensionRows.push(t);}
+      else if(t.sub==='IRP'){irpPaid+=amt;irpRows.push(t);}
+      else if(t.sub==='주택청약'){cheongyakPaid+=amt;cheongyakRows.push(t);}
+    }
+    if(t.type==='지출'){
+      var isCard=!/현금|머니|포인트|간편결제|네이버페이|카카오페이|통장|예금|예탁금|계좌|펀드|ISA|청약/.test(t.payment||'');
+      if(isCard){cardPaid+=amt;cardRows.push(t);}
+      else{cashPaid+=amt;cashRows.push(t);}
+      if(t.mid==='금융지출'&&t.sub==='보험료'){insurancePaid+=amt;insuranceRows.push(t);}
+      if(t.mid==='주거'&&t.sub==='월세'){rentPaid+=amt;rentRows.push(t);}
+    }
+  });
+
+  var TAX_LIMITS={
+    isa:{paid:isaPaid,limit:limits.isa,name:'ISA',icon:'🏦',rows:isaRows},
+    pension:{paid:pensionPaid,limit:limits.pension,name:'연금저축',icon:'🏦',rows:pensionRows},
+    irp:{paid:irpPaid,limit:Math.max(limits.combined-limits.pension,0),name:'IRP',icon:'🏦',rows:irpRows},
+    combined:{paid:pensionPaid+irpPaid,limit:limits.combined,name:'연금저축+IRP',icon:'🏦',rows:pensionRows.concat(irpRows)},
+    cheongyak:{paid:cheongyakPaid,limit:24000000,name:'주택청약',icon:'🏠',rows:cheongyakRows},
+    card:{paid:cardPaid,limit:15000000,name:'신용카드 등 소득공제',icon:'💳',rows:cardRows,note:'총급여 70% 한도(1,500만)'},
+    cash:{paid:cashPaid,limit:2500000,name:'현금영수증',icon:'🧾',rows:cashRows},
+    insurance:{paid:insurancePaid,limit:12000000,name:'보험료 소득공제',icon:'🛡️',rows:insuranceRows},
+    rent:{paid:rentPaid,limit:7500000,name:'월세 세액공제',icon:'🏠',rows:rentRows,note:'연소득 7,000만 이하, 무주택자'}
+  };
+
+  function mkBar(key){
+    var v=TAX_LIMITS[key];
+    if(!v)return '';
+    var paid=v.paid||0, limit=v.limit||1, pct=Math.min(100,Math.round(paid/limit*100));
+    var color=pct>=100?'var(--rd)':pct>=70?'var(--bl)':pct>=40?'var(--yw)':'var(--gn)';
+    var remain=limit-paid;
+    var noteHtml='';
+    if(v.note)noteHtml='<div style="font-size:11px;color:var(--mu);margin-top:2px">'+v.note+'</div>';
+    if(paid>limit)noteHtml='<div style="font-size:11px;color:var(--rd);font-weight:700">⚠️ 한도 초과 '+ff(paid-limit)+' — 공제 불가능분 발생</div>';
+    else if(remain>0)noteHtml='<div style="font-size:11px;color:var(--pu);font-weight:700">💡 '+ff(remain)+' 더 넣으면 한도 달성</div>';
+    var icon=v.icon||'🏦';
+    var label=icon+' '+v.name;
+    return'<div style="margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'
+      +'<span style="font-weight:700">'+label+'</span>'
+      +'<span>'+ff(paid)+' / '+ff(limit)+' <b style="color:'+color+'">('+pct+'%)</b></span>'
+      +'</div>'
+      +'<div style="height:10px;background:var(--sf3);border-radius:5px;overflow:hidden">'
+      +'<div style="width:'+Math.min(pct,100)+'%;height:100%;background:'+color+';border-radius:5px"></div></div>'
+      +noteHtml
+      +'</div>';
+  }
+
+  function txRowsDetail(rows){
+    if(!rows.length)return '<div style="font-size:11px;color:var(--mu)">내역 없음</div>';
+    return rows.sort(function(a,b){return(b.date||'')>(a.date||'')?1:-1;}).map(function(t){
+      return'<div class="summary-row" style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--bd2);font-size:12px">'
+        +'<span>'+(t.date||'').slice(5)+' '+escCatHtml(t.memo||t.sub||'')+'</span>'
+        +'<span style="font-weight:700">'+ff(t.amount)+'</span></div>';
+    }).join('');
+  }
+
+  var html='';
+  // 절세계좌
+  html+='<div class="card"><div class="card-title">🏦 절세계좌 한도 활용률 <button onclick="openTaxLimitSetup()" class="btn bg2 bsm" style="margin-left:auto;padding:3px 9px;font-size:11px">⚙️ 한도 수정</button></div>';
+  html+='<div style="display:grid;gap:10px">'+mkBar('isa')+mkBar('pension')+mkBar('irp')+mkBar('combined')+mkBar('cheongyak')+'</div></div>';
+
+  // 일상 절세
+  html+='<div class="card mt12"><div class="card-title">💳 일상 절세 한도 활용률</div>';
+  html+='<div style="display:grid;gap:10px">'+mkBar('card')+mkBar('cash')+mkBar('insurance')+mkBar('rent')+'</div></div>';
+
+  // 내역 상세 (접이식)
+  html+='<div class="card mt12"><div class="card-title">📋 납입·사용 내역 상세</div>';
+  var detailKeys=['isa','pension','irp','cheongyak','card','cash','insurance','rent'];
+  var detailLabels={'isa':'ISA','pension':'연금저축','irp':'IRP','cheongyak':'주택청약','card':'신용카드','cash':'현금영수증','insurance':'보험료','rent':'월세'};
+  detailKeys.forEach(function(key){
+    var v=TAX_LIMITS[key];
+    if(!v||!v.rows.length)return;
+    html+='<details class="fold-card" style="margin-top:8px">'
+      +'<summary class="cv-sec" style="display:flex;align-items:center;gap:8px">'
+      +'<span class="badge" style="background:var(--sf2);color:var(--bl)">'+detailLabels[key]+' '+v.rows.length+'건</span>'
+      +'<span style="color:var(--mu);font-size:12px">누적 '+ff(v.paid)+' / 한도 '+ff(v.limit)+'</span>'
+      +'</summary>'
+      +'<div style="padding-top:8px">'+txRowsDetail(v.rows)+'</div>'
+      +'</details>';
+  });
+  html+='</div>';
+
+  wrap.innerHTML=html;
+}
+
 function openTaxLimitSetup(){
   var limits=loadTaxLimits();
   var existing=document.getElementById('taxlimit-md');if(existing)existing.remove();
