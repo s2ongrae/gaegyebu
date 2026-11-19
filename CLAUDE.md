@@ -128,3 +128,8 @@ npm run lint         # 문법·정적 분석
 - **끝**: 테스트 → 한 가지씩 커밋 → 즉시 `git push` → `agent-lock unlock <레포>` → `pcbeat done`.
 - **금지**: `push --force`·`reset --hard`·충돌 파일 통째 덮어쓰기·남의 `agent/…`·`auto/…` 브랜치 수정·`status/agent.json` 직접 수정(피클 전용). 키·주소·고객 정보는 어디에도 넣지 않는다.
 - 전체 규칙·한계·설치: `s2ongrae.github.io` 의 `docs/AGENT_COORDINATION.md`, 도구 `tools/agent-lock.ps1`.
+
+## ECC 스킬 (2026-11-19)
+
+- `affaan-m/ECC` v2.2.3에서 이 앱의 실제 증상에 쓰는 2개만 골라 `.claude/skills/ecc-*/`에 넣었다 — `ecc-click-path-audit`(버튼 하나가 부르는 저장·동기화·재렌더 순서에서 상태가 서로를 덮는지, 화면 간 숫자가 어긋나는지) · `ecc-make-interfaces-feel-better`(폰 360·390px 가독성·터치).
+- 본문은 영어 원문 그대로, 앞머리에 이 레포 기준 한국어 메모. 고른 이유·갱신은 `.claude/skills/ECC.md`. **부딪히면 이 CLAUDE.md의 계산 규칙·작업 순서가 우선한다.**
