@@ -112,3 +112,12 @@ npm run lint         # 문법·정적 분석
 ## 2026-11-15 노트북 테스트 최신화
 - 전체 36묶음 통과(알려진 실패 t8 1·t15 2·t18 2·t25 1만 남음). 기준 시각이 필요한 옛 검사(t30·t34·t43)는 `GAEGYEBU_TEST_NOW`로 10월에 고정(harness·pw가 지원, 없으면 실제 시각).
 - 토스 시험 자료는 서버 검사(출처·3일·합계·비중)에 맞춤. 공모주 검사는 청약 목록 + 내 증권사만 거르기 기준. 공모주 글자 12px 미만을 12px로.
+
+
+## 에이전트 동시 작업 규칙 (피클·집 노트북·회사 PC 공통, 2026-11-19)
+
+- **시작**: `git pull --ff-only` → 같은 기기에서 `agent-lock lock <레포> "작업명"` → `pcbeat start "작업명" <프로젝트>`. ff 불가·잠금 충돌이면 **멈추고 보고**한다(임의 merge·force 금지).
+- **같은 레포를 병렬로** 해야 하면 `agent-lock wt <레포> <작업이름>`(로컬 워크트리·브랜치 `agent/<기기>/<작업>`), 끝나면 테스트 후 `agent-lock wtdone`.
+- **끝**: 테스트 → 한 가지씩 커밋 → 즉시 `git push` → `agent-lock unlock <레포>` → `pcbeat done`.
+- **금지**: `push --force`·`reset --hard`·충돌 파일 통째 덮어쓰기·남의 `agent/…`·`auto/…` 브랜치 수정·`status/agent.json` 직접 수정(피클 전용). 키·주소·고객 정보는 어디에도 넣지 않는다.
+- 전체 규칙·한계·설치: `s2ongrae.github.io` 의 `docs/AGENT_COORDINATION.md`, 도구 `tools/agent-lock.ps1`.
